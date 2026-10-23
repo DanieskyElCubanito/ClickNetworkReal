@@ -13,6 +13,7 @@ import ShareTab from './components/ShareTab';
 import BottomNav from './components/BottomNav';
 import CaptchaVerification from './components/CaptchaVerification';
 import AdminDashboard from './components/AdminDashboard';
+import MarketTab from './components/MarketTab'; // 🔥 Nuevo componente para el mercado de canales
 
 const neonTheme = {
   container: { backgroundColor: '#0a0314', backgroundImage: 'radial-gradient(circle at 50% 10%, #2b0b47 0%, #0a0314 80%)', minHeight: '100vh', height: 'var(--tg-viewport-height, 100vh)', color: '#ffffff', fontFamily: "'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif", display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
@@ -31,12 +32,8 @@ function App() {
   const [isHuman, setIsHuman] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // 🔥 LÓGICA DE IDIOMA MANUAL Y AUTOMÁTICA
   const [lang, setLang] = useState(localStorage.getItem('click_lang') || 'es');
-
   const initialized = useRef(false);
-
-  // Función traductora global
   const t = (key) => translations[lang][key] || key;
 
   const verifyUser = async (teleUser, startParam) => {
@@ -78,7 +75,6 @@ function App() {
         const initData = WebApp.initData;
         const inviterId = WebApp.initDataUnsafe?.start_param;
 
-        // 🔥 Detectar idioma solo si el usuario no ha elegido uno manualmente
         if (!localStorage.getItem('click_lang') && user?.language_code) {
           const detectedLang = user.language_code.startsWith('es') ? 'es' : 'en';
           setLang(detectedLang);
@@ -132,9 +128,12 @@ function App() {
     <div style={neonTheme.container}>
       <Toaster position="top-center" toastOptions={{ style: { background: '#1d0833', color: '#fff', border: '2px solid #00f0ff', boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)', fontWeight: '800', fontSize: '13px' } }} />
       <div style={neonTheme.main}>
-        {/* 🔥 SE CORRIGIÓ: t={t} AHORA SE PASA A TODAS LAS PESTAÑAS */}
         {activeTab === 'home' && <div className="fade-in"><ProfileHeader userData={userData} t={t} lang={lang} setLang={setLang} /><HomeTab userData={userData} setUserData={setUserData} setActiveTab={setActiveTab} t={t} /></div>}
         {activeTab === 'tasks' && <div className="fade-in"><AdsTab userData={userData} setUserData={setUserData} t={t} /></div>}
+        
+        {/* 🔥 Nueva ruta para el Mercado de Canales */}
+        {activeTab === 'market' && <div className="fade-in"><MarketTab userData={userData} setUserData={setUserData} t={t} /></div>}
+        
         {activeTab === 'publish' && <div className="fade-in"><PublishTab userData={userData} setUserData={setUserData} setActiveTabGlobal={setActiveTab} t={t} /></div>}
         {activeTab === 'referrals' && <div className="fade-in"><ShareTab stats={stats} handleShare={handleShare} userId={userData?.id} totalReferralEarnings={userData?.referral_earnings} t={t} /></div>}
         {activeTab === 'admin' && <div className="fade-in"><AdminDashboard userData={userData} t={t} /></div>}
