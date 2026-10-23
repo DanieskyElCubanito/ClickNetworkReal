@@ -53,10 +53,10 @@ const neonStyles = {
 const TEMPLATES = [
   { title: 'Airdrop Boom', icon: '🚀', accent: '#ff007f', text: '🚀 Nuevo Airdrop confirmado. Participa gratis completando las tareas y asegura tus tokens.' },
   { title: 'Sorteo Neón', icon: '💎', accent: '#00f0ff', text: '💎 Gran recompensa activa para la comunidad. Entra al enlace y participa ahora mismo.' },
-  { title: 'Red de Tráfico', icon: '⚡', accent: '#ffe600', text: '⚡ Únete a nuestra red. Gana CLICK gratis todos los días completando tareas simples.' }
+  { title: 'Red de Tráfico', icon: '⚡', accent: '#ffe600', text: '⚡ Únete a nuestra red. Gana USDT gratis todos los días completando tareas simples.' }
 ];
 
-export default function PublishTab({ userData, setUserData, t }) {
+export default function PublishTab({ userData, setUserData, setActiveTabGlobal, t }) {
   const [activeTab, setActiveTab] = useState('create');
   const [step, setStep] = useState(1);
 
@@ -68,6 +68,7 @@ export default function PublishTab({ userData, setUserData, t }) {
   const [showButtonModal, setShowButtonModal] = useState(false);
   const [showAddGroupModal, setShowAddGroupModal] = useState(false);
   const [newGroupUrl, setNewGroupUrl] = useState('');
+  const [newGroupPrice, setNewGroupPrice] = useState(1);
   const [isVerifyingGroup, setIsVerifyingGroup] = useState(false);
 
   const [isPublishing, setIsPublishing] = useState(false);
@@ -78,10 +79,12 @@ export default function PublishTab({ userData, setUserData, t }) {
   const balance = Number(userData?.balance || 0);
   const [availableGroups, setAvailableGroups] = useState([]);
 
+  // Cálculos matemáticos del USDT: El frontend suma precios, pero el backend lo cobra + 20%
   const totalCost = selectedGroups.reduce((acc, groupId) => {
       const grp = availableGroups.find(g => g.id === groupId);
       if (grp && String(grp.creator_id) === String(userData?.id)) return acc; 
-      return acc + 10;
+      // El anunciante ve el precio + el fee de 20%
+      return acc + (grp ? Number((grp.price * 1.20).toFixed(4)) : 0);
   }, 0);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
@@ -94,11 +97,12 @@ export default function PublishTab({ userData, setUserData, t }) {
         body: JSON.stringify({ action: 'get-publish-groups' })
       });
       const dataComm = await resComm.json();
-      
+
       let allGroups = [];
       if (dataComm.success && dataComm.communityGroups) {
          dataComm.communityGroups.forEach(g => {
-           allGroups.push({ id: g.url, name: g.title, members: "...", isCommunity: true, creator_id: String(g.creator_id) });
+           // g es ahora de 'marketplace_canales'
+           allGroups.push({ id: g.chat_id, name: g.chat_id, price: Number(g.price_24h), members: "...", rating: g.rating, creator_id: String(g.owner_id) });
          });
       }
 
@@ -134,12 +138,11 @@ export default function PublishTab({ userData, setUserData, t }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'get-history', userId: userData.id })
+        body: JSON.stringify({ action: 'get-history' })
       });
       const data = await res.json();
       if (data.success && data.history) {
-        // 🔥 FIX: AHORA SOLO MUESTRA HISTORIAL DE "PUBLICACIONES" A GRUPOS
-        const pubLogs = data.history.filter(h => h.title && h.title.includes('Publicación'));
+        const pubLogs = data.history.filter(h => h.title && h.title.includes('Publicidad'));
         setHistoryList(pubLogs);
       }
     } catch (e) {} finally {
@@ -187,49 +190,52 @@ export default function PublishTab({ userData, setUserData, t }) {
     setShowButtonModal(false);
   };
 
-  const handleNextStep1 = () => { if (!postText.trim()) return toast.error("Text required."); setStep(2); };
+  const handleNextStep1 = () => { if (!postText.trim()) return toast.error("Escribe algo para publicar."); setStep(2); };
   const handleNextStep2 = () => setStep(3);
   const handleNextStep3 = () => {
-    if (selectedGroups.length === 0) return toast.error("Select group.");
-    if (balance < totalCost) return toast.error(`Not enough CLICK.`);
+    if (selectedGroups.length === 0) return toast.error("Selecciona al menos un canal del mercado.");
+    if (balance < totalCost) return toast.error(`Saldo insuficiente. Necesitas ${totalCost} USDT.`);
     setStep(4);
   };
 
   const handlePublish = async () => {
     setIsPublishing(true);
     const tid = toast.loading(t('pub_btn_launching'));
-    const finalButtonConfig = buttonConfig.url ? { text: buttonConfig.text || t('pub_open_link'), url: buttonConfig.url, style: buttonConfig.style } : null;
 
     try {
+      // Compra uno por uno al backend usando el sistema Escrow (buy-marketplace-ad)
       for (const chatId of selectedGroups) {
+        const targetGroup = availableGroups.find(g => g.id === chatId);
+        if (!targetGroup) continue;
+
         const response = await fetch('/api', {
           method: 'POST', headers: apiHeaders,
-          body: JSON.stringify({ action: 'publish-post', userId: userData?.id, chatId: chatId, text: postText, photoData: imageUrl || null, buttonConfig: finalButtonConfig, link: buttonConfig.url || null })
+          body: JSON.stringify({ action: 'buy-marketplace-ad', channel_owner_id: targetGroup.creator_id, chat_id: chatId, text: postText, price: targetGroup.price })
         });
         const data = await response.json();
         if (!data.success) throw new Error(data.error);
         if (data.balance !== undefined) setUserData((prev) => ({ ...prev, balance: data.balance }));
       }
-      toast.success("OK!", { id: tid });
+      toast.success("Pago retenido. Pendiente de aprobación del dueño.", { id: tid });
       setPostText(''); setImageUrl(''); setButtonConfig({ text: '', url: '', style: 'default' }); setSelectedGroups([]); setStep(1);
-      fetchPublishHistory();
+      setActiveTab('history');
     } catch (err) { toast.error(err.message || "Error", { id: tid }); } 
     finally { setIsPublishing(false); }
   };
 
   const handleAddCommunityGroup = async () => {
-    if (!newGroupUrl.trim()) return;
+    if (!newGroupUrl.trim() || newGroupPrice <= 0) return;
     setIsVerifyingGroup(true);
     const tid = toast.loading(t('pub_modal_grp_verifying'));
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'add-publish-group', userId: userData.id, url: newGroupUrl })
+        body: JSON.stringify({ action: 'add-publish-group', url: newGroupUrl, price: newGroupPrice })
       });
       const data = await res.json();
       if (data.success) {
         toast.success("OK!", { id: tid });
-        setNewGroupUrl('');
+        setNewGroupUrl(''); setNewGroupPrice(1);
         setShowAddGroupModal(false);
         fetchGroups(); 
       } else {
@@ -358,8 +364,9 @@ export default function PublishTab({ userData, setUserData, t }) {
                         {isMyGroup && <span style={{fontSize: '10px', background: '#00ffaa', color: '#000', padding: '2px 6px', borderRadius: '8px', marginLeft: '6px'}}>{t('pub_my_group')}</span>}
                       </div>
                       <div style={{ fontSize: '12px', color: isMyGroup ? '#00ffaa' : '#ff99dd', fontWeight: isMyGroup ? 'bold' : 'normal' }}>
-                        {grp.members} {isMyGroup ? ` • ${t('pub_publish_free')}` : ` • ${t('pub_publish_cost')}`}
+                        {grp.members} miembros {isMyGroup ? ` • ${t('pub_publish_free')}` : ` • USDT ${(grp.price * 1.20).toFixed(4)}`}
                       </div>
+                      <div style={{fontSize: '10px', color: '#ffe600', marginTop: '4px'}}>Rating: {grp.rating} ⭐</div>
                     </div>
                     <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: isSelected ? '#00f0ff' : 'transparent', border: '2px solid #00f0ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#050214', fontWeight: '900', fontSize: '14px' }}>
                       {isSelected ? '✓' : ''}
@@ -374,7 +381,7 @@ export default function PublishTab({ userData, setUserData, t }) {
 
               <div style={{ background: 'linear-gradient(90deg, #ff1493, #8a2be2)', borderRadius: '18px', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '14px', marginBottom: '14px', boxShadow: '0 4px 15px rgba(255, 20, 147, 0.3)', marginTop: '16px' }}>
                 <span>🎯 {selectedGroups.length} {t('pub_selected')}</span>
-                <span>{t('pub_cost')} {totalCost} CLICK</span>
+                <span>{t('pub_cost')} {totalCost.toFixed(4)} USDT</span>
               </div>
               <button onClick={handleNextStep3} style={neonStyles.btnPrimary}>{t('pub_btn_review')}</button>
             </div>
@@ -409,13 +416,13 @@ export default function PublishTab({ userData, setUserData, t }) {
               </div>
 
               <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '12px 16px', fontSize: '13px', marginBottom: '16px', color: '#fff', lineHeight: '1.7' }}>
-                • {t('pub_balance_current')} <strong style={{ color: '#00f0ff' }}>{balance} CLICK</strong><br />
-                • {t('pub_balance_cost')} <strong style={{ color: '#ff41b4' }}>-{totalCost} CLICK</strong><br />
-                • {t('pub_balance_left')} <strong style={{ color: '#ffe600' }}>{(balance - totalCost).toFixed(2)} CLICK</strong>
+                • {t('pub_balance_current')} <strong style={{ color: '#00f0ff' }}>{balance.toFixed(4)} USDT</strong><br />
+                • {t('pub_balance_cost')} <strong style={{ color: '#ff41b4' }}>-{totalCost.toFixed(4)} USDT</strong><br />
+                • {t('pub_balance_left')} <strong style={{ color: '#ffe600' }}>{(balance - totalCost).toFixed(4)} USDT</strong>
               </div>
 
               <button onClick={handlePublish} disabled={isPublishing} style={{ ...neonStyles.btnPrimary, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', boxShadow: '0 6px 0 #007744, 0 10px 20px rgba(0, 255, 170, 0.4)' }}>
-                {isPublishing ? t('pub_btn_launching') : t('pub_btn_launch')}
+                {isPublishing ? t('pub_btn_launching') : "⚡ ENVIAR A ESCROW ⚡"}
               </button>
             </div>
           )}
@@ -429,16 +436,17 @@ export default function PublishTab({ userData, setUserData, t }) {
               <h4 style={{ margin: 0, color: '#ffe600', fontSize: '16px', fontWeight: '900' }}>{t('pub_history_title')}</h4>
               <button onClick={fetchPublishHistory} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>🔄</button>
             </div>
+            
+            <p style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '14px' }}>{t('pub_history_desc')}</p>
 
-            {/* SECCIÓN 1: MIS GRUPOS REGISTRADOS */}
             {myCommunityGroups.length > 0 && (
               <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '11px', color: '#00ffaa', fontWeight: '900', marginBottom: '8px', textTransform: 'uppercase' }}>Tus Grupos Recaudadores</div>
+                <div style={{ fontSize: '11px', color: '#00ffaa', fontWeight: '900', marginBottom: '8px', textTransform: 'uppercase' }}>Tus Canales en Mercado</div>
                 {myCommunityGroups.map(grp => (
                   <div key={grp.id} style={{ ...neonStyles.cardInteractive, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.05)', marginBottom: '8px', padding: '10px 14px' }}>
                     <div>
                       <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900' }}>{grp.name}</div>
-                      <div style={{ color: '#ff99dd', fontSize: '11px' }}>{grp.members}</div>
+                      <div style={{ color: '#00ffaa', fontSize: '11px', fontWeight: 'bold' }}>Cobras: {grp.price} USDT</div>
                     </div>
                     <div style={{ color: '#00ffaa', fontSize: '20px' }}>🌐</div>
                   </div>
@@ -446,14 +454,13 @@ export default function PublishTab({ userData, setUserData, t }) {
               </div>
             )}
 
-            {/* SECCIÓN 2: HISTORIAL DE LOGS */}
-            <div style={{ fontSize: '11px', color: '#ff41b4', fontWeight: '900', marginBottom: '8px', textTransform: 'uppercase' }}>Historial de Campañas</div>
+            <div style={{ fontSize: '11px', color: '#ff41b4', fontWeight: '900', marginBottom: '8px', textTransform: 'uppercase' }}>Historial USDT</div>
             {loadingHistory ? (
               <div style={{ textAlign: 'center', padding: '20px 0', color: '#00f0ff', fontSize: '13px' }}>Cargando...</div>
             ) : historyList.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '30px 10px' }}>
                 <div style={{ fontSize: '36px', marginBottom: '8px' }}>📜</div>
-                <p style={{ fontSize: '12px', color: '#ff99dd', margin: '0 0 16px 0', lineHeight: '1.5' }}>No has realizado publicaciones a la red.</p>
+                <p style={{ fontSize: '12px', color: '#ff99dd', margin: '0 0 16px 0', lineHeight: '1.5' }}>Aún no hay transacciones en el mercado.</p>
                 <button onClick={() => setShowAddGroupModal(true)} style={{ width: '100%', padding: '12px', background: 'transparent', color: '#00f0ff', border: '2px dashed #00f0ff', borderRadius: '16px', fontWeight: '900', fontSize: '13px', cursor: 'pointer' }}>
                   {t('pub_btn_add_group')}
                 </button>
@@ -465,7 +472,7 @@ export default function PublishTab({ userData, setUserData, t }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                       <strong style={{ fontSize: '13px', color: '#fff' }}>{item.title}</strong>
                       <span style={{ fontSize: '12px', fontWeight: '900', color: item.amount >= 0 ? '#00ffaa' : '#ff1493' }}>
-                        {item.amount > 0 ? `+${item.amount}` : item.amount} CLICK
+                        {item.amount > 0 ? `+${item.amount}` : item.amount} USDT
                       </span>
                     </div>
                     <div style={{ fontSize: '11px', color: '#ff99dd' }}>{item.description}</div>
@@ -496,16 +503,6 @@ export default function PublishTab({ userData, setUserData, t }) {
               <input style={neonStyles.input} value={buttonConfig.url} onChange={(e) => setButtonConfig({ ...buttonConfig, url: e.target.value })} placeholder="https://t.me/..." />
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '11px', color: '#ff99dd', fontWeight: '900', display: 'block', marginBottom: '8px' }}>{t('pub_modal_btn_color')}</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => setButtonConfig({ ...buttonConfig, style: 'default' })} style={{ flex: 1, height: '36px', borderRadius: '10px', border: buttonConfig.style === 'default' || !buttonConfig.style ? '2px solid #fff' : 'none', background: 'rgba(255,255,255,0.2)', color: '#fff', fontSize: '11px', fontWeight: '900', cursor: 'pointer' }}>{t('pub_btn_gray')}</button>
-                <button onClick={() => setButtonConfig({ ...buttonConfig, style: 'primary' })} style={{ flex: 1, height: '36px', borderRadius: '10px', border: buttonConfig.style === 'primary' ? '2px solid #fff' : 'none', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#fff', fontSize: '11px', fontWeight: '900', cursor: 'pointer' }}>{t('pub_btn_blue')}</button>
-                <button onClick={() => setButtonConfig({ ...buttonConfig, style: 'success' })} style={{ flex: 1, height: '36px', borderRadius: '10px', border: buttonConfig.style === 'success' ? '2px solid #fff' : 'none', background: 'linear-gradient(90deg, #00ffaa, #00bb77)', color: '#fff', fontSize: '11px', fontWeight: '900', cursor: 'pointer' }}>{t('pub_btn_green')}</button>
-                <button onClick={() => setButtonConfig({ ...buttonConfig, style: 'danger' })} style={{ flex: 1, height: '36px', borderRadius: '10px', border: buttonConfig.style === 'danger' ? '2px solid #fff' : 'none', background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#fff', fontSize: '11px', fontWeight: '900', cursor: 'pointer' }}>{t('pub_btn_pink')}</button>
-              </div>
-            </div>
-
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={handleClearButton} style={{ ...neonStyles.btnLight, flex: 1, borderColor: '#ff1493', color: '#ff1493' }}>{t('pub_btn_clear')}</button>
               <button onClick={handleSaveButton} style={{ ...neonStyles.btnPrimary, flex: 2 }}>{t('pub_btn_save')}</button>
@@ -521,14 +518,19 @@ export default function PublishTab({ userData, setUserData, t }) {
               <h3 style={{ margin: 0, fontWeight: '900', color: '#00ffaa', fontSize: '17px' }}>{t('pub_modal_grp_title')}</h3>
               <button onClick={() => setShowAddGroupModal(false)} style={{ ...neonStyles.btnLight, padding: '4px 10px', color: '#fff', borderColor: '#ff1493' }}>✕</button>
             </div>
-            
+
             <p style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '14px', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
               {t('pub_modal_grp_desc')}
             </p>
 
-            <div style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: '14px' }}>
               <label style={{ fontSize: '11px', color: '#00ffaa', fontWeight: '900' }}>{t('pub_modal_grp_input')}</label>
-              <input style={{...neonStyles.input, borderColor: '#00ffaa'}} value={newGroupUrl} onChange={(e) => setNewGroupUrl(e.target.value)} placeholder="@ClickNetwork" />
+              <input style={{...neonStyles.input, borderColor: '#00ffaa'}} value={newGroupUrl} onChange={(e) => setNewGroupUrl(e.target.value)} placeholder="@MiCanal" />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '11px', color: '#ffe600', fontWeight: '900' }}>Tu precio en USDT (Libre de comisiones)</label>
+              <input type="number" step="0.1" min="1" style={{...neonStyles.input, borderColor: '#ffe600'}} value={newGroupPrice} onChange={(e) => setNewGroupPrice(Number(e.target.value))} placeholder="1.0" />
             </div>
 
             <button onClick={handleAddCommunityGroup} disabled={isVerifyingGroup} style={{ ...neonStyles.btnPrimary, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', boxShadow: '0 6px 0 #007744' }}>
