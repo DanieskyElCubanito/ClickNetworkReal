@@ -5,22 +5,26 @@ import crypto from 'crypto';
 import { TonClient, WalletContractV4, internal } from '@ton/ton';
 import { mnemonicNew, mnemonicToPrivateKey } from '@ton/crypto';
 
+// VARIABLES DE ENTORNO SEGURAS (Desde Vercel .env)
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 const supabase = createClient(
-  "https://shfogfihzkwmusarhlxv.supabase.co",
-  "sb_secret_g_KaYGOEQVt0EOYcFENy7g_gzGYQfdx",
+  supabaseUrl,
+  supabaseKey,
   { auth: { persistSession: false }, realtime: { transport: WebSocket }, global: { WebSocket: WebSocket } }
 );
 
-const BOT_TOKEN = "8954086426:AAGNgUtmREvFLI2SAapaOroLuiy6_05nRlM";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const BOT_ID = BOT_TOKEN.split(':')[0];
 const ADMIN_IDS = ['8968109534', '8892196101'];
 const MAIN_ADMIN_ID = '8968109534'; 
-const MY_MASTER_WALLET = "UQDgJUo4Ycvd9Q_ICUI6I-trCRcZgzBXHmhe0z_8lRHWfU3I";
+const FALLBACK_MASTER_WALLET = "UQDgJUo4Ycvd9Q_ICUI6I-trCRcZgzBXHmhe0z_8lRHWfU3I";
 
 const tonClient = new TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRPC' });
 
 function verifyTelegramWebAppData(telegramInitData) {
-  if (!telegramInitData) return false;
+  if (!telegramInitData || !BOT_TOKEN) return false;
   const urlParams = new URLSearchParams(telegramInitData);
   const hash = urlParams.get('hash');
   urlParams.delete('hash');
@@ -133,9 +137,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tasks: allTasks || [] });
     }
 
+    if (action === 'admin-set-wallet') {
+      const { adminId, newWallet } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false, error: 'Sin permisos.' });
+      await supabase.from('app_settings').upsert({ key: 'master_wallet', value: newWallet });
+      return res.status(200).json({ success: true, message: 'Billetera maestra actualizada con éxito.' });
+    }
+
     if (action === 'create-task') {
       const { type, title, url, bot_token, completions_total, reward_per_user } = req.body;
-      
+
       const rew = Number(reward_per_user || 0.001); 
       const costPerAction = rew / 0.40; 
       const count = Number(completions_total || 100); 
@@ -146,13 +157,13 @@ export default async function handler(req, res) {
 
       const newBalance = Number((dbUser.balance - totalCost).toFixed(4));
       await supabase.from('users').update({ balance: newBalance }).eq('id', targetId);
-      
+
       const { data: newTask } = await supabase.from('tasks').insert([{ 
         creator_id: targetId, type, title, url, bot_token: bot_token || null, 
         completions_total: count, completions_done: 0, 
         reward: rew, total_cost: totalCost, status: 'active' 
       }]).select().single();
-      
+
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '🚀 Campaña Creada', description: `${count} tareas pagando ${rew} USDT.`, amount: -totalCost }]);
       return res.status(200).json({ success: true, task: newTask, balance: newBalance });
     }
@@ -279,7 +290,7 @@ export default async function handler(req, res) {
     if (action === 'buy-marketplace-ad') {
       const { channel_owner_id, chat_id, text, duration_hours, price } = req.body;
       const priceForAdvertiser = Number((price * 1.20).toFixed(4)); 
-      
+
       const { data: adUser } = await supabase.from('users').select('balance').eq('id', targetId).single();
       if (!adUser || Number(adUser.balance || 0) < priceForAdvertiser) return res.status(400).json({ success: false, error: 'Saldo insuficiente.' });
 
@@ -297,7 +308,7 @@ export default async function handler(req, res) {
 
     if (action === 'approve-marketplace-ad') {
       const { contract_id, text, duration_hours } = req.body; 
-      
+
       const { data: contract } = await supabase.from('ad_contracts').select('*').eq('id', contract_id).single();
       if (!contract) return res.status(400).json({ error: 'Contrato no encontrado' });
       if (contract.channel_owner_id !== targetId) return res.status(403).json({ error: 'No autorizado' });
@@ -305,12 +316,12 @@ export default async function handler(req, res) {
       let payload = { chat_id: contract.chat_id, text: text, parse_mode: "HTML", disable_web_page_preview: true };
       const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const tgData = await tgRes.json();
-      
+
       if (!tgData.ok) return res.status(400).json({ success: false, error: 'El bot no pudo publicar en tu grupo/canal. Verifica permisos.' });
 
       const hrs = Number(duration_hours || 24);
       const endTime = new Date(Date.now() + hrs * 60 * 60 * 1000).toISOString();
-      
+
       await supabase.from('ad_contracts').update({ 
         status: 'active', 
         message_id: tgData.result.message_id,
@@ -415,7 +426,11 @@ export default async function handler(req, res) {
         const mnemonics = intent.encrypted_private_key.split(" "); const keyPair = await mnemonicToPrivateKey(mnemonics);
         const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
         const contract = tonClient.open(wallet); const seqno = await contract.getSeqno();
-        await contract.sendTransfer({ seqno: seqno || 0, secretKey: keyPair.secretKey, messages: [ internal({ to: MY_MASTER_WALLET, value: 0n, bounce: false, body: "Barrido Automático" }) ], sendMode: 128 });
+        
+        const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'master_wallet').maybeSingle();
+        const masterWalletAddress = setting ? setting.value : FALLBACK_MASTER_WALLET;
+
+        await contract.sendTransfer({ seqno: seqno || 0, secretKey: keyPair.secretKey, messages: [ internal({ to: masterWalletAddress, value: 0n, bounce: false, body: "Barrido Automático" }) ], sendMode: 128 });
       } catch (sweepError) {}
       return res.status(200).json({ success: true, balance: newBalance });
     }
