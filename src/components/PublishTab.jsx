@@ -5,49 +5,43 @@ import WebApp from '@twa-dev/sdk';
 const neonStyles = {
   container: { color: '#ffffff', paddingBottom: '20px' },
   title: {
-    fontSize: '24px', fontWeight: '900', textAlign: 'center', letterSpacing: '1.5px', textTransform: 'uppercase',
-    margin: '10px 0 16px 0', background: 'linear-gradient(90deg, #ff41b4, #00f0ff, #ffe600)',
-    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textShadow: '0 0 20px rgba(255, 65, 180, 0.4)'
+    fontSize: '22px', fontWeight: '900', textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase',
+    margin: '10px 0 20px 0', color: '#00f0ff', textShadow: '0 0 15px rgba(0, 240, 255, 0.4)'
   },
   card: {
-    background: 'linear-gradient(145deg, rgba(46, 16, 77, 0.85), rgba(20, 8, 38, 0.95))',
-    border: '2px solid #ff41b4', borderRadius: '24px', padding: '18px', marginBottom: '16px',
-    boxShadow: '0 8px 24px rgba(255, 65, 180, 0.25), inset 0 1px 0 rgba(255,255,255,0.2)'
+    background: 'linear-gradient(145deg, rgba(20, 8, 38, 0.9), rgba(15, 5, 28, 0.95))',
+    border: '1px solid rgba(0, 240, 255, 0.3)', borderRadius: '20px', padding: '18px', marginBottom: '16px',
+    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.5), inset 0 2px 10px rgba(0, 240, 255, 0.05)'
   },
   cardInteractive: {
-    background: 'linear-gradient(135deg, rgba(38, 14, 66, 0.9), rgba(18, 7, 36, 0.9))',
-    border: '2px solid #8a2be2', borderRadius: '20px', padding: '14px 18px', marginBottom: '12px',
+    background: 'rgba(25, 10, 45, 0.6)',
+    border: '1.5px solid rgba(255, 20, 147, 0.4)', borderRadius: '16px', padding: '14px 16px', marginBottom: '12px',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
-    boxShadow: '0 4px 15px rgba(138, 43, 226, 0.3)', transition: 'all 0.2s ease'
+    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)', transition: 'all 0.2s ease'
   },
   btnPrimary: {
-    width: '100%', padding: '15px', background: 'linear-gradient(180deg, #ff66cc 0%, #ff1493 50%, #d80073 100%)',
-    color: '#ffffff', border: 'none', borderRadius: '18px', fontWeight: '900', fontSize: '16px',
-    letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.4)'
+    width: '100%', padding: '15px', background: 'linear-gradient(90deg, #ff1493, #d80073)',
+    color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '15px',
+    letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.3)',
+    textTransform: 'uppercase'
   },
-  btnDark: {
-    padding: '12px 18px', background: 'linear-gradient(180deg, #00ffff, #00aaff)', color: '#050214',
-    border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '13px', cursor: 'pointer',
-    boxShadow: '0 4px 0 #0077aa, 0 6px 15px rgba(0, 255, 255, 0.4)'
-  },
-  btnLight: {
-    padding: '12px 18px', background: 'rgba(255, 255, 255, 0.08)', color: '#ff99dd',
-    border: '2px solid rgba(255, 65, 180, 0.3)', borderRadius: '16px', fontWeight: '800', fontSize: '13px', cursor: 'pointer'
+  btnCyan: {
+    width: '100%', padding: '15px', background: 'linear-gradient(90deg, #00f0ff, #0088ff)',
+    color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '15px',
+    letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.3)',
+    textTransform: 'uppercase'
   },
   input: {
-    width: '100%', background: 'rgba(15, 5, 28, 0.8)', border: '2px solid #8a2be2', borderRadius: '16px',
-    padding: '12px 14px', fontSize: '14px', color: '#ffffff', outline: 'none', boxSizing: 'border-box'
+    width: '100%', background: 'rgba(10, 2, 20, 0.8)', border: '1.5px solid #8a2be2', borderRadius: '14px',
+    padding: '14px', fontSize: '14px', color: '#ffffff', outline: 'none', boxSizing: 'border-box',
+    transition: 'border 0.3s'
   },
-  progressBarContainer: { display: 'flex', justifyContent: 'center', gap: '8px', margin: '10px 0 20px 0' },
+  progressBarContainer: { display: 'flex', justifyContent: 'center', gap: '6px', margin: '10px 0 24px 0' },
   progressStep: (active) => ({
-    width: '45px', height: '8px',
-    background: active ? 'linear-gradient(90deg, #ff1493, #00f0ff)' : 'rgba(255, 255, 255, 0.1)',
-    borderRadius: '20px', boxShadow: active ? '0 0 10px #00f0ff' : 'none', transition: 'all 0.3s ease'
-  }),
-  historyItem: {
-    backgroundColor: '#120822', padding: '12px 14px', borderRadius: '14px',
-    border: '1px solid #3d1b63', marginBottom: '10px'
-  }
+    flex: 1, height: '6px', maxWidth: '40px',
+    background: active ? 'linear-gradient(90deg, #00f0ff, #ff1493)' : 'rgba(255, 255, 255, 0.1)',
+    borderRadius: '10px', boxShadow: active ? '0 0 10px #00f0ff' : 'none', transition: 'all 0.3s ease'
+  })
 };
 
 const TEMPLATES = [
@@ -56,7 +50,7 @@ const TEMPLATES = [
   { title: 'Red de Tráfico', icon: '⚡', accent: '#ffe600', text: '⚡ Únete a nuestra red. Gana USDT gratis todos los días completando tareas simples.' }
 ];
 
-export default function PublishTab({ userData, setUserData, setActiveTabGlobal, t }) {
+export default function PublishTab({ userData, setUserData, t }) {
   const [activeTab, setActiveTab] = useState('create');
   const [step, setStep] = useState(1);
 
@@ -73,7 +67,7 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [historyList, setHistoryList] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
 
   const fileInputRef = useRef(null);
   const balance = Number(userData?.balance || 0);
@@ -83,14 +77,15 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
   const totalCost = selectedGroups.reduce((acc, groupId) => {
       const grp = availableGroups.find(g => g.id === groupId);
       if (grp && String(grp.creator_id) === String(userData?.id)) return acc; 
-      // El anunciante ve el precio + el fee de 20%
       return acc + (grp ? Number((grp.price * 1.20).toFixed(4)) : 0);
   }, 0);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
+  // 🔥 CORE FIX: Se simplificó la extracción para que nunca falle la carga
   const fetchGroups = async () => {
     if (!userData?.id) return;
+    setLoadingData(true);
     try {
       const resComm = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
@@ -98,43 +93,26 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
       });
       const dataComm = await resComm.json();
 
-      let allGroups = [];
       if (dataComm.success && dataComm.communityGroups) {
-         dataComm.communityGroups.forEach(g => {
-           // g es ahora de 'marketplace_canales'
-           allGroups.push({ id: g.chat_id, name: g.chat_id, price: Number(g.price_24h), members: "...", rating: g.rating, creator_id: String(g.owner_id) });
-         });
+         const allGroups = dataComm.communityGroups.map(g => ({
+           id: g.chat_id, 
+           name: g.chat_id, 
+           price: Number(g.price_24h), 
+           members: "Activo", // Como no hay endpoint de stats, mostramos activo
+           rating: g.rating, 
+           creator_id: String(g.owner_id) 
+         }));
+         setAvailableGroups(allGroups);
       }
-
-      if (allGroups.length === 0) {
-        setAvailableGroups([]);
-        return;
-      }
-
-      const resStats = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'get-group-stats', groupIds: allGroups.map(g => g.id) })
-      });
-      const dataStats = await resStats.json();
-
-      if (dataStats.success && dataStats.stats) {
-        setAvailableGroups(allGroups.map(grp => {
-          const count = dataStats.stats[grp.id];
-          if (count) {
-            const formatted = count >= 1000 ? (count / 1000).toFixed(1).replace('.0', '') + 'K' : count;
-            return { ...grp, members: `${formatted}` };
-          }
-          return { ...grp, members: "N/A" };
-        }));
-      } else {
-        setAvailableGroups(allGroups);
-      }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Error obteniendo canales:", e);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   const fetchPublishHistory = async () => {
     if (!userData?.id) return;
-    setLoadingHistory(true);
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
@@ -145,9 +123,7 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
         const pubLogs = data.history.filter(h => h.title && h.title.includes('Publicidad'));
         setHistoryList(pubLogs);
       }
-    } catch (e) {} finally {
-      setLoadingHistory(false);
-    }
+    } catch (e) {}
   };
 
   useEffect(() => { 
@@ -176,17 +152,10 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
   };
 
   const handleSaveButton = () => {
-    if (buttonConfig.text && !buttonConfig.url) return toast.error("URL required.");
+    if (buttonConfig.text && !buttonConfig.url) return toast.error("URL requerida.");
     if (buttonConfig.url) {
-      const urlPattern = /^(https?:\/\/|t\.me\/).+/i;
-      if (!urlPattern.test(buttonConfig.url)) return toast.error("Invalid link.");
-      if (!buttonConfig.text.trim()) setButtonConfig(prev => ({ ...prev, text: t('pub_open_link') }));
+      if (!buttonConfig.text.trim()) setButtonConfig(prev => ({ ...prev, text: 'Abrir Enlace' }));
     }
-    setShowButtonModal(false);
-  };
-
-  const handleClearButton = () => {
-    setButtonConfig({ text: '', url: '', style: 'default' });
     setShowButtonModal(false);
   };
 
@@ -200,10 +169,9 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
 
   const handlePublish = async () => {
     setIsPublishing(true);
-    const tid = toast.loading(t('pub_btn_launching'));
+    const tid = toast.loading("Enviando al Escrow...");
 
     try {
-      // Compra uno por uno al backend usando el sistema Escrow (buy-marketplace-ad)
       for (const chatId of selectedGroups) {
         const targetGroup = availableGroups.find(g => g.id === chatId);
         if (!targetGroup) continue;
@@ -216,7 +184,7 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
         if (!data.success) throw new Error(data.error);
         if (data.balance !== undefined) setUserData((prev) => ({ ...prev, balance: data.balance }));
       }
-      toast.success("Pago retenido. Pendiente de aprobación del dueño.", { id: tid });
+      toast.success("Pago retenido. Pendiente de aprobación.", { id: tid });
       setPostText(''); setImageUrl(''); setButtonConfig({ text: '', url: '', style: 'default' }); setSelectedGroups([]); setStep(1);
       setActiveTab('history');
     } catch (err) { toast.error(err.message || "Error", { id: tid }); } 
@@ -224,9 +192,9 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
   };
 
   const handleAddCommunityGroup = async () => {
-    if (!newGroupUrl.trim() || newGroupPrice <= 0) return;
+    if (!newGroupUrl.trim() || newGroupPrice <= 0) return toast.error("Datos inválidos");
     setIsVerifyingGroup(true);
-    const tid = toast.loading(t('pub_modal_grp_verifying'));
+    const tid = toast.loading("Verificando permisos...");
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
@@ -234,14 +202,14 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("OK!", { id: tid });
+        toast.success("¡Canal listado en el Mercado!", { id: tid });
         setNewGroupUrl(''); setNewGroupPrice(1);
         setShowAddGroupModal(false);
         fetchGroups(); 
       } else {
         toast.error(data.error || "Error", { id: tid });
       }
-    } catch (err) { toast.error("Error", { id: tid }); } 
+    } catch (err) { toast.error("Error de conexión", { id: tid }); } 
     finally { setIsVerifyingGroup(false); }
   };
 
@@ -250,20 +218,22 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
   return (
     <div style={neonStyles.container}>
       <Toaster position="top-center" />
-      <h2 style={neonStyles.title}>{t('pub_title')}</h2>
+      <h2 style={neonStyles.title}>Marketplace</h2>
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-        <button onClick={() => setActiveTab('create')} style={activeTab === 'create' ? { ...neonStyles.btnDark, flex: 1 } : { ...neonStyles.btnLight, flex: 1 }}>
-          {t('pub_tab_new')}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', padding: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px' }}>
+        <button onClick={() => setActiveTab('create')} style={{ flex: 1, padding: '12px', borderRadius: '16px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.2s', background: activeTab === 'create' ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'transparent', color: activeTab === 'create' ? '#050214' : '#00f0ff' }}>
+          PUBLICAR ANUNCIO
         </button>
-        <button onClick={() => setActiveTab('history')} style={activeTab === 'history' ? { ...neonStyles.btnDark, flex: 1 } : { ...neonStyles.btnLight, flex: 1 }}>
-          {t('pub_tab_history')}
+        <button onClick={() => setActiveTab('history')} style={{ flex: 1, padding: '12px', borderRadius: '16px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.2s', background: activeTab === 'history' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: activeTab === 'history' ? '#fff' : '#ff99dd' }}>
+          MIS CANALES / PAGOS
         </button>
       </div>
 
       {activeTab === 'create' && (
-        <>
-          <div style={{ textAlign: 'center', fontSize: '12px', fontWeight: '900', color: '#ff66cc', letterSpacing: '1px' }}>{t('pub_step')} {step} {t('pub_of')} 4</div>
+        <div className="fade-in">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff41b4' }}>PASO {step} DE 4</div>
+          </div>
           <div style={neonStyles.progressBarContainer}>
             <div style={neonStyles.progressStep(step >= 1)} />
             <div style={neonStyles.progressStep(step >= 2)} />
@@ -273,22 +243,22 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
 
           {step === 1 && (
             <div className="fade-in">
-              <h3 style={{ fontSize: '17px', fontWeight: '900', marginBottom: '10px', color: '#ffe600' }}>{t('pub_q_promote')}</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '900', marginBottom: '14px', color: '#fff' }}>Diseña tu Anuncio</h3>
               <div style={neonStyles.card}>
                 <textarea
-                  style={{ ...neonStyles.input, height: '115px', resize: 'none', border: 'none', background: 'transparent', padding: 0, fontSize: '15px' }}
-                  placeholder={t('pub_placeholder_html')}
+                  style={{ ...neonStyles.input, height: '120px', resize: 'none', background: 'rgba(0,0,0,0.3)', border: '1px dashed #00f0ff' }}
+                  placeholder="Ej: 🔥 Únete a mi canal y gana..."
                   maxLength={1000} value={postText} onChange={(e) => setPostText(e.target.value)}
                 />
-                <div style={{ textAlign: 'right', fontSize: '11px', color: '#ff99dd', marginTop: '6px', fontWeight: 'bold' }}>{postText.length} / 1000</div>
-                <button onClick={handleNextStep1} style={{ ...neonStyles.btnPrimary, marginTop: '14px' }}>{t('pub_btn_next')}</button>
+                <div style={{ textAlign: 'right', fontSize: '11px', color: '#00f0ff', marginTop: '8px' }}>{postText.length} / 1000</div>
+                <button onClick={handleNextStep1} style={{ ...neonStyles.btnCyan, marginTop: '16px' }}>SIGUIENTE ➔</button>
               </div>
 
-              <div style={{ fontSize: '12px', fontWeight: '900', color: '#00f0ff', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('pub_templates')}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', marginBottom: '10px', textTransform: 'uppercase' }}>Plantillas Rápidas</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                 {TEMPLATES.map((tmpl, idx) => (
-                  <div key={idx} onClick={() => setPostText(tmpl.text)} style={{ ...neonStyles.card, padding: '12px 8px', cursor: 'pointer', marginBottom: 0, borderColor: tmpl.accent, textAlign: 'center' }}>
-                    <div style={{ fontSize: '26px', marginBottom: '4px' }}>{tmpl.icon}</div>
+                  <div key={idx} onClick={() => setPostText(tmpl.text)} style={{ ...neonStyles.card, padding: '14px 8px', cursor: 'pointer', marginBottom: 0, borderColor: tmpl.accent, textAlign: 'center', background: 'rgba(20,8,38,0.6)' }}>
+                    <div style={{ fontSize: '28px', marginBottom: '6px' }}>{tmpl.icon}</div>
                     <div style={{ fontWeight: '900', fontSize: '11px', color: '#fff' }}>{tmpl.title}</div>
                   </div>
                 ))}
@@ -298,248 +268,218 @@ export default function PublishTab({ userData, setUserData, setActiveTabGlobal, 
 
           {step === 2 && (
             <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <button onClick={() => setStep(1)} style={{ ...neonStyles.btnLight, padding: '6px 12px' }}>◀</button>
-                <h3 style={{ fontSize: '17px', fontWeight: '900', margin: 0, color: '#ffe600' }}>{t('pub_multimedia')}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <button onClick={() => setStep(1)} style={{ background: 'transparent', border: 'none', color: '#00f0ff', fontSize: '20px', cursor: 'pointer' }}>◀</button>
+                <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#fff' }}>Elementos (Opcional)</h3>
               </div>
-              <p style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '14px' }}>{t('pub_multimedia_desc')}</p>
 
               <div onClick={() => fileInputRef.current.click()} style={neonStyles.cardInteractive}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ fontSize: '28px' }}>🖼️</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ fontSize: '32px' }}>🖼️</div>
                   <div>
-                    <div style={{ fontWeight: '900', color: '#ffffff', fontSize: '15px' }}>{t('pub_img_title')}</div>
-                    <div style={{ fontSize: '12px', color: imageUrl ? '#00f0ff' : '#aaa' }}>{imageUrl ? t('pub_img_attached') : t('pub_img_upload')}</div>
+                    <div style={{ fontWeight: '900', color: '#ffffff', fontSize: '15px' }}>Adjuntar Imagen</div>
+                    <div style={{ fontSize: '12px', color: imageUrl ? '#00ffaa' : '#ff99dd' }}>{imageUrl ? 'Imagen lista' : 'Sube un banner para tu anuncio'}</div>
                   </div>
                 </div>
-                {imageUrl && (
-                  <button onClick={(e) => { e.stopPropagation(); setImageUrl(''); }} style={{ background: 'transparent', border: 'none', color: '#ff1493', fontWeight: 'bold', fontSize: '14px' }}>✕</button>
-                )}
-                {!imageUrl && <div style={{ color: '#00f0ff', fontWeight: '900', fontSize: '18px' }}>➔</div>}
+                {imageUrl && <button onClick={(e) => { e.stopPropagation(); setImageUrl(''); }} style={{ background: 'transparent', border: 'none', color: '#ff1493', fontWeight: 'bold' }}>✕</button>}
               </div>
               <input type="file" ref={fileInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
 
-              <div onClick={() => setShowButtonModal(true)} style={neonStyles.cardInteractive}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ fontSize: '28px' }}>🔘</div>
+              <div onClick={() => setShowButtonModal(true)} style={{...neonStyles.cardInteractive, borderColor: '#00f0ff'}}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ fontSize: '32px' }}>🔘</div>
                   <div>
-                    <div style={{ fontWeight: '900', color: '#ffffff', fontSize: '15px' }}>{t('pub_btn_title')}</div>
-                    <div style={{ fontSize: '12px', color: buttonConfig.url ? '#ff41b4' : '#aaa' }}>{buttonConfig.url ? `${t('pub_btn_configured')} "${buttonConfig.text}"` : t('pub_btn_add')}</div>
+                    <div style={{ fontWeight: '900', color: '#ffffff', fontSize: '15px' }}>Botón Interactivo</div>
+                    <div style={{ fontSize: '12px', color: buttonConfig.url ? '#00ffaa' : '#00f0ff' }}>{buttonConfig.url ? `Botón: "${buttonConfig.text}"` : 'Agrega un botón con enlace'}</div>
                   </div>
                 </div>
-                <div style={{ color: '#ff41b4', fontWeight: '900', fontSize: '18px' }}>➔</div>
+                <div style={{ color: '#00f0ff', fontWeight: '900', fontSize: '18px' }}>+</div>
               </div>
 
-              <button onClick={handleNextStep2} style={{ ...neonStyles.btnPrimary, marginTop: '16px' }}>{t('pub_btn_target')}</button>
+              <button onClick={handleNextStep2} style={{ ...neonStyles.btnCyan, marginTop: '20px' }}>SIGUIENTE ➔</button>
             </div>
           )}
 
           {step === 3 && (
             <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <button onClick={() => setStep(2)} style={{ ...neonStyles.btnLight, padding: '6px 12px' }}>◀</button>
-                <h3 style={{ fontSize: '17px', fontWeight: '900', margin: 0, color: '#ffe600' }}>{t('pub_where')}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <button onClick={() => setStep(2)} style={{ background: 'transparent', border: 'none', color: '#00f0ff', fontSize: '20px', cursor: 'pointer' }}>◀</button>
+                <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#fff' }}>¿Dónde publicar?</h3>
               </div>
-              <p style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '14px' }}>{t('pub_where_desc')}</p>
 
-              {availableGroups.length === 0 && (
+              {loadingData ? (
+                <div style={{ textAlign: 'center', color: '#00f0ff', padding: '20px' }}>Cargando mercado...</div>
+              ) : availableGroups.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', marginBottom: '14px' }}>
-                  <p style={{ fontSize: '13px', color: '#ccc', margin: 0 }}>{t('pub_empty_groups')}</p>
+                  <p style={{ fontSize: '13px', color: '#ff99dd', margin: 0 }}>El mercado está vacío. ¡Añade tu canal y sé el primero en cobrar!</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {availableGroups.map((grp) => {
+                    const isSelected = selectedGroups.includes(grp.id);
+                    const isMyGroup = String(grp.creator_id) === String(userData?.id);
+
+                    return (
+                      <div key={grp.id} onClick={() => handleToggleGroup(grp.id)} style={{ ...neonStyles.cardInteractive, borderColor: isSelected ? '#00f0ff' : '#3d1b63', background: isSelected ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(46, 16, 77, 0.9))' : 'rgba(25, 10, 45, 0.6)' }}>
+                        <div>
+                          <div style={{ fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>
+                            {grp.name} {isMyGroup && <span style={{fontSize: '10px', background: '#ff1493', color: '#fff', padding: '2px 6px', borderRadius: '8px'}}>Mío</span>}
+                          </div>
+                          <div style={{ fontSize: '12px', color: isMyGroup ? '#ff99dd' : '#00f0ff', fontWeight: 'bold' }}>
+                            {isMyGroup ? `Publicas gratis` : `Precio: ${(grp.price * 1.20).toFixed(4)} USDT`}
+                          </div>
+                        </div>
+                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: isSelected ? '#00f0ff' : 'transparent', border: '2px solid #00f0ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#050214', fontWeight: '900', fontSize: '14px' }}>
+                          {isSelected ? '✓' : ''}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              {availableGroups.map((grp) => {
-                const isSelected = selectedGroups.includes(grp.id);
-                const isMyGroup = String(grp.creator_id) === String(userData?.id);
-
-                return (
-                  <div 
-                    key={grp.id} 
-                    onClick={() => handleToggleGroup(grp.id)} 
-                    style={{ ...neonStyles.cardInteractive, borderColor: isSelected ? '#00f0ff' : '#8a2be2', background: isSelected ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(46, 16, 77, 0.9))' : neonStyles.cardInteractive.background }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>
-                        {grp.name} 
-                        {isMyGroup && <span style={{fontSize: '10px', background: '#00ffaa', color: '#000', padding: '2px 6px', borderRadius: '8px', marginLeft: '6px'}}>{t('pub_my_group')}</span>}
-                      </div>
-                      <div style={{ fontSize: '12px', color: isMyGroup ? '#00ffaa' : '#ff99dd', fontWeight: isMyGroup ? 'bold' : 'normal' }}>
-                        {grp.members} miembros {isMyGroup ? ` • ${t('pub_publish_free')}` : ` • USDT ${(grp.price * 1.20).toFixed(4)}`}
-                      </div>
-                      <div style={{fontSize: '10px', color: '#ffe600', marginTop: '4px'}}>Rating: {grp.rating} ⭐</div>
-                    </div>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: isSelected ? '#00f0ff' : 'transparent', border: '2px solid #00f0ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#050214', fontWeight: '900', fontSize: '14px' }}>
-                      {isSelected ? '✓' : ''}
-                    </div>
-                  </div>
-                );
-              })}
-
-              <button onClick={() => setShowAddGroupModal(true)} style={{ width: '100%', padding: '12px', background: 'transparent', color: '#00f0ff', border: '2px dashed #00f0ff', borderRadius: '16px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', marginBottom: '14px' }}>
-                {t('pub_btn_add_group')}
+              <button onClick={() => setShowAddGroupModal(true)} style={{ width: '100%', padding: '14px', background: 'rgba(255,20,147,0.1)', color: '#ff1493', border: '2px dashed #ff1493', borderRadius: '16px', fontWeight: '900', fontSize: '14px', cursor: 'pointer', margin: '20px 0' }}>
+                + AÑADIR MI CANAL AL MERCADO
               </button>
 
-              <div style={{ background: 'linear-gradient(90deg, #ff1493, #8a2be2)', borderRadius: '18px', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '14px', marginBottom: '14px', boxShadow: '0 4px 15px rgba(255, 20, 147, 0.3)', marginTop: '16px' }}>
-                <span>🎯 {selectedGroups.length} {t('pub_selected')}</span>
-                <span>{t('pub_cost')} {totalCost.toFixed(4)} USDT</span>
+              <div style={{ background: 'linear-gradient(90deg, #10061e, #1a0b33)', border: '1px solid #00f0ff', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '15px', marginBottom: '16px' }}>
+                <span style={{ color: '#fff' }}>Seleccionados: <span style={{ color: '#00f0ff' }}>{selectedGroups.length}</span></span>
+                <span style={{ color: '#fff' }}>Costo: <span style={{ color: '#ff41b4' }}>{totalCost.toFixed(4)} USDT</span></span>
               </div>
-              <button onClick={handleNextStep3} style={neonStyles.btnPrimary}>{t('pub_btn_review')}</button>
+
+              <button onClick={handleNextStep3} style={neonStyles.btnCyan}>REVISAR COMPRA ➔</button>
             </div>
           )}
 
           {step === 4 && (
             <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <button onClick={() => setStep(3)} style={{ ...neonStyles.btnLight, padding: '6px 12px' }}>◀</button>
-                <h3 style={{ fontSize: '17px', fontWeight: '900', margin: 0, color: '#ffe600' }}>{t('pub_preview')}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <button onClick={() => setStep(3)} style={{ background: 'transparent', border: 'none', color: '#ff1493', fontSize: '20px', cursor: 'pointer' }}>◀</button>
+                <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#fff' }}>Confirmar Escrow</h3>
               </div>
 
-              <div style={neonStyles.card}>
-                <div style={{ fontSize: '11px', color: '#00f0ff', fontWeight: '900', marginBottom: '8px' }}>{t('pub_post')}</div>
-                <div style={{ whiteSpace: 'pre-wrap', fontSize: '14px', marginBottom: '12px', color: '#fff', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: postText.replace(/\n/g, '<br/>') }} />
-
-                {imageUrl && <div style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '12px' }}>{t('pub_img_tag')}</div>}
+              <div style={{...neonStyles.card, borderColor: '#00ffaa'}}>
+                <div style={{ fontSize: '11px', color: '#00ffaa', fontWeight: '900', marginBottom: '10px', textTransform: 'uppercase' }}>Vista Previa</div>
+                <div style={{ fontSize: '14px', marginBottom: '14px', color: '#fff', lineHeight: '1.5' }} dangerouslySetInnerHTML={{ __html: postText.replace(/\n/g, '<br/>') }} />
 
                 {buttonConfig.url && (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    padding: '12px 18px', borderRadius: '12px', fontSize: '14px', fontWeight: '900',
-                    background: buttonConfig.style === 'primary' ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 
-                               buttonConfig.style === 'success' ? 'linear-gradient(90deg, #00ffaa, #00bb77)' : 
-                               buttonConfig.style === 'danger' ? 'linear-gradient(90deg, #ff1493, #d80073)' : 
-                               '#2F3A4C',
-                    color: '#ffffff', textTransform: 'none', boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                  }}>
-                    {buttonConfig.text || t('pub_open_link')}
+                  <div style={{ padding: '12px', textAlign: 'center', borderRadius: '12px', fontSize: '14px', fontWeight: '900', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214' }}>
+                    {buttonConfig.text || 'Abrir Enlace'}
                   </div>
                 )}
               </div>
 
-              <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '12px 16px', fontSize: '13px', marginBottom: '16px', color: '#fff', lineHeight: '1.7' }}>
-                • {t('pub_balance_current')} <strong style={{ color: '#00f0ff' }}>{balance.toFixed(4)} USDT</strong><br />
-                • {t('pub_balance_cost')} <strong style={{ color: '#ff41b4' }}>-{totalCost.toFixed(4)} USDT</strong><br />
-                • {t('pub_balance_left')} <strong style={{ color: '#ffe600' }}>{(balance - totalCost).toFixed(4)} USDT</strong>
+              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '16px', padding: '16px', fontSize: '14px', marginBottom: '20px', color: '#fff', border: '1px dashed #ff1493' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>Saldo actual:</span> <strong style={{ color: '#00f0ff' }}>{balance.toFixed(4)} USDT</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>A retener:</span> <strong style={{ color: '#ff1493' }}>-{totalCost.toFixed(4)} USDT</strong>
+                </div>
+                <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '10px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900' }}>
+                  <span>Saldo restante:</span> <strong style={{ color: '#ffe600' }}>{(balance - totalCost).toFixed(4)} USDT</strong>
+                </div>
               </div>
 
-              <button onClick={handlePublish} disabled={isPublishing} style={{ ...neonStyles.btnPrimary, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', boxShadow: '0 6px 0 #007744, 0 10px 20px rgba(0, 255, 170, 0.4)' }}>
-                {isPublishing ? t('pub_btn_launching') : "⚡ ENVIAR A ESCROW ⚡"}
+              <button onClick={handlePublish} disabled={isPublishing} style={{ ...neonStyles.btnPrimary, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', boxShadow: '0 6px 0 #007744', color: '#050214' }}>
+                {isPublishing ? 'PROCESANDO...' : 'PAGAR CON ESCROW'}
               </button>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {activeTab === 'history' && (
         <div className="fade-in">
-          <div style={neonStyles.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h4 style={{ margin: 0, color: '#ffe600', fontSize: '16px', fontWeight: '900' }}>{t('pub_history_title')}</h4>
-              <button onClick={fetchPublishHistory} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>🔄</button>
-            </div>
-            
-            <p style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '14px' }}>{t('pub_history_desc')}</p>
-
-            {myCommunityGroups.length > 0 && (
-              <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '11px', color: '#00ffaa', fontWeight: '900', marginBottom: '8px', textTransform: 'uppercase' }}>Tus Canales en Mercado</div>
-                {myCommunityGroups.map(grp => (
-                  <div key={grp.id} style={{ ...neonStyles.cardInteractive, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.05)', marginBottom: '8px', padding: '10px 14px' }}>
-                    <div>
-                      <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900' }}>{grp.name}</div>
-                      <div style={{ color: '#00ffaa', fontSize: '11px', fontWeight: 'bold' }}>Cobras: {grp.price} USDT</div>
-                    </div>
-                    <div style={{ color: '#00ffaa', fontSize: '20px' }}>🌐</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ fontSize: '11px', color: '#ff41b4', fontWeight: '900', marginBottom: '8px', textTransform: 'uppercase' }}>Historial USDT</div>
-            {loadingHistory ? (
-              <div style={{ textAlign: 'center', padding: '20px 0', color: '#00f0ff', fontSize: '13px' }}>Cargando...</div>
-            ) : historyList.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px 10px' }}>
-                <div style={{ fontSize: '36px', marginBottom: '8px' }}>📜</div>
-                <p style={{ fontSize: '12px', color: '#ff99dd', margin: '0 0 16px 0', lineHeight: '1.5' }}>Aún no hay transacciones en el mercado.</p>
-                <button onClick={() => setShowAddGroupModal(true)} style={{ width: '100%', padding: '12px', background: 'transparent', color: '#00f0ff', border: '2px dashed #00f0ff', borderRadius: '16px', fontWeight: '900', fontSize: '13px', cursor: 'pointer' }}>
-                  {t('pub_btn_add_group')}
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
-                {historyList.map(item => (
-                  <div key={item.id} style={neonStyles.historyItem}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <strong style={{ fontSize: '13px', color: '#fff' }}>{item.title}</strong>
-                      <span style={{ fontSize: '12px', fontWeight: '900', color: item.amount >= 0 ? '#00ffaa' : '#ff1493' }}>
-                        {item.amount > 0 ? `+${item.amount}` : item.amount} USDT
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#ff99dd' }}>{item.description}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, color: '#00f0ff', fontSize: '18px', fontWeight: '900' }}>Mi Ecosistema</h3>
+            <button onClick={() => setShowAddGroupModal(true)} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '8px 12px', color: '#fff', fontWeight: '900', fontSize: '12px' }}>+ AÑADIR CANAL</button>
           </div>
+
+          <div style={{ fontSize: '12px', color: '#00ffaa', fontWeight: '900', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Canales Monetizando</div>
+          {myCommunityGroups.length === 0 ? (
+            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '16px', textAlign: 'center', marginBottom: '20px', border: '1px dashed #ff99dd' }}>
+              <p style={{ color: '#ff99dd', fontSize: '13px', margin: 0 }}>No has añadido ningún canal al mercado para ganar USDT.</p>
+            </div>
+          ) : (
+            <div style={{ marginBottom: '24px' }}>
+              {myCommunityGroups.map(grp => (
+                <div key={grp.id} style={{ ...neonStyles.cardInteractive, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.05)' }}>
+                  <div>
+                    <div style={{ color: '#fff', fontSize: '15px', fontWeight: '900' }}>{grp.name}</div>
+                    <div style={{ color: '#00ffaa', fontSize: '12px', fontWeight: 'bold' }}>Tus ganancias por anuncio: {grp.price} USDT</div>
+                  </div>
+                  <div style={{ color: '#00ffaa', fontSize: '24px' }}>💰</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ fontSize: '12px', color: '#ff41b4', fontWeight: '900', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Historial Publicitario</div>
+          {historyList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px 10px', background: 'rgba(0,0,0,0.3)', borderRadius: '16px' }}>
+              <p style={{ fontSize: '13px', color: '#aaa', margin: 0 }}>Aún no has comprado ni vendido anuncios.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {historyList.map(item => (
+                <div key={item.id} style={{ background: '#120822', padding: '14px', borderRadius: '14px', border: '1px solid #3d1b63' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <strong style={{ fontSize: '14px', color: '#fff' }}>{item.title}</strong>
+                    <span style={{ fontSize: '14px', fontWeight: '900', color: item.amount >= 0 ? '#00ffaa' : '#ff1493' }}>
+                      {item.amount > 0 ? `+${item.amount}` : item.amount} USDT
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#ff99dd' }}>{item.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* MODALES INFERIORES */}
+      {/* MODALES */}
       {showButtonModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100000, backdropFilter: 'blur(5px)' }}>
-          <div style={{ ...neonStyles.card, width: '100%', maxWidth: '340px', marginBottom: 0, borderColor: '#00f0ff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontWeight: '900', color: '#00f0ff', fontSize: '17px' }}>{t('pub_modal_btn_title')}</h3>
-              <button onClick={() => setShowButtonModal(false)} style={{ ...neonStyles.btnLight, padding: '4px 10px', color: '#fff', borderColor: '#ff1493' }}>✕</button>
-            </div>
-
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ fontSize: '11px', color: '#ff99dd', fontWeight: '900' }}>{t('pub_modal_btn_text')}</label>
-              <input style={neonStyles.input} value={buttonConfig.text} onChange={(e) => setButtonConfig({ ...buttonConfig, text: e.target.value })} />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '11px', color: '#ff99dd', fontWeight: '900' }}>{t('pub_modal_btn_url')}</label>
-              <input style={neonStyles.input} value={buttonConfig.url} onChange={(e) => setButtonConfig({ ...buttonConfig, url: e.target.value })} placeholder="https://t.me/..." />
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={handleClearButton} style={{ ...neonStyles.btnLight, flex: 1, borderColor: '#ff1493', color: '#ff1493' }}>{t('pub_btn_clear')}</button>
-              <button onClick={handleSaveButton} style={{ ...neonStyles.btnPrimary, flex: 2 }}>{t('pub_btn_save')}</button>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 100000 }}>
+          <div style={{ ...neonStyles.card, width: '100%', maxWidth: '360px', borderColor: '#00f0ff' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontWeight: '900', color: '#00f0ff', fontSize: '18px' }}>Configurar Botón</h3>
+            
+            <label style={{ fontSize: '12px', color: '#ff99dd', fontWeight: '900', display: 'block', marginBottom: '6px' }}>Texto del Botón</label>
+            <input style={{...neonStyles.input, marginBottom: '16px'}} value={buttonConfig.text} onChange={(e) => setButtonConfig({ ...buttonConfig, text: e.target.value })} placeholder="Ej: Únete Ahora" />
+            
+            <label style={{ fontSize: '12px', color: '#ff99dd', fontWeight: '900', display: 'block', marginBottom: '6px' }}>Enlace (URL)</label>
+            <input style={{...neonStyles.input, marginBottom: '20px'}} value={buttonConfig.url} onChange={(e) => setButtonConfig({ ...buttonConfig, url: e.target.value })} placeholder="https://t.me/..." />
+            
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => { setButtonConfig({ text: '', url: '', style: 'default' }); setShowButtonModal(false); }} style={{ flex: 1, padding: '14px', background: 'transparent', color: '#ff1493', border: '2px solid #ff1493', borderRadius: '14px', fontWeight: '900' }}>BORRAR</button>
+              <button onClick={handleSaveButton} style={{ flex: 1, padding: '14px', background: '#00f0ff', color: '#050214', border: 'none', borderRadius: '14px', fontWeight: '900' }}>GUARDAR</button>
             </div>
           </div>
         </div>
       )}
 
       {showAddGroupModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100000, backdropFilter: 'blur(5px)' }}>
-          <div style={{ ...neonStyles.card, width: '100%', maxWidth: '340px', marginBottom: 0, borderColor: '#00ffaa' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontWeight: '900', color: '#00ffaa', fontSize: '17px' }}>{t('pub_modal_grp_title')}</h3>
-              <button onClick={() => setShowAddGroupModal(false)} style={{ ...neonStyles.btnLight, padding: '4px 10px', color: '#fff', borderColor: '#ff1493' }}>✕</button>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 100000 }}>
+          <div style={{ ...neonStyles.card, width: '100%', maxWidth: '360px', borderColor: '#ff1493' }}>
+            <h3 style={{ margin: '0 0 10px 0', fontWeight: '900', color: '#ff1493', fontSize: '20px' }}>Vender Publicidad</h3>
+            <p style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '20px', lineHeight: '1.4' }}>El Bot debe ser Administrador de tu canal/grupo para poder publicar los anuncios automáticamente.</p>
+            
+            <label style={{ fontSize: '12px', color: '#fff', fontWeight: '900', display: 'block', marginBottom: '6px' }}>Enlace de tu Canal</label>
+            <input style={{...neonStyles.input, borderColor: '#ff1493', marginBottom: '16px'}} value={newGroupUrl} onChange={(e) => setNewGroupUrl(e.target.value)} placeholder="Ej: @MiCanal" />
+            
+            <label style={{ fontSize: '12px', color: '#fff', fontWeight: '900', display: 'block', marginBottom: '6px' }}>¿Cuánto cobrarás en USDT?</label>
+            <input type="number" step="0.1" min="0.5" style={{...neonStyles.input, borderColor: '#00f0ff', marginBottom: '24px'}} value={newGroupPrice} onChange={(e) => setNewGroupPrice(Number(e.target.value))} placeholder="1.0" />
+            
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowAddGroupModal(false)} style={{ flex: 1, padding: '14px', background: 'transparent', color: '#ff99dd', border: '2px solid #ff99dd', borderRadius: '14px', fontWeight: '900' }}>CANCELAR</button>
+              <button onClick={handleAddCommunityGroup} disabled={isVerifyingGroup} style={{ flex: 2, padding: '14px', background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#fff', border: 'none', borderRadius: '14px', fontWeight: '900' }}>
+                {isVerifyingGroup ? 'VERIFICANDO...' : 'AÑADIR AL MERCADO'}
+              </button>
             </div>
-
-            <p style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '14px', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
-              {t('pub_modal_grp_desc')}
-            </p>
-
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ fontSize: '11px', color: '#00ffaa', fontWeight: '900' }}>{t('pub_modal_grp_input')}</label>
-              <input style={{...neonStyles.input, borderColor: '#00ffaa'}} value={newGroupUrl} onChange={(e) => setNewGroupUrl(e.target.value)} placeholder="@MiCanal" />
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '11px', color: '#ffe600', fontWeight: '900' }}>Tu precio en USDT (Libre de comisiones)</label>
-              <input type="number" step="0.1" min="1" style={{...neonStyles.input, borderColor: '#ffe600'}} value={newGroupPrice} onChange={(e) => setNewGroupPrice(Number(e.target.value))} placeholder="1.0" />
-            </div>
-
-            <button onClick={handleAddCommunityGroup} disabled={isVerifyingGroup} style={{ ...neonStyles.btnPrimary, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', boxShadow: '0 6px 0 #007744' }}>
-              {isVerifyingGroup ? t('pub_modal_grp_verifying') : t('pub_modal_grp_verify')}
-            </button>
           </div>
         </div>
       )}
     </div>
   );
 }
-
