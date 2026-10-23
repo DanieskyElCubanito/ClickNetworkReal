@@ -71,3 +71,4 @@ export default function HomeTab({ userData, setActiveTab, t }) {
     </div>
   );
 }
+
