@@ -73,7 +73,6 @@ export default function PublishTab({ userData, setUserData, t }) {
   const balance = Number(userData?.balance || 0);
   const [availableGroups, setAvailableGroups] = useState([]);
 
-  // Cálculos matemáticos del USDT: El frontend suma precios, pero el backend lo cobra + 20%
   const totalCost = selectedGroups.reduce((acc, groupId) => {
       const grp = availableGroups.find(g => g.id === groupId);
       if (grp && String(grp.creator_id) === String(userData?.id)) return acc; 
@@ -82,7 +81,6 @@ export default function PublishTab({ userData, setUserData, t }) {
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
-  // 🔥 CORE FIX: Se simplificó la extracción para que nunca falle la carga
   const fetchGroups = async () => {
     if (!userData?.id) return;
     setLoadingData(true);
@@ -98,7 +96,7 @@ export default function PublishTab({ userData, setUserData, t }) {
            id: g.chat_id, 
            name: g.chat_id, 
            price: Number(g.price_24h), 
-           members: "Activo", // Como no hay endpoint de stats, mostramos activo
+           members: "Activo",
            rating: g.rating, 
            creator_id: String(g.owner_id) 
          }));
@@ -198,7 +196,8 @@ export default function PublishTab({ userData, setUserData, t }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'add-publish-group', url: newGroupUrl, price: newGroupPrice })
+        // 🔥 CORRECCIÓN: Se envía explícitamente el userId
+        body: JSON.stringify({ action: 'add-publish-group', userId: userData.id, url: newGroupUrl, price: newGroupPrice })
       });
       const data = await res.json();
       if (data.success) {
