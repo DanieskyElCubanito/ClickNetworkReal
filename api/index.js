@@ -352,6 +352,17 @@ export default async function handler(req, res) {
        const { data: dbGroups } = await supabase.from('marketplace_canales').select('*').eq('status', 'active').order('rating', { ascending: false });
        return res.status(200).json({ success: true, communityGroups: dbGroups || [] });
     }
+    
+    // 🔥 AQUÍ SE AÑADIÓ LA RUTA PARA VER LOS CONTRATOS EN LA PESTAÑA MERCADO
+    if (action === 'get-market-contracts') {
+      const { data: myContracts } = await supabase
+        .from('ad_contracts')
+        .select('*')
+        .eq('channel_owner_id', targetId)
+        .order('created_at', { ascending: false });
+        
+      return res.status(200).json({ success: true, contracts: myContracts || [] });
+    }
 
     if (action === 'toggle-task-status') {
       const { taskId, requestingUserId } = req.body;
@@ -426,7 +437,7 @@ export default async function handler(req, res) {
         const mnemonics = intent.encrypted_private_key.split(" "); const keyPair = await mnemonicToPrivateKey(mnemonics);
         const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
         const contract = tonClient.open(wallet); const seqno = await contract.getSeqno();
-        
+
         const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'master_wallet').maybeSingle();
         const masterWalletAddress = setting ? setting.value : FALLBACK_MASTER_WALLET;
 
@@ -470,36 +481,41 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, is_human: true });
     }
 
-    // Inicialización del usuario
-    const targetUser = user || { id: userId, is_premium: false };
-    if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
+    // 🔥 AQUÍ SE CORRIGIÓ: EL BLOQUE DEFAULT AHORA ATRAPA EXPLÍCITAMENTE 'verify'
+    if (action === 'verify' || !action) {
+      const targetUser = user || { id: userId, is_premium: false };
+      if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
 
-    let { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
-    if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
+      let { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
+      if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
-    if (!dbUser) {
-      const newUserObj = { id: targetId, username: targetUser.username || 'Usuario', balance: 0, balance_retenido: 0, total_earnings: 0, referral_earnings: 0, is_human: false };
-      if (start_param && String(start_param) !== targetId) newUserObj.referred_by = String(start_param);
-      const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
-      dbUser = newUser;
+      if (!dbUser) {
+        const newUserObj = { id: targetId, username: targetUser.username || 'Usuario', balance: 0, balance_retenido: 0, total_earnings: 0, referral_earnings: 0, is_human: false };
+        if (start_param && String(start_param) !== targetId) newUserObj.referred_by = String(start_param);
+        const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
+        dbUser = newUser;
+      }
+
+      const { data: totalTasks } = await supabase.from('tasks').select('completions_done, creator_id').neq('type', 'publish_group');
+      let globalclicks = 0; let receivedclicks = 0;
+      if (totalTasks) {
+        totalTasks.forEach(t => {
+          const done = t.completions_done || 0;
+          globalclicks += done;
+          if (String(t.creator_id) === targetId) receivedclicks += done;
+        });
+      }
+
+      dbUser.global_clicks = globalclicks >= 1000 ? (globalclicks / 1000).toFixed(1) + 'K' : globalclicks;
+      dbUser.received_clicks = receivedclicks >= 1000 ? (receivedclicks / 1000).toFixed(1) + 'K' : receivedclicks;
+
+      const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
+
+      return res.status(200).json({ success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } });
     }
-
-    const { data: totalTasks } = await supabase.from('tasks').select('completions_done, creator_id').neq('type', 'publish_group');
-    let globalclicks = 0; let receivedclicks = 0;
-    if (totalTasks) {
-      totalTasks.forEach(t => {
-        const done = t.completions_done || 0;
-        globalclicks += done;
-        if (String(t.creator_id) === targetId) receivedclicks += done;
-      });
-    }
-
-    dbUser.global_clicks = globalclicks >= 1000 ? (globalclicks / 1000).toFixed(1) + 'K' : globalclicks;
-    dbUser.received_clicks = receivedclicks >= 1000 ? (receivedclicks / 1000).toFixed(1) + 'K' : receivedclicks;
-
-    const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
-
-    return res.status(200).json({ success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } });
+    
+    // Si la acción no existe, devolver error en lugar de quedarse mudo
+    return res.status(400).json({ success: false, error: `Acción '${action}' no reconocida.` });
 
   } catch (error) { return res.status(500).json({ success: false, error: error.message }); }
 }
