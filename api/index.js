@@ -342,9 +342,13 @@ export default async function handler(req, res) {
       const isAdmin = await checkAdminStatus(chatId);
       if (!isAdmin) return res.status(400).json({success: false, error: 'El bot no es administrador del grupo/canal.'});
 
-      await supabase.from('marketplace_canales').insert([{
+      // 🔥 CORRECCIÓN: Detectar y retornar error de Supabase
+      const { error } = await supabase.from('marketplace_canales').insert([{
          owner_id: targetId, chat_id: chatId, price_24h: Number(price || 1), rating: 5.0, is_auto_publish: false, status: 'active'
       }]);
+      
+      if (error) return res.status(400).json({ success: false, error: `Error BD: ${error.message}` });
+
       return res.status(200).json({ success: true, message: 'Canal añadido al Marketplace con éxito' });
     }
 
@@ -353,7 +357,6 @@ export default async function handler(req, res) {
        return res.status(200).json({ success: true, communityGroups: dbGroups || [] });
     }
     
-    // 🔥 AQUÍ SE AÑADIÓ LA RUTA PARA VER LOS CONTRATOS EN LA PESTAÑA MERCADO
     if (action === 'get-market-contracts') {
       const { data: myContracts } = await supabase
         .from('ad_contracts')
@@ -481,7 +484,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, is_human: true });
     }
 
-    // 🔥 AQUÍ SE CORRIGIÓ: EL BLOQUE DEFAULT AHORA ATRAPA EXPLÍCITAMENTE 'verify'
     if (action === 'verify' || !action) {
       const targetUser = user || { id: userId, is_premium: false };
       if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
@@ -514,7 +516,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } });
     }
     
-    // Si la acción no existe, devolver error en lugar de quedarse mudo
     return res.status(400).json({ success: false, error: `Acción '${action}' no reconocida.` });
 
   } catch (error) { return res.status(500).json({ success: false, error: error.message }); }
