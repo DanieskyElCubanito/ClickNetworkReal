@@ -111,7 +111,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
   // 🔥 Transformamos las ganancias en USDT a Gemas (x1000 sin decimales)
   const gemEarnings = Math.floor(Number(earnings) * 1000);
   
-  const inviteLink = `https://t.me/ClickNetworkbot/app?startapp=${userId}`;
+  const inviteLink = `https://t.me/TeleGemAds_bot/app?startapp=${userId}`;
 
   const handleCopy = () => {
     if (!userId) return toast.error("Error");
