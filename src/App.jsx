@@ -29,7 +29,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('home'); 
   const [userData, setUserData] = useState(null);
   const [stats, setStats] = useState({ n1: 0, c1: "0.000" });
-  const [isHuman, setIsHuman] = useState(false);
+  const [isHuman, setIsHuman] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
   const [lang, setLang] = useState(localStorage.getItem('click_lang') || 'es');
