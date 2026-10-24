@@ -15,7 +15,6 @@ import AdminDashboard from './components/AdminDashboard';
 import WalletTab from './components/WalletTab'; 
 import MarketTab from './components/MarketTab';
 
-
 const neonTheme = {
   container: { backgroundColor: '#0a0314', backgroundImage: 'radial-gradient(circle at 50% 10%, #2b0b47 0%, #0a0314 80%)', minHeight: '100vh', height: 'var(--tg-viewport-height, 100vh)', color: '#ffffff', fontFamily: "'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif", display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
   main: { flex: 1, maxWidth: '520px', margin: '0 auto', width: '100%', padding: '16px 16px 110px 16px', boxSizing: 'border-box', overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
@@ -161,6 +160,7 @@ function App() {
       <div style={neonTheme.main}>
         {activeTab === 'home' && <div className="fade-in"><ProfileHeader userData={userData} t={t} lang={lang} setLang={setLang} /><HomeTab userData={userData} setUserData={setUserData} setActiveTab={setActiveTab} t={t} /></div>}
         {activeTab === 'tasks' && <div className="fade-in"><AdsTab userData={userData} setUserData={setUserData} t={t} /></div>}
+        {activeTab === 'market' && <div className="fade-in"><MarketTab userData={userData} t={t} /></div>}
         {activeTab === 'referrals' && <div className="fade-in"><ShareTab stats={stats} handleShare={handleShare} userId={userData?.id} totalReferralEarnings={userData?.referral_earnings} t={t} /></div>}
         {activeTab === 'wallet' && <div className="fade-in"><WalletTab userData={userData} setUserData={setUserData} t={t} /></div>}
         {activeTab === 'admin' && <div className="fade-in"><AdminDashboard userData={userData} t={t} /></div>}
