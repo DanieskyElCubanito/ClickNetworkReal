@@ -25,11 +25,14 @@ export default function AdminDashboard({ userData }) {
   const [stats, setStats] = useState({ users: 0, tasks: 0 });
   const [searchId, setSearchId] = useState('');
   const [foundUser, setFoundUser] = useState(null);
+  
+  // Saldos separados: Gemas (balance) y Bóveda USDT (deposit_balance)
   const [newBalance, setNewBalance] = useState('');
+  const [newDepositBalance, setNewDepositBalance] = useState('');
+  
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  // 🔥 NUEVO: Estado con las dos billeteras separadas
   const [sysConfig, setSysConfig] = useState({ master_wallet_gram: '', master_wallet_usdt_bep20: '' });
   const [savingConfig, setSavingConfig] = useState(false);
 
@@ -96,20 +99,38 @@ export default function AdminDashboard({ userData }) {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-search-user', adminId: userData.id, targetId: searchId }) });
       const data = await res.json();
       if (data.success && data.user) {
-        setFoundUser(data.user); setNewBalance(data.user.balance); toast.success("Usuario encontrado", { id: tid });
+        setFoundUser(data.user);
+        setNewBalance(data.user.balance ?? 0);
+        setNewDepositBalance(data.user.deposit_balance ?? 0);
+        toast.success("Usuario encontrado", { id: tid });
       } else { toast.error("Usuario no existe", { id: tid }); setFoundUser(null); }
     } catch (e) { toast.error("Error al buscar", { id: tid }); }
   };
 
   const handleUpdateBalance = async () => {
     if (!foundUser) return;
-    const tid = toast.loading("Actualizando saldo...");
+    const tid = toast.loading("Actualizando saldo de retiro...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { balance: Number(newBalance) } }) });
       const data = await res.json();
-      if (data.success) { toast.success("Saldo actualizado", { id: tid }); setFoundUser(prev => ({ ...prev, balance: Number(newBalance) })); } 
-      else throw new Error();
+      if (data.success) { 
+        toast.success("Saldo de Gemas actualizado", { id: tid }); 
+        setFoundUser(prev => ({ ...prev, balance: Number(newBalance) })); 
+      } else throw new Error();
     } catch (e) { toast.error("Error al actualizar", { id: tid }); }
+  };
+
+  const handleUpdateDepositBalance = async () => {
+    if (!foundUser) return;
+    const tid = toast.loading("Actualizando Bóveda USDT...");
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { deposit_balance: Number(newDepositBalance) } }) });
+      const data = await res.json();
+      if (data.success) { 
+        toast.success("Bóveda USDT actualizada", { id: tid }); 
+        setFoundUser(prev => ({ ...prev, deposit_balance: Number(newDepositBalance) })); 
+      } else throw new Error();
+    } catch (e) { toast.error("Error al actualizar Bóveda", { id: tid }); }
   };
 
   const handleToggleBan = async () => {
@@ -126,6 +147,7 @@ export default function AdminDashboard({ userData }) {
 
   return (
     <div style={{ color: '#fff', paddingBottom: '20px' }}>
+      <Toaster containerStyle={{ zIndex: 9999999 }} />
       <h2 style={{ color: '#ffe600', fontWeight: '900', textAlign: 'center', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
         {Icons.shield} Panel de Control
       </h2>
@@ -147,7 +169,7 @@ export default function AdminDashboard({ userData }) {
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff99dd', display: 'flex', alignItems: 'center', gap: '6px' }}>
           {Icons.wallet} Billeteras de Operación
         </h3>
-        
+
         <span style={neon.label}>Billetera Pública GRAM (Red TON)</span>
         <input 
           type="text" 
@@ -167,7 +189,7 @@ export default function AdminDashboard({ userData }) {
         />
 
         <div style={{ background: 'rgba(0, 255, 170, 0.1)', border: '1px dashed #00ffaa', padding: '10px', borderRadius: '10px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#00ffaa' }}>
-          {Icons.lock} <span>La frase semilla de retiro sigue protegida de forma invisible en Vercel (process.env).</span>
+          {Icons.lock} <span>Las llaves privadas de retiro y gas están protegidas en Vercel (process.env).</span>
         </div>
 
         <button onClick={handleSaveConfig} disabled={savingConfig} style={{ ...neon.btn, background: 'linear-gradient(90deg, #ff1493, #8a2be2)', color: '#fff' }}>
@@ -192,23 +214,40 @@ export default function AdminDashboard({ userData }) {
 
         {foundUser && (
           <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed #8a2be2' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{foundUser.username}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#00f0ff' }}>@{foundUser.username} (ID: {foundUser.id})</span>
               <span style={{ fontSize: '11px', color: foundUser.is_banned ? '#ff1493' : '#00ffaa', fontWeight: '900' }}>
                 {foundUser.is_banned ? 'BANEADO' : 'ACTIVO'}
               </span>
             </div>
 
-            <div style={{ marginBottom: '16px' }}>
-              <span style={neon.label}>Modificar Saldo Interno (USDT)</span>
+            {/* CONTROL 1: BÓVEDA USDT (DEPOSIT_BALANCE) */}
+            <div style={{ marginBottom: '14px' }}>
+              <span style={{ ...neon.label, color: '#00ffaa' }}>Bóveda de Campañas (USDT - Solo Compras)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                   type="number" 
-                  style={{ ...neon.input, marginBottom: 0, flex: 1 }} 
+                  step="0.01"
+                  style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#00ffaa' }} 
+                  value={newDepositBalance} 
+                  onChange={(e) => setNewDepositBalance(e.target.value)} 
+                />
+                <button onClick={handleUpdateDepositBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00ffaa, #00bb77)', color: '#050214' }}>Guardar</button>
+              </div>
+            </div>
+
+            {/* CONTROL 2: SALDO RETIRABLE (BALANCE) */}
+            <div style={{ marginBottom: '16px' }}>
+              <span style={{ ...neon.label, color: '#00f0ff' }}>Saldo Retirable Base (1.00 = 1000 Gemas)</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input 
+                  type="number" 
+                  step="0.001"
+                  style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#00f0ff' }} 
                   value={newBalance} 
                   onChange={(e) => setNewBalance(e.target.value)} 
                 />
-                <button onClick={handleUpdateBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#000' }}>Guardar</button>
+                <button onClick={handleUpdateBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214' }}>Guardar</button>
               </div>
             </div>
 
