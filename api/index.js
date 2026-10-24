@@ -304,21 +304,22 @@ export default async function handler(req, res) {
       }
     }
 
-     if (action === 'generate-usdt-wallet') {
+     
+          if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
       const targetId = String(userId);
       
-      // Generación determinista ultrarrápida basada en ethers
       const masterKey = process.env.BSC_PRIVATE_KEY;
-      if (!masterKey) return res.status(400).json({ success: false, error: 'Falta configurar BSC_PRIVATE_KEY en Vercel.' });
+      if (!masterKey) return res.status(400).json({ success: false, error: 'Falta la variable BSC_PRIVATE_KEY en Vercel.' });
       
+      const { ethers } = await import('ethers');
       const userPrivKey = ethers.keccak256(ethers.toUtf8Bytes(masterKey + "_clicknetwork_" + targetId));
       const derivedWallet = new ethers.Wallet(userPrivKey);
       const publicAddress = derivedWallet.address;
 
       const { data: newIntent, error: intentErr } = await supabase.from('payment_intents').insert([{ 
         user_id: targetId, 
-        expected_amount: price, 
+        expected_amount: Number(price), 
         public_wallet: publicAddress, 
         status: 'pending' 
       }]).select().single();
