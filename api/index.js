@@ -90,7 +90,7 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
   await contract.sendTransfer({
       seqno: seqno || 0,
       secretKey: keyPair.secretKey,
-      messages: [internal({ to: destinationAddress, value: nanoTonAmount, bounce: false, body: "Retiro Click Network" })],
+      messages: [internal({ to: destinationAddress, value: nanoTonAmount, bounce: false, body: "Retiro TeleGem" })],
       sendMode: 3 
   });
 }
@@ -211,7 +211,20 @@ export default async function handler(req, res) {
       if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
       if (!dbUser) {
-        const newUserObj = { id: targetId, username: targetUser.username || 'Usuario', balance: 0, deposit_balance: 0, total_earnings: 0, referral_earnings: 0, is_human: false, referral_reward_granted: false };
+        // Validación de hardware recibida desde App.jsx
+        const isBotAccount = targetUser?.is_clone === true; 
+        
+        const newUserObj = { 
+          id: targetId, 
+          username: targetUser.username || 'Usuario', 
+          balance: 0, 
+          deposit_balance: 0, 
+          total_earnings: 0, 
+          referral_earnings: 0, 
+          is_human: !isBotAccount, // Si es clon, queda false. Si es real, queda true.
+          referral_reward_granted: false 
+        };
+        
         if (start_param && String(start_param) !== targetId) newUserObj.referred_by = String(start_param);
         
         const { data: newUser, error: insertError } = await supabase.from('users').insert([newUserObj]).select().single();
@@ -275,7 +288,7 @@ export default async function handler(req, res) {
 
       if (!address || withdrawAmount < 0.2) return res.status(400).json({ success: false, error: 'Mínimo: 0.2 USDT.' });
 
-      // 🔥 Validación atómica anti-clics múltiples en base de datos
+      // Validación atómica anti-clics múltiples en base de datos
       const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_user_balance', {
         p_user_id: targetId,
         p_amount: withdrawAmount
@@ -286,10 +299,16 @@ export default async function handler(req, res) {
       }
       const newBalance = Number(rpcData.new_balance.toFixed(4));
 
-      const { data: withdrawal } = await supabase.from('withdrawals').insert([{
+      // Control de fallo estricto
+      const { data: withdrawal, error: withdrawError } = await supabase.from('withdrawals').insert([{
         user_id: targetId, wallet_address: address, amount: withdrawAmount,
         status: withdrawAmount <= 0.9 ? 'processing' : 'pending'
       }]).select().single();
+
+      if (withdrawError || !withdrawal) {
+        await supabase.from('users').update({ balance: newBalance + withdrawAmount }).eq('id', targetId);
+        return res.status(400).json({ success: false, error: `Error en BD: ${withdrawError?.message || 'Rechazado'}` });
+      }
 
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Enviando a: ${address.substring(0,6)}...`, amount: -withdrawAmount }]);
 
@@ -403,16 +422,14 @@ export default async function handler(req, res) {
       } catch (sweepError) {}
       return res.status(200).json({ success: true, deposit_balance: newDepositBalance });
     }
-     
-         if (action === 'verify-admin') {
+
+    if (action === 'verify-admin') {
       const { url } = req.body;
       if (!url) return res.status(400).json({ success: false, error: 'Enlace no proporcionado.' });
 
-      // Extraemos el @username del enlace
       const chatId = extractTelegramUsername(url);
       if (!chatId) return res.status(400).json({ success: false, error: 'Formato de enlace inválido. Usa @usuario o t.me/usuario.' });
 
-      // Verificamos en la API de Telegram si el bot es administrador de ese chat
       const adminCheck = await checkAdminStatusDetailed(chatId);
       
       if (adminCheck.isAdmin) {
@@ -430,7 +447,7 @@ export default async function handler(req, res) {
       const rew = Number(reward || 0.001); 
       const totalCost = Number((count * rew * 1.30).toFixed(4));
 
-      // 🔥 Validación atómica anti-clics múltiples en base de datos para Bóveda USDT
+      // Validación atómica anti-clics múltiples en base de datos para Bóveda USDT
       const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_vault_balance', {
         p_user_id: targetId,
         p_amount: totalCost
@@ -441,7 +458,18 @@ export default async function handler(req, res) {
       }
       const newVaultBalance = Number(rpcData.new_balance.toFixed(4));
       
-      const { data: newTask } = await supabase.from('tasks').insert([{ creator_id: targetId, type, title, url, bot_token: bot_token || null, completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active' }]).select().single();
+      // Control de fallo estricto para campañas
+      const { data: newTask, error: taskError } = await supabase.from('tasks').insert([{ 
+        creator_id: targetId, type, title, url, bot_token: bot_token || null, 
+        completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active' 
+      }]).select().single();
+
+      // Si la BD rechaza la campaña, devolvemos el saldo exacto y mostramos el error
+      if (taskError || !newTask) {
+        await supabase.from('users').update({ deposit_balance: newVaultBalance + totalCost }).eq('id', targetId);
+        return res.status(400).json({ success: false, error: `Fallo BD: ${taskError?.message || 'Error desconocido'}. Saldo devuelto.` });
+      }
+
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '🚀 Campaña Activada', description: `Descontado de Bóveda para ${count} usuarios.`, amount: -totalCost }]);
       return res.status(200).json({ success: true, task: newTask, deposit_balance: newVaultBalance });
     }
