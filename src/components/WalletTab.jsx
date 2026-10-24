@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
@@ -39,10 +39,25 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [intentId, setIntentId] = useState(null);
   const [liveGramUsd, setLiveGramUsd] = useState(5.00);
 
+  // Cargar precio real de GRAM en vivo al montar el componente
+  useEffect(() => {
+    fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data['the-open-network']?.usd) {
+          setLiveGramUsd(data['the-open-network'].usd);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const balanceUSDT = Number(userData?.balance || 0);
   const gemBalance = Math.floor(balanceUSDT * 1000);
   const depositBalanceUsdt = Number(userData?.deposit_balance || 0);
-  const gramRechargePrice = (rechargeAmount / liveGramUsd).toFixed(2);
+  
+  // Cálculo correcto: Si recargas $1 y GRAM vale $5, necesitas 1 / 5 = 0.20 GRAM
+  const numericRecharge = Number(rechargeAmount) || 0;
+  const gramRechargePrice = (numericRecharge / liveGramUsd).toFixed(2);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
@@ -80,15 +95,16 @@ export default function WalletTab({ userData, setUserData, t }) {
   };
 
   const handleStartRecharge = async () => {
+    if (numericRecharge <= 0) return toast.error("Ingresa un monto válido.");
     setIsGenerating(true);
     const tid = toast.loading("Conectando con la Blockchain...");
     try {
       const actionRoute = rechargeMethod === 'usdt' ? 'generate-usdt-wallet' : 'generate-payment-wallet';
-      const amountToSend = rechargeMethod === 'usdt' ? rechargeAmount : gramRechargePrice;
+      const amountToSend = rechargeMethod === 'usdt' ? numericRecharge : gramRechargePrice;
 
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: actionRoute, userId: userData.id, packageId: 0, price: amountToSend, clicks: rechargeAmount })
+        body: JSON.stringify({ action: actionRoute, userId: userData.id, packageId: 0, price: amountToSend, clicks: numericRecharge })
       });
       const data = await res.json();
       if (data.success) { 
@@ -96,12 +112,14 @@ export default function WalletTab({ userData, setUserData, t }) {
         setIntentId(data.intentId); 
         toast.dismiss(tid); 
         setCheckoutView(true); 
+      } else {
+        throw new Error(data.error || "No se pudo generar la billetera.");
       }
-    } catch (e) { toast.error("Error conectando a la blockchain.", { id: tid }); } finally { setIsGenerating(false); }
+    } catch (e) { toast.error(e.message || "Error conectando a la blockchain.", { id: tid }); } finally { setIsGenerating(false); }
   };
 
   const copyWallet = (wallet) => { navigator.clipboard.writeText(wallet); toast.success("Billetera copiada."); };
-  const openTonkeeper = () => { try { WebApp.openLink(`ton://transfer/${tempWallet}?amount=${gramRechargePrice * 1e9}`); } catch (e) { toast.error("Billetera no instalada."); } };
+  const openTonkeeper = () => { try { WebApp.openLink(`ton://transfer/${tempWallet}?amount=${Math.floor(gramRechargePrice * 1e9)}`); } catch (e) { toast.error("Billetera no instalada."); } };
 
   const handleVerifyPayment = async () => {
     const tid = toast.loading("Verificando en la blockchain...");
@@ -110,11 +128,11 @@ export default function WalletTab({ userData, setUserData, t }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: verifyRoute, userId: userData.id, intentId: intentId, clicks: rechargeAmount })
+        body: JSON.stringify({ action: verifyRoute, userId: userData.id, intentId: intentId, clicks: numericRecharge })
       });
       const data = await res.json();
       if (data.success) { 
-        toast.success(`Depósito de $${rechargeAmount} acreditado en tu Bóveda.`, { id: tid }); 
+        toast.success(`Depósito de $${numericRecharge} acreditado en tu Bóveda.`, { id: tid }); 
         if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
         setCheckoutView(false); setTempWallet(''); setIntentId(null);
       }
@@ -173,11 +191,12 @@ export default function WalletTab({ userData, setUserData, t }) {
           <label style={{...neonStyles.label, color: '#ff9999'}}>Cantidad a retirar (GEMAS)</label>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
             <input 
-              type="number" 
+              type="text" 
+              inputMode="decimal"
               style={{ ...neonStyles.input, borderColor: '#ff1414', marginBottom: 0 }} 
               placeholder="200" 
               value={withdrawAmount} 
-              onChange={(e) => setWithdrawAmount(e.target.value)} 
+              onChange={(e) => setWithdrawAmount(e.target.value.replace(',', '.'))} 
             />
             <button 
               onClick={() => setWithdrawAmount(gemBalance.toString())}
@@ -204,15 +223,15 @@ export default function WalletTab({ userData, setUserData, t }) {
 
               {rechargeMethod === 'gram' && (
                 <>
-                  <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                     <div style={{ fontSize: '11px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía exactamente</div>
-                    <div style={{ fontSize: '30px', fontWeight: '900', color: '#00f0ff', margin: '8px 0' }}>{gramRechargePrice} GRAM</div>
-                    <div style={{ fontSize: '12px', fontWeight: '800', color: '#ffffff' }}>A tu billetera generada:</div>
+                    <div style={{ fontSize: '28px', fontWeight: '900', color: '#00f0ff', margin: '6px 0' }}>{gramRechargePrice} GRAM</div>
+                    <div style={{ fontSize: '11px', color: '#ffffff' }}>A tu billetera generada:</div>
                   </div>
-                  <div style={{ background: 'rgba(0,0,0,0.4)', padding: '14px', borderRadius: '14px', border: '1px dashed #ff1493', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold', marginBottom: '16px', color: '#ffffff' }}>
+                  <div style={{ background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '12px', border: '1px dashed #ff1493', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold', marginBottom: '14px', color: '#ffffff' }}>
                     {tempWallet}
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                     <button onClick={() => copyWallet(tempWallet)} style={{ flex: 1, padding: '12px', background: 'rgba(0, 240, 255, 0.1)', color: '#00f0ff', border: '2px solid #00f0ff', borderRadius: '12px', fontWeight: '900', fontSize: '12px', cursor: 'pointer' }}>COPIAR</button>
                     <button onClick={openTonkeeper} style={{ flex: 1, padding: '12px', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '12px', cursor: 'pointer' }}>TONKEEPER</button>
                   </div>
@@ -224,15 +243,17 @@ export default function WalletTab({ userData, setUserData, t }) {
 
               {rechargeMethod === 'usdt' && (
                 <>
-                  <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía exactamente (Red BEP20)</div>
-                    <div style={{ fontSize: '30px', fontWeight: '900', color: '#00ffaa', margin: '8px 0' }}>${rechargeAmount.toFixed(2)} USDT</div>
-                    <div style={{ fontSize: '12px', fontWeight: '800', color: '#ffffff' }}>A tu billetera derivada:</div>
+                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía (Red BSC / BEP20)</div>
+                    <div style={{ fontSize: '28px', fontWeight: '900', color: '#00ffaa', margin: '6px 0' }}>${numericRecharge.toFixed(2)} USDT</div>
+                    <div style={{ fontSize: '11px', color: '#ffffff' }}>A tu billetera derivada:</div>
                   </div>
-                  <div style={{ background: 'rgba(0,0,0,0.4)', padding: '14px', borderRadius: '14px', border: '1px dashed #00ffaa', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold', marginBottom: '16px', color: '#ffffff' }}>
+                  <div style={{ background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '12px', border: '1px dashed #00ffaa', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', fontWeight: 'bold', marginBottom: '14px', color: '#ffffff' }}>
                     {tempWallet}
                   </div>
-                  <button onClick={() => copyWallet(tempWallet)} style={{ width: '100%', padding: '12px', background: 'rgba(0, 255, 170, 0.1)', color: '#00ffaa', border: '1px solid #00ffaa', borderRadius: '12px', fontWeight: '900', fontSize: '12px', cursor: 'pointer', marginBottom: '16px' }}>COPIAR BILLETERA</button>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    <button onClick={() => copyWallet(tempWallet)} style={{ flex: 1, padding: '12px', background: 'rgba(0, 255, 170, 0.1)', color: '#00ffaa', border: '1px solid #00ffaa', borderRadius: '12px', fontWeight: '900', fontSize: '12px', cursor: 'pointer' }}>COPIAR</button>
+                  </div>
                   <button onClick={handleVerifyPayment} disabled={isGenerating} style={{ width: '100%', padding: '14px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '14px', fontWeight: '900', fontSize: '14px', cursor: 'pointer' }}>
                     {isGenerating ? 'VERIFICANDO...' : 'VERIFICAR PAGO EN BLOCKCHAIN'}
                   </button>
@@ -245,10 +266,27 @@ export default function WalletTab({ userData, setUserData, t }) {
               <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '16px' }}>Añade fondos que se usarán exclusivamente para crear campañas publicitarias.</div>
 
               <label style={neonStyles.label}>Monto a recargar (USDT)</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <button onClick={() => setRechargeAmount(p => Math.max(0.5, Number((Number(p) - 1).toFixed(2))))} style={{ width: '40px', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>-</button>
+                
+                {/* Input flexible con soporte para puntos y comas */}
+                <input 
+                  type="text" 
+                  inputMode="decimal"
+                  style={{ ...neonStyles.input, marginBottom: 0, textAlign: 'center', fontSize: '16px' }} 
+                  value={rechargeAmount} 
+                  onChange={(e) => setRechargeAmount(e.target.value.replace(',', '.'))} 
+                />
+                
+                <button onClick={() => setRechargeAmount(p => Number((Number(p) + 1).toFixed(2))))} style={{ width: '40px', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>+</button>
+              </div>
+
+              {/* Botones de montos rápidos */}
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <button onClick={() => setRechargeAmount(p => Math.max(5, p - 5))} style={{ width: '40px', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>-</button>
-                <input type="number" style={{ ...neonStyles.input, marginBottom: 0, textAlign: 'center', fontSize: '16px' }} value={rechargeAmount} onChange={(e) => setRechargeAmount(Number(e.target.value) || 0)} />
-                <button onClick={() => setRechargeAmount(p => p + 5)} style={{ width: '40px', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>+</button>
+                <button onClick={() => setRechargeAmount(1)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$1</button>
+                <button onClick={() => setRechargeAmount(5)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$5</button>
+                <button onClick={() => setRechargeAmount(10)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$10</button>
+                <button onClick={() => setRechargeAmount(25)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$25</button>
               </div>
 
               <label style={neonStyles.label}>Método de Pago</label>
