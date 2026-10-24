@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import WebApp from '@twa-dev/sdk';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import toast, { Toaster } from 'react-hot-toast';  
-import { botApi } from './api/botApi';
 import { translations } from './translations'; 
 
 import ProfileHeader from './components/ProfileHeader';
@@ -10,7 +9,6 @@ import HomeTab from './components/HomeTab';
 import AdsTab from './components/AdsTab';
 import ShareTab from './components/ShareTab';
 import BottomNav from './components/BottomNav';
-import CaptchaVerification from './components/CaptchaVerification';
 import AdminDashboard from './components/AdminDashboard';
 import WalletTab from './components/WalletTab'; 
 import MarketTab from './components/MarketTab';
@@ -29,10 +27,6 @@ function App() {
   const [activeTab, setActiveTab] = useState('home'); 
   const [userData, setUserData] = useState(null);
   const [stats, setStats] = useState({ n1: 0, c1: "0.000" });
-  
-  // 🔥 Desactivamos el Captcha visual como solicitaste (isHuman: true por defecto)
-  const [isHuman, setIsHuman] = useState(true);
-  
   const [errorMessage, setErrorMessage] = useState('');
 
   const [lang, setLang] = useState(localStorage.getItem('click_lang') || 'es');
@@ -53,39 +47,32 @@ function App() {
 
   const verifyUser = async (teleUser, startParam) => {
     try {
-      // 🛡️ SISTEMA FINGERPRINT (Anti Multi-cuentas)
+      // 🛡️ SISTEMA FINGERPRINT (Anti Multi-cuentas invisible)
       const fp = await FingerprintJS.load();
       const result = await fp.get();
       const generatedDeviceId = result.visitorId;
       const storedFirstUser = localStorage.getItem('xpro_linked_user');
       let previousAccount = null;
 
-      // Si es la primera vez en este móvil, lo marcamos como el dueño legítimo
       if (!storedFirstUser) { 
         localStorage.setItem('xpro_linked_user', String(teleUser.id)); 
-      } 
-      // Si ya hay un dueño y es distinto, lo detectamos como multicuenta
-      else if (storedFirstUser !== String(teleUser.id)) { 
+      } else if (storedFirstUser !== String(teleUser.id)) { 
         previousAccount = storedFirstUser; 
       }
 
-      // 🔥 CORRECCIÓN 1: Aseguramos enviar explícitamente start_param
-      // 🔥 CORRECCIÓN 2: Enviamos el flag de clon (is_clone)
       const userPayload = { 
         ...teleUser, 
         deviceId: generatedDeviceId, 
-        is_clone: previousAccount !== null // Si no es nulo, es una multicuenta
+        is_clone: previousAccount !== null 
       };
 
-      // Realizamos la petición al backend con el user modificado y el start_param
       const payloadRequest = {
         action: 'verify',
         user: userPayload,
         userId: teleUser.id,
-        start_param: startParam // Aquí garantizamos que viaja el referido
+        start_param: startParam
       };
 
-      // Hacemos el POST directo para evitar que botApi.js interfiera con los nombres de las variables
       const response = await fetch('/api', {
         method: 'POST',
         headers: {
@@ -94,17 +81,13 @@ function App() {
         },
         body: JSON.stringify(payloadRequest)
       });
-      
+
       const data = await response.json();
 
       if (data && data.success && data.user) {
         setUserData(data.user);
         setStats(data.stats || { n1: 0, c1: "0.000" });
         setStatus('member');
-        
-        // Si el backend lo marcó como baneo/fraude, se queda atrapado sin poder hacer tareas
-        if (data.user?.is_human === false) setIsHuman(false); 
-        else setIsHuman(true);
       } else {
         setErrorMessage(safeErrorMessage(data, "Error al sincronizar con el servidor."));
         setStatus('error');
@@ -185,8 +168,6 @@ function App() {
       </div>
     );
   }
-
-  if (!isHuman && status === 'member') return <CaptchaVerification userData={userData} setIsHuman={setIsHuman} />;
 
   return (
     <div style={neonTheme.container}>
