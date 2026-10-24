@@ -9,7 +9,8 @@ const Icons = {
   restore: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>,
   trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
   refresh: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
-  wallet: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff99dd" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+  wallet: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff99dd" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>,
+  lock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
 };
 
 const neon = {
@@ -28,8 +29,8 @@ export default function AdminDashboard({ userData }) {
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  // 🔥 NUEVO: Estado para Billeteras de Configuración
-  const [sysConfig, setSysConfig] = useState({ master_wallet_ton: '', master_wallet_mnemonic: '' });
+  // Billetera Receptora (Pública)
+  const [sysConfig, setSysConfig] = useState({ master_wallet_ton: '' });
   const [savingConfig, setSavingConfig] = useState(false);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
@@ -57,7 +58,6 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { console.error("Error cargando campañas", e); } finally { setLoadingTasks(false); }
   };
 
-  // 🔥 NUEVO: Cargar Billeteras
   const loadSysConfig = async () => {
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-config', adminId: userData.id }) });
@@ -66,14 +66,13 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { console.error(e); }
   };
 
-  // 🔥 NUEVO: Guardar Billeteras
   const handleSaveConfig = async () => {
     const tid = toast.loading("Guardando configuración...");
     setSavingConfig(true);
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-config', adminId: userData.id, config: sysConfig }) });
       const data = await res.json();
-      if (data.success) toast.success("Billeteras actualizadas", { id: tid });
+      if (data.success) toast.success("Billetera actualizada", { id: tid });
       else throw new Error(data.error);
     } catch (e) { toast.error("Error al guardar", { id: tid }); }
     setSavingConfig(false);
@@ -143,32 +142,27 @@ export default function AdminDashboard({ userData }) {
         </div>
       </div>
 
-      {/* 🔥 NUEVO: CONFIGURACIÓN DE BILLETERAS */}
+      {/* CONFIGURACIÓN DE BILLETERAS */}
       <div style={{ ...neon.card, borderColor: '#ff41b4' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff99dd', display: 'flex', alignItems: 'center', gap: '6px' }}>
           {Icons.wallet} Billeteras de Operación
         </h3>
         
-        <span style={neon.label}>Billetera Receptora TON (Depósitos de Usuarios)</span>
+        <span style={neon.label}>Billetera Pública TON (Para recibir depósitos)</span>
         <input 
           type="text" 
-          placeholder="UQDgJUo4Ycvd9Q_ICUI..." 
+          placeholder="Ej: UQDgJUo4Ycvd9Q_ICUI..." 
           style={{ ...neon.input, borderColor: '#ff41b4' }} 
           value={sysConfig.master_wallet_ton} 
           onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_ton: e.target.value })} 
         />
 
-        <span style={neon.label}>Frase Semilla Vercel (Para retiros automáticos)</span>
-        <input 
-          type="password" 
-          placeholder="palabra1 palabra2 palabra3..." 
-          style={{ ...neon.input, borderColor: '#ff41b4' }} 
-          value={sysConfig.master_wallet_mnemonic} 
-          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_mnemonic: e.target.value })} 
-        />
+        <div style={{ background: 'rgba(0, 255, 170, 0.1)', border: '1px dashed #00ffaa', padding: '10px', borderRadius: '10px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#00ffaa' }}>
+          {Icons.lock} <span>La frase semilla está protegida por seguridad en Vercel (process.env).</span>
+        </div>
 
         <button onClick={handleSaveConfig} disabled={savingConfig} style={{ ...neon.btn, background: 'linear-gradient(90deg, #ff1493, #8a2be2)', color: '#fff' }}>
-          {savingConfig ? 'GUARDANDO...' : 'GUARDAR BILLETERAS'}
+          {savingConfig ? 'GUARDANDO...' : 'GUARDAR BILLETERA'}
         </button>
       </div>
 
