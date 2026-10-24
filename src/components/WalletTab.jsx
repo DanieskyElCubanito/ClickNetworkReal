@@ -2,14 +2,6 @@ import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
-const Icons = {
-  bank: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
-  out: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>,
-  vault: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-  copy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
-  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-};
-
 const neonStyles = {
   container: { color: '#ffffff', paddingBottom: '20px' },
   title: { fontSize: '22px', fontWeight: '900', textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase', margin: '10px 0 20px 0', color: '#00f0ff', textShadow: '0 0 15px rgba(0, 240, 255, 0.4)' },
@@ -30,7 +22,6 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  // Estados de Recarga de Bóveda USDT
   const [rechargeAmount, setRechargeAmount] = useState(10);
   const [rechargeMethod, setRechargeMethod] = useState('gram');
   const [checkoutView, setCheckoutView] = useState(false);
@@ -39,23 +30,27 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [intentId, setIntentId] = useState(null);
   const [liveGramUsd, setLiveGramUsd] = useState(5.00);
 
-  // Cargar precio real de GRAM en vivo al montar el componente
+  // 🔥 Obtener el precio real de TON en tiempo real desde la blockchain/oráculos
   useEffect(() => {
-    fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd')
-      .then(res => res.json())
-      .then(data => {
+    const fetchTonPrice = async () => {
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+        const data = await res.json();
         if (data && data['the-open-network']?.usd) {
           setLiveGramUsd(data['the-open-network'].usd);
         }
-      })
-      .catch(() => {});
+      } catch (e) {
+        // Fallback seguro si falla CoinGecko
+        setLiveGramUsd(5.00);
+      }
+    };
+    fetchTonPrice();
   }, []);
 
   const balanceUSDT = Number(userData?.balance || 0);
   const gemBalance = Math.floor(balanceUSDT * 1000);
   const depositBalanceUsdt = Number(userData?.deposit_balance || 0);
   
-  // Cálculo correcto: Si recargas $1 y GRAM vale $5, necesitas 1 / 5 = 0.20 GRAM
   const numericRecharge = Number(rechargeAmount) || 0;
   const gramRechargePrice = (numericRecharge / liveGramUsd).toFixed(2);
 
@@ -97,7 +92,8 @@ export default function WalletTab({ userData, setUserData, t }) {
   const handleStartRecharge = async () => {
     if (numericRecharge <= 0) return toast.error("Ingresa un monto válido.");
     setIsGenerating(true);
-    const tid = toast.loading("Conectando con la Blockchain...");
+    const tid = toast.loading("Generando pasarela blockchain...");
+    
     try {
       const actionRoute = rechargeMethod === 'usdt' ? 'generate-usdt-wallet' : 'generate-payment-wallet';
       const amountToSend = rechargeMethod === 'usdt' ? numericRecharge : gramRechargePrice;
@@ -107,15 +103,20 @@ export default function WalletTab({ userData, setUserData, t }) {
         body: JSON.stringify({ action: actionRoute, userId: userData.id, packageId: 0, price: amountToSend, clicks: numericRecharge })
       });
       const data = await res.json();
-      if (data.success) { 
+      
+      if (data.success && data.wallet) { 
         setTempWallet(data.wallet); 
         setIntentId(data.intentId); 
         toast.dismiss(tid); 
         setCheckoutView(true); 
       } else {
-        throw new Error(data.error || "No se pudo generar la billetera.");
+        throw new Error(data.error || "El servidor no devolvió una billetera válida.");
       }
-    } catch (e) { toast.error(e.message || "Error conectando a la blockchain.", { id: tid }); } finally { setIsGenerating(false); }
+    } catch (e) { 
+      toast.error(e.message || "Error al conectar con la pasarela.", { id: tid, duration: 5000 }); 
+    } finally { 
+      setIsGenerating(false); 
+    }
   };
 
   const copyWallet = (wallet) => { navigator.clipboard.writeText(wallet); toast.success("Billetera copiada."); };
@@ -224,7 +225,7 @@ export default function WalletTab({ userData, setUserData, t }) {
               {rechargeMethod === 'gram' && (
                 <>
                   <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía exactamente</div>
+                    <div style={{ fontSize: '11px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía exactamente (Precio TON en vivo: ${liveGramUsd})</div>
                     <div style={{ fontSize: '28px', fontWeight: '900', color: '#00f0ff', margin: '6px 0' }}>{gramRechargePrice} GRAM</div>
                     <div style={{ fontSize: '11px', color: '#ffffff' }}>A tu billetera generada:</div>
                   </div>
@@ -269,7 +270,6 @@ export default function WalletTab({ userData, setUserData, t }) {
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                 <button onClick={() => setRechargeAmount(p => Math.max(0.5, Number((Number(p) - 1).toFixed(2))))} style={{ width: '40px', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>-</button>
                 
-                {/* Input flexible con soporte para puntos y comas */}
                 <input 
                   type="text" 
                   inputMode="decimal"
