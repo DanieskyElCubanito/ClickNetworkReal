@@ -18,7 +18,10 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const BOT_ID = BOT_TOKEN.split(':')[0];
 const ADMIN_IDS = ['8968109534', '8892196101'];
 const MAIN_ADMIN_ID = '8968109534'; 
-const FALLBACK_MASTER_WALLET = "UQDgJUo4Ycvd9Q_ICUI6I-trCRcZgzBXHmhe0z_8lRHWfU3I";
+
+// 🔥 TUS BILLETERAS DE RESPALDO (Por si la base de datos falla)
+const FALLBACK_MASTER_WALLET_GRAM = "UQBW9toUVg75NhhayTPW2RzMhHJxF1_BOKULqSYDZIvZBoIk";
+const FALLBACK_MASTER_WALLET_USDT = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce";
 
 const tonClient = new TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRPC' });
 
@@ -198,30 +201,40 @@ export default async function handler(req, res) {
 
     const telegramInitData = req.headers['x-telegram-init-data'];
     if (!telegramInitData || !verifyTelegramWebAppData(telegramInitData)) {
-       if (req.body.action !== 'generate-stars-invoice') {
          return res.status(403).json({ success: false, error: 'Firma de Telegram inválida o ausente. Solicitud rechazada por seguridad.' });
-       }
     }
 
     const { user, action, userId, start_param } = req.body; 
 
-    // 🔥 NUEVAS RUTAS DE BILLETERAS DE ADMINISTRADOR
+    // 🔥 NUEVAS RUTAS PÚBLICAS PARA PAGOS
+    if (action === 'get-public-config') {
+      const { data } = await supabase.from('system_settings').select('master_wallet_usdt_bep20').eq('id', 1).maybeSingle();
+      return res.status(200).json({ success: true, usdt_wallet: data?.master_wallet_usdt_bep20 || FALLBACK_MASTER_WALLET_USDT });
+    }
+
+    if (action === 'notify-usdt-payment') {
+      const { amount, txHash } = req.body;
+      const targetId = String(userId || user?.id);
+      const msg = `🚨 <b>NUEVO DEPÓSITO USDT (BEP20) EN REVISIÓN</b>\n\n👤 <b>Usuario ID:</b> <code>${targetId}</code>\n💰 <b>Monto Pagado:</b> ${amount} USDT\n🔗 <b>Hash de Transacción:</b>\n<code>${txHash}</code>\n\n⚠️ <i>Revisa tu billetera en BSC. Si el dinero llegó, ve a tu Panel de Control y súmale el saldo a este usuario para que pueda crear su campaña.</i>`;
+      await notifyAdmin(msg);
+      return res.status(200).json({ success: true });
+    }
+
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
       const { data } = await supabase.from('system_settings').select('*').eq('id', 1).maybeSingle();
-      return res.status(200).json({ success: true, config: data || { master_wallet_ton: '', master_wallet_usdt_bep20: '' } });
+      return res.status(200).json({ success: true, config: data || { master_wallet_gram: '', master_wallet_usdt_bep20: '' } });
     }
 
     if (action === 'admin-update-config') {
       const { adminId, config } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-      const { error } = await supabase.from('system_settings').upsert({ id: 1, master_wallet_ton: config.master_wallet_ton, master_wallet_usdt_bep20: config.master_wallet_usdt_bep20 });
+      const { error } = await supabase.from('system_settings').upsert({ id: 1, master_wallet_gram: config.master_wallet_gram, master_wallet_usdt_bep20: config.master_wallet_usdt_bep20 });
       if (error) return res.status(400).json({ success: false, error: error.message });
       return res.status(200).json({ success: true });
     }
 
-    // ⚡ LÓGICA DE RETIROS
     if (action === 'request-withdrawal') {
       const targetId = String(userId || user?.id);
       const { address, amount } = req.body;
@@ -240,11 +253,7 @@ export default async function handler(req, res) {
         status: withdrawAmount <= 0.9 ? 'processing' : 'pending'
       }]).select().single();
 
-      await supabase.from('history_logs').insert([{
-        user_id: targetId, title: '📤 Retiro Procesando',
-        description: `Enviando a: ${address.substring(0,6)}...${address.substring(address.length-4)}`,
-        amount: -withdrawAmount
-      }]);
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Enviando a: ${address.substring(0,6)}...${address.substring(address.length-4)}`, amount: -withdrawAmount }]);
 
       if (withdrawAmount <= 0.9) {
           try {
@@ -292,102 +301,6 @@ export default async function handler(req, res) {
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
       const { data: allTasks } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
       return res.status(200).json({ success: true, tasks: allTasks || [] });
-    }
-
-    if (action === 'add-publish-group') {
-      const { url } = req.body;
-      const targetId = String(userId);
-      const chatId = extractTelegramUsername(url);
-      if (!chatId) return res.status(400).json({success: false, error: 'Enlace inválido. Debe ser un @usuario o enlace t.me'});
-
-      const { data: existing } = await supabase.from('tasks').select('id').eq('type', 'publish_group').eq('url', chatId).maybeSingle();
-      if (existing) return res.status(400).json({success: false, error: 'Este grupo ya está registrado en la red.'});
-
-      const isAdmin = await checkAdminStatus(chatId);
-      if (!isAdmin) return res.status(400).json({success: false, error: 'El bot no es administrador del grupo/canal.'});
-
-      const isUserAdmin = ADMIN_IDS.includes(targetId);
-      if (!isUserAdmin) {
-        const statsRes = await fetchWithTimeout(`https://api.telegram.org/bot${BOT_TOKEN}/getChatMemberCount?chat_id=${chatId}`);
-        const statsData = await statsRes.json();
-        if (!statsData.ok || statsData.result < 500) {
-           return res.status(400).json({success: false, error: `El grupo tiene ${statsData.result || 0} miembros. Se requieren mínimo 500.`});
-        }
-      }
-
-      await supabase.from('tasks').insert([{ creator_id: targetId, type: 'publish_group', title: chatId, url: chatId, completions_total: 999999, completions_done: 0, reward: 1, total_cost: 0, status: 'active' }]);
-      return res.status(200).json({ success: true, message: 'Grupo añadido con éxito' });
-    }
-
-    if (action === 'get-publish-groups') {
-       const { data: dbGroups } = await supabase.from('tasks').select('*').eq('type', 'publish_group').eq('status', 'active');
-       return res.status(200).json({ success: true, communityGroups: dbGroups || [] });
-    }
-
-    if (action === 'publish-post') {
-      const { userId: pubUserId, chatId, text, link, photoData, buttonConfig } = req.body;
-      const targetId = String(pubUserId);
-
-      const { data: groupInfo } = await supabase.from('tasks').select('creator_id').eq('type', 'publish_group').eq('url', chatId).maybeSingle();
-      const isOwner = groupInfo && String(groupInfo.creator_id) === targetId;
-      const COST_PER_GROUP = isOwner ? 0 : 10;
-
-      const { data: dbUser } = await supabase.from('users').select('balance').eq('id', targetId).single();
-      if (!dbUser || Number(dbUser.balance || 0) < COST_PER_GROUP) return res.status(400).json({ success: false, error: 'Saldo insuficiente.' });
-
-      let inline_keyboard = [];
-      if (buttonConfig && buttonConfig.url) {
-        inline_keyboard.push([{ text: buttonConfig.text || "Abrir Enlace", url: buttonConfig.url, style: buttonConfig.style !== 'default' ? buttonConfig.style : undefined, color: buttonConfig.style !== 'default' ? buttonConfig.style : undefined }]);
-      } else if (link) {
-        inline_keyboard.push([{ text: "Abrir App", url: link }]);
-      }
-
-      let payload = { chat_id: chatId, parse_mode: "HTML", link_preview_options: { is_disabled: true }, disable_web_page_preview: true };
-      if (inline_keyboard.length > 0) payload.reply_markup = { inline_keyboard };
-
-      let tgEndpoint = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-      if (photoData && photoData.startsWith('data:image')) {
-         tgEndpoint = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`; payload.photo = photoData; payload.caption = text;
-      } else { payload.text = text; }
-
-      const tgRes = await fetch(tgEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const tgData = await tgRes.json();
-      if (!tgData.ok) return res.status(400).json({ success: false, error: tgData.description });
-
-      if (!isOwner) {
-        const newBalance = Number((dbUser.balance - COST_PER_GROUP).toFixed(4));
-        await supabase.from('users').update({ balance: newBalance }).eq('id', targetId);
-        await supabase.from('history_logs').insert([{ user_id: targetId, title: '📢 Publicación de Campaña', description: `Pago por envío a ${chatId}.`, amount: -COST_PER_GROUP }]);
-
-        if (groupInfo && groupInfo.creator_id) {
-           const { data: owner } = await supabase.from('users').select('balance, total_earnings').eq('id', groupInfo.creator_id).single();
-           if (owner) {
-             const ownerBal = Number((Number(owner.balance || 0) + 2).toFixed(4));
-             const ownerTot = Number((Number(owner.total_earnings || 0) + 2).toFixed(4));
-             await supabase.from('users').update({ balance: ownerBal, total_earnings: ownerTot }).eq('id', groupInfo.creator_id);
-             await supabase.from('history_logs').insert([{ user_id: groupInfo.creator_id, title: '💸 Ingreso por Red', description: `Alguien publicó en tu grupo ${chatId}.`, amount: 2 }]);
-           }
-        }
-      } else {
-        await supabase.from('history_logs').insert([{ user_id: targetId, title: '📢 Publicación Gratuita', description: `Publicaste en tu propio grupo ${chatId}.`, amount: 0 }]);
-      }
-
-      await supabase.from('tasks').insert([{ creator_id: targetId, type: 'group', title: 'Campaña en Grupo', url: buttonConfig?.url || link || 'https://t.me/ClickNetworkbot', completions_total: 1, completions_done: 1, reward: 0, total_cost: COST_PER_GROUP, status: 'completed' }]);
-      return res.status(200).json({ success: true, balance: isOwner ? dbUser.balance : Number((dbUser.balance - COST_PER_GROUP).toFixed(4)) });
-    }
-
-    if (action === 'get-group-stats') {
-      const { groupIds } = req.body;
-      const stats = {};
-      for (const chatId of groupIds) {
-        try {
-          const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMemberCount?chat_id=${chatId}`;
-          const response = await fetchWithTimeout(url);
-          const resData = await response.json();
-          if (resData.ok) stats[chatId] = resData.result;
-        } catch (error) {}
-      }
-      return res.status(200).json({ success: true, stats });
     }
 
     if (action === 'toggle-task-status') {
@@ -443,7 +356,7 @@ export default async function handler(req, res) {
       const publicAddress = wallet.address.toString({ urlSafe: true, bounceable: false });
       const secretWords = mnemonics.join(" ");
       const { data: newIntent } = await supabase.from('payment_intents').insert([{ user_id: targetId, package_id: packageId, expected_amount: price, public_wallet: publicAddress, encrypted_private_key: secretWords, status: 'pending' }]).select().single();
-      await notifyAdmin(`💰 <b>Nueva Orden Creada</b>\n\n👤 ID: ${targetId}\n💎 Esperado: ${price} GRAM\n📌 <b>Wallet:</b>\n<code>${publicAddress}</code>\n🔑 <b>Key:</b>\n<code>${secretWords}</code>`);
+      await notifyAdmin(`💰 <b>Nueva Orden Creada (GRAM)</b>\n\n👤 ID: ${targetId}\n💎 Esperado: ${price} GRAM\n📌 <b>Wallet:</b>\n<code>${publicAddress}</code>\n🔑 <b>Key:</b>\n<code>${secretWords}</code>`);
       return res.status(200).json({ success: true, wallet: publicAddress, intentId: newIntent.id });
     }
 
@@ -463,16 +376,16 @@ export default async function handler(req, res) {
 
       // 🔥 BARRIDO A LA BILLETERA DINÁMICA DEL ADMIN
       try {
-        let sweepWallet = FALLBACK_MASTER_WALLET;
-        const { data: cfg } = await supabase.from('system_settings').select('master_wallet_ton').eq('id', 1).maybeSingle();
-        if (cfg && cfg.master_wallet_ton) sweepWallet = cfg.master_wallet_ton;
+        let sweepWallet = FALLBACK_MASTER_WALLET_GRAM;
+        const { data: cfg } = await supabase.from('system_settings').select('master_wallet_gram').eq('id', 1).maybeSingle();
+        if (cfg && cfg.master_wallet_gram) sweepWallet = cfg.master_wallet_gram;
 
         const mnemonics = intent.encrypted_private_key.split(" "); 
         const keyPair = await mnemonicToPrivateKey(mnemonics);
         const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
         const contract = tonClient.open(wallet); 
         const seqno = await contract.getSeqno();
-        
+
         await contract.sendTransfer({ 
           seqno: seqno || 0, secretKey: keyPair.secretKey, 
           messages: [ internal({ to: sweepWallet, value: 0n, bounce: false, body: "Barrido Automático" }) ], 
@@ -495,17 +408,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 🔥 CREACIÓN DE TAREA CON COMISIÓN DEL 130%
     if (action === 'create-task') {
       const { creator_id, type, title, url, bot_token, completions_total, reward } = req.body;
       const targetId = String(creator_id || userId);
-      
+
       const count = Number(completions_total || 100); 
       const rew = Number(reward || 0.001); 
-      
-      // Aplicar multiplicador del 1.30 (100% usuario + 20% referidos + 10% sistema)
+
+      // Multiplicador 1.30
       const totalCost = Number((count * rew * 1.30).toFixed(4));
-      
+
       const { data: dbUser } = await supabase.from('users').select('balance').eq('id', targetId).single();
       if (!dbUser || Number(dbUser.balance || 0) < totalCost) return res.status(400).json({ success: false, error: 'Saldo insuficiente.' });
 
@@ -630,24 +542,6 @@ export default async function handler(req, res) {
       }).eq('id', taskId);
 
       return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
-    }
-
-    if (action === 'claim-bonus') {
-      const targetId = String(userId);
-      const { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).single();
-      const reward = 0.50;
-      const newBalance = Number((Number(dbUser.balance || 0) + reward).toFixed(4));
-      const newTotal = Number((Number(dbUser.total_earnings || 0) + reward).toFixed(4));
-
-      await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
-      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📺 Bono por anuncio', description: 'Visualización de anuncio.', amount: reward }]);
-
-      if (dbUser.referred_by) {
-        const commissionAmount = Number((reward * 0.20).toFixed(4));
-        const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
-        if (referrer) { await supabase.from('users').update({ balance: Number((Number(referrer.balance || 0) + commissionAmount).toFixed(4)), referral_earnings: Number((Number(referrer.referral_earnings || 0) + commissionAmount).toFixed(4)), total_earnings: Number((Number(referrer.total_earnings || 0) + commissionAmount).toFixed(4)) }).eq('id', referrer.id); }
-      }
-      return res.status(200).json({ success: true, balance: newBalance });
     }
 
     if (action === 'get-history') {
