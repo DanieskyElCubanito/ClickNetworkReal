@@ -161,26 +161,6 @@ async function checkAdminStatusDetailed(chatId) {
   } catch (error) { return { isAdmin: false, error: error.message }; }
 }
 
-async function tryGrantReferralReward(targetUserObj) {
-  try {
-    const targetId = String(targetUserObj.id);
-    const { data: currentUser } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
-    if (!currentUser || !currentUser.referred_by || currentUser.referral_reward_granted || !currentUser.is_human) return false;
-
-    const { data: referrer } = await supabase.from('users').select('*').eq('id', currentUser.referred_by).maybeSingle();
-    if (referrer) {
-      const refBalance = Number((Number(referrer.balance || 0) + 1).toFixed(4));
-      const refEarnings = Number((Number(referrer.referral_earnings || 0) + 1).toFixed(4));
-      const refTotal = Number((Number(referrer.total_earnings || 0) + 1).toFixed(4));
-
-      await supabase.from('users').update({ balance: refBalance, referral_earnings: refEarnings, total_earnings: refTotal }).eq('id', referrer.id);
-      await supabase.from('users').update({ referral_reward_granted: true }).eq('id', targetId);
-      return true;
-    }
-  } catch (err) {}
-  return false;
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -200,9 +180,14 @@ export default async function handler(req, res) {
 
     const { user, action, userId, start_param } = req.body; 
 
+    // Captura de IP para control de seguridad
+    const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+
     if (action === 'verify') {
       const targetUser = user || { id: userId, is_premium: false };
       const targetId = String(targetUser?.id);
+      const deviceId = targetUser?.deviceId || 'unknown_device';
+      
       if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
 
       let { data: dbUser, error: dbError } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
@@ -210,10 +195,24 @@ export default async function handler(req, res) {
 
       if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
+      // 🛡️ CONTROL DE MULTICUENTAS POR HARDWARE (FINGERPRINT)
+      // Verificamos si este deviceId ya fue registrado por OTRO usuario en la base de datos
+      let isMultiAccount = false;
+      if (deviceId !== 'unknown_device') {
+        const { data: existingDeviceUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('device_id', deviceId)
+          .neq('id', targetId)
+          .maybeSingle();
+
+        if (existingDeviceUser) {
+          isMultiAccount = true;
+          notifyAdmin(`⚠️ <b>Alerta Multicuenta Detectada</b>\nEl dispositivo <code>${deviceId}</code> intentó registrar la cuenta <code>${targetId}</code> pero ya pertenecía a <code>${existingDeviceUser.id}</code>.`);
+        }
+      }
+
       if (!dbUser) {
-        // Validación de hardware recibida desde App.jsx
-        const isBotAccount = targetUser?.is_clone === true; 
-        
         const newUserObj = { 
           id: targetId, 
           username: targetUser.username || 'Usuario', 
@@ -221,18 +220,30 @@ export default async function handler(req, res) {
           deposit_balance: 0, 
           total_earnings: 0, 
           referral_earnings: 0, 
-          is_human: !isBotAccount, // Si es clon, queda false. Si es real, queda true.
+          is_human: !isMultiAccount, 
+          device_id: deviceId,
+          last_ip: clientIp,
           referral_reward_granted: false 
         };
         
-        if (start_param && String(start_param) !== targetId) newUserObj.referred_by = String(start_param);
+        // 🛡️ BLOQUEO DE REFERIDO SI ES EL MISMO TELÉFONO O AUTO-REFERIDO
+        if (start_param && String(start_param) !== targetId && !isMultiAccount) {
+          // Validamos además que el invitador exista
+          const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
+          if (inviter) {
+            newUserObj.referred_by = String(start_param);
+          }
+        } else if (start_param && isMultiAccount) {
+          notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico.`);
+        }
         
         const { data: newUser, error: insertError } = await supabase.from('users').insert([newUserObj]).select().single();
         if (insertError) throw new Error("Error en Supabase (insert user): " + insertError.message);
         dbUser = newUser;
+      } else {
+        // Actualizamos IP y device_id si faltaban
+        await supabase.from('users').update({ device_id: deviceId, last_ip: clientIp }).eq('id', targetId);
       }
-
-      await tryGrantReferralReward(targetUser);
 
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
 
@@ -288,7 +299,6 @@ export default async function handler(req, res) {
 
       if (!address || withdrawAmount < 0.2) return res.status(400).json({ success: false, error: 'Mínimo: 0.2 USDT.' });
 
-      // Validación atómica anti-clics múltiples en base de datos
       const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_user_balance', {
         p_user_id: targetId,
         p_amount: withdrawAmount
@@ -299,7 +309,6 @@ export default async function handler(req, res) {
       }
       const newBalance = Number(rpcData.new_balance.toFixed(4));
 
-      // Control de fallo estricto
       const { data: withdrawal, error: withdrawError } = await supabase.from('withdrawals').insert([{
         user_id: targetId, wallet_address: address, amount: withdrawAmount,
         status: withdrawAmount <= 0.9 ? 'processing' : 'pending'
@@ -311,6 +320,7 @@ export default async function handler(req, res) {
       }
 
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Enviando a: ${address.substring(0,6)}...`, amount: -withdrawAmount }]);
+      notifyAdmin(`📤 <b>Nueva Solicitud de Retiro</b>\nUsuario: <code>${targetId}</code>\nMonto: <code>${withdrawAmount} USDT</code>`);
 
       if (withdrawAmount <= 0.9) {
           try {
@@ -447,7 +457,6 @@ export default async function handler(req, res) {
       const rew = Number(reward || 0.001); 
       const totalCost = Number((count * rew * 1.30).toFixed(4));
 
-      // Validación atómica anti-clics múltiples en base de datos para Bóveda USDT
       const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_vault_balance', {
         p_user_id: targetId,
         p_amount: totalCost
@@ -458,13 +467,11 @@ export default async function handler(req, res) {
       }
       const newVaultBalance = Number(rpcData.new_balance.toFixed(4));
       
-      // Control de fallo estricto para campañas
       const { data: newTask, error: taskError } = await supabase.from('tasks').insert([{ 
         creator_id: targetId, type, title, url, bot_token: bot_token || null, 
         completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active' 
       }]).select().single();
 
-      // Si la BD rechaza la campaña, devolvemos el saldo exacto y mostramos el error
       if (taskError || !newTask) {
         await supabase.from('users').update({ deposit_balance: newVaultBalance + totalCost }).eq('id', targetId);
         return res.status(400).json({ success: false, error: `Fallo BD: ${taskError?.message || 'Error desconocido'}. Saldo devuelto.` });
@@ -500,7 +507,28 @@ export default async function handler(req, res) {
     }
 
     if (action === 'complete-task') {
-      const { taskId } = req.body; const targetId = String(userId);
+      const { taskId } = req.body; 
+      const targetId = String(userId);
+
+      // 🛡️ COOLDOWN TEMPORAL ANTI-SPAM (Mínimo 5 segundos entre tareas)
+      const { data: lastLog } = await supabase
+        .from('history_logs')
+        .select('created_at')
+        .eq('user_id', targetId)
+        .eq('title', '✅ Tarea Completada')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastLog) {
+        const lastTime = new Date(lastLog.created_at).getTime();
+        const now = Date.now();
+        if (now - lastTime < 5000) { // 5000ms = 5 segundos
+          notifyAdmin(`🤖 <b>Alerta Anti-Spam / Bot</b>\nEl usuario <code>${targetId}</code> intentó completar tareas demasiado rápido (menos de 5s).`);
+          return res.status(400).json({ success: false, error: 'Por favor, espera unos segundos entre cada tarea.' });
+        }
+      }
+
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Tarea no disponible.' });
 
@@ -546,11 +574,16 @@ export default async function handler(req, res) {
       const logDesc = isDaily ? `Check-in: "${task.title}" [Daily:${taskId}]` : `Recompensa por "${task.title}".`;
       await supabase.from('history_logs').insert([{ user_id: targetId, title: `✅ Tarea Completada`, description: logDesc, amount: rewardAmount }]);
 
+      // 🛡️ COMISIÓN ESTRICTA DE REFERIDOS (20% POR TAREA REAL)
       if (dbUser.referred_by) {
         const commissionAmount = Number((rewardAmount * 0.20).toFixed(4));
         const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
         if (referrer) {
-          await supabase.from('users').update({ balance: Number((Number(referrer.balance || 0) + commissionAmount).toFixed(4)), referral_earnings: Number((Number(referrer.referral_earnings || 0) + commissionAmount).toFixed(4)), total_earnings: Number((Number(referrer.total_earnings || 0) + commissionAmount).toFixed(4)) }).eq('id', referrer.id);
+          await supabase.from('users').update({ 
+            balance: Number((Number(referrer.balance || 0) + commissionAmount).toFixed(4)), 
+            referral_earnings: Number((Number(referrer.referral_earnings || 0) + commissionAmount).toFixed(4)), 
+            total_earnings: Number((Number(referrer.total_earnings || 0) + commissionAmount).toFixed(4)) 
+          }).eq('id', referrer.id);
         }
       }
 
