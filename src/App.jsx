@@ -13,6 +13,8 @@ import BottomNav from './components/BottomNav';
 import CaptchaVerification from './components/CaptchaVerification';
 import AdminDashboard from './components/AdminDashboard';
 import WalletTab from './components/WalletTab'; 
+import MarketTab from './components/MarketTab';
+
 
 const neonTheme = {
   container: { backgroundColor: '#0a0314', backgroundImage: 'radial-gradient(circle at 50% 10%, #2b0b47 0%, #0a0314 80%)', minHeight: '100vh', height: 'var(--tg-viewport-height, 100vh)', color: '#ffffff', fontFamily: "'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif", display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
