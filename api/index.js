@@ -189,7 +189,6 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // 🛡️ BATCH TRY/CATCH GLOBAL
     const telegramInitData = req.headers['x-telegram-init-data'];
     if (!telegramInitData || !verifyTelegramWebAppData(telegramInitData)) {
          return res.status(403).json({ success: false, error: 'Firma de Telegram inválida o ausente. Abre la app desde el bot oficial.' });
@@ -201,7 +200,6 @@ export default async function handler(req, res) {
 
     const { user, action, userId, start_param } = req.body; 
 
-    // 🔥 RUTA DE VERIFICACIÓN DE USUARIO (VERIFY)
     if (action === 'verify') {
       const targetUser = user || { id: userId, is_premium: false };
       const targetId = String(targetUser?.id);
@@ -277,11 +275,16 @@ export default async function handler(req, res) {
 
       if (!address || withdrawAmount < 0.2) return res.status(400).json({ success: false, error: 'Mínimo: 0.2 USDT.' });
 
-      const { data: dbUser } = await supabase.from('users').select('balance, username').eq('id', targetId).single();
-      if (!dbUser || Number(dbUser.balance || 0) < withdrawAmount) return res.status(400).json({ success: false, error: 'Saldo insuficiente.' });
+      // 🔥 Validación atómica anti-clics múltiples en base de datos
+      const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_user_balance', {
+        p_user_id: targetId,
+        p_amount: withdrawAmount
+      });
 
-      const newBalance = Number((Number(dbUser.balance) - withdrawAmount).toFixed(4));
-      await supabase.from('users').update({ balance: newBalance }).eq('id', targetId);
+      if (rpcError || !rpcData.success) {
+        return res.status(400).json({ success: false, error: 'Saldo insuficiente o transacción bloqueada por seguridad.' });
+      }
+      const newBalance = Number(rpcData.new_balance.toFixed(4));
 
       const { data: withdrawal } = await supabase.from('withdrawals').insert([{
         user_id: targetId, wallet_address: address, amount: withdrawAmount,
@@ -304,12 +307,11 @@ export default async function handler(req, res) {
       }
     }
 
-         if (action === 'generate-usdt-wallet') {
+    if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
       const targetId = String(userId);
       
-      // 1. Obtenemos la billetera maestra USDT configurada en el panel de administración
-      let masterUsdtWallet = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce"; // Respaldo por defecto
+      let masterUsdtWallet = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce"; 
       try {
         const { data: cfg } = await supabase.from('system_settings').select('master_wallet_usdt_bep20').eq('id', 1).maybeSingle();
         if (cfg && cfg.master_wallet_usdt_bep20) {
@@ -317,18 +319,16 @@ export default async function handler(req, res) {
         }
       } catch (e) {}
 
-      // 2. Generamos una billetera temporal de pago única para este intento vinculada al panel
       const { ethers } = await import('ethers');
       const randomWallet = ethers.Wallet.createRandom();
       const publicAddress = randomWallet.address;
       const privateKey = randomWallet.privateKey;
 
-      // 3. Guardamos el intento en Supabase (incluyendo la llave privada temporal para futuras verificaciones o barridos)
       const { data: newIntent, error: intentErr } = await supabase.from('payment_intents').insert([{ 
         user_id: targetId, 
         expected_amount: Number(price), 
         public_wallet: publicAddress, 
-        encrypted_private_key: privateKey, // Guardamos temporalmente para el barrido hacia tu wallet del panel
+        encrypted_private_key: privateKey, 
         status: 'pending' 
       }]).select().single();
 
@@ -336,7 +336,6 @@ export default async function handler(req, res) {
       
       return res.status(200).json({ success: true, wallet: publicAddress, intentId: newIntent.id });
     }
-
 
     if (action === 'verify-usdt-payment') {
       const { intentId, clicks } = req.body; 
@@ -413,11 +412,16 @@ export default async function handler(req, res) {
       const rew = Number(reward || 0.001); 
       const totalCost = Number((count * rew * 1.30).toFixed(4));
 
-      const { data: dbUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).single();
-      if (!dbUser || Number(dbUser.deposit_balance || 0) < totalCost) return res.status(400).json({ success: false, error: 'Saldo de Bóveda insuficiente.' });
+      // 🔥 Validación atómica anti-clics múltiples en base de datos para Bóveda USDT
+      const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_vault_balance', {
+        p_user_id: targetId,
+        p_amount: totalCost
+      });
 
-      const newVaultBalance = Number((dbUser.deposit_balance - totalCost).toFixed(4));
-      await supabase.from('users').update({ deposit_balance: newVaultBalance }).eq('id', targetId);
+      if (rpcError || !rpcData.success) {
+        return res.status(400).json({ success: false, error: 'Capital de Bóveda insuficiente o transacción en curso.' });
+      }
+      const newVaultBalance = Number(rpcData.new_balance.toFixed(4));
       
       const { data: newTask } = await supabase.from('tasks').insert([{ creator_id: targetId, type, title, url, bot_token: bot_token || null, completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active' }]).select().single();
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '🚀 Campaña Activada', description: `Descontado de Bóveda para ${count} usuarios.`, amount: -totalCost }]);
