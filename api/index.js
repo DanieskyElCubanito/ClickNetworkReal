@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import WebSocket from 'ws';
 import crypto from 'crypto'; 
-import { TonClient, WalletContractV4, internal } from '@ton/ton';
+import { TonClient, WalletContractV4, internal } from '@ton/ton'; 
 import { mnemonicNew, mnemonicToPrivateKey } from '@ton/crypto';
 import { ethers } from 'ethers';
 
