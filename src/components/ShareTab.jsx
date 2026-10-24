@@ -137,7 +137,6 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
           </h4>
         </div>
 
-        {/* 🔥 CAJAS SEPARADAS PARA ACTIVOS Y PENDIENTES */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
           <div style={{ ...neon.statBox, flex: 1, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.05)' }}>
             <div style={{ color: '#00ffaa', fontSize: '10px', fontWeight: '900', letterSpacing: '0.5px', marginBottom: '4px' }}>ACTIVOS</div>
@@ -206,10 +205,9 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
             {referralsList.map((ref, idx) => {
               const avatarLetter = ref.username ? ref.username.charAt(0).toUpperCase() : 'U';
 
-              // 🔥 Convertimos lo generado en USDT a Gemas (x1000)
+              // 🔥 Solo calcula el 20% real de las tareas completadas por el afiliado
               const childTotalUSDT = Number(ref.total_earnings || 0);
-              const generatedFromTasksUSDT = childTotalUSDT * 0.20;
-              const generatedTotalUSDT = (ref.referral_reward_granted ? 1 : 0) + generatedFromTasksUSDT;
+              const generatedTotalUSDT = childTotalUSDT * 0.20;
               const generatedGemas = Math.floor(generatedTotalUSDT * 1000);
 
               return (
@@ -252,7 +250,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
 
         <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '12px', padding: '12px', marginTop: '16px', border: '1px dashed #8a2be2' }}>
           <p style={{ textAlign: 'center', fontSize: '11px', color: '#00f0ff', margin: 0, lineHeight: '1.5', fontWeight: 'bold' }}>
-            {t('ref_footer_p1') || "Recibes"} <strong style={{color: '#ff4b4b'}}>1000 GEMAS</strong> {t('ref_footer_p2') || "por cada afiliado verificado"}<br/>+ <strong style={{color: '#00ffaa'}}>20%</strong> {t('ref_footer_p3') || "de cada tarea que ellos completen."}
+            {t('ref_footer_p1') || "Recibes el"} <strong style={{color: '#00ffaa'}}>20%</strong> {t('ref_footer_p2') || "de comisiones de por vida"}<br/>{t('ref_footer_p3') || "por cada tarea que tus afiliados completen."}
           </p>
         </div>
       </div>
