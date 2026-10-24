@@ -21,7 +21,7 @@ const neon = {
   label: { fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', color: '#ff99dd', marginBottom: '8px', display: 'block', letterSpacing: '0.5px' },
   btnActionCalc: { width: '45px', height: '45px', background: 'rgba(0, 240, 255, 0.1)', color: '#00f0ff', border: '2px solid #00f0ff', borderRadius: '12px', fontWeight: '900', fontSize: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   inputCalc: { flex: 1, background: 'rgba(15, 5, 28, 0.8)', border: '2px solid #8a2be2', borderRadius: '12px', padding: '10px', fontSize: '18px', fontWeight: '900', color: '#fff', outline: 'none', boxSizing: 'border-box', textAlign: 'center' },
-  summaryBox: { background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(138, 43, 226, 0.1))', border: '1px dashed #00f0ff', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', boxShadow: 'inset 0 0 10px rgba(0, 240, 255, 0.1)' },
+  summaryBox: { background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(138, 43, 226, 0.1))', border: '1px dashed #00f0ff', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', boxShadow: 'inset 0 0 10px rgba(0, 240, 255, 0.1)' },
   actionBtn: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00f0ff 0%, #0099ff 100%)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }
 };
 
@@ -31,20 +31,17 @@ const TaskIcons = {
   bot: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg>,
   promo: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>,
   daily: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
-  ad: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>,
   play: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
   pause: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>,
   edit: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
-  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
-  wait: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
 };
 
 export default function AdsTab({ userData, setUserData, t }) {
   const [view, setView] = useState('list');
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
-  const [adLoading, setAdLoading] = useState(false);
 
   const [taskStatus, setTaskStatus] = useState({}); 
   const [countdown, setCountdown] = useState({});
@@ -56,7 +53,7 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [isDailyTask, setIsDailyTask] = useState(false);
 
   const [completions, setCompletions] = useState(100);
-  const [rewardPerClick, setRewardPerClick] = useState(1);
+  const [rewardPerGema, setRewardPerGema] = useState(2.5); // 2.5 Gemas por usuario = 100%
   const [paymentMethod, setPaymentMethod] = useState('balance');
 
   const [checkoutView, setCheckoutView] = useState(false);
@@ -66,10 +63,10 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-
   const [liveGramUsd, setLiveGramUsd] = useState(5.00);
 
-  const balance = Number(userData?.balance || 0);
+  // Balance interno en DB (USDT)
+  const balanceUSDT = Number(userData?.balance || 0);
 
   const TASK_TYPES = [
     { id: 'bot', icon: TaskIcons.bot('#ffe600'), title: t('ads_type_bot'), desc: 'Usuarios inician tu bot o app', color: '#ffe600', autoName: 'Iniciar Bot/App' },
@@ -92,8 +89,13 @@ export default function AdsTab({ userData, setUserData, t }) {
     fetchLivePrice();
   }, []);
 
-  const totalClicksCost = completions * rewardPerClick;
-  const usdPrice = totalClicksCost * 0.0025;
+  // 🔥 MATEMÁTICA EXACTA CON COMISIONES (130%)
+  const baseCostGemas = completions * rewardPerGema;
+  const referralFeeGemas = Math.floor(baseCostGemas * 0.20); // 20%
+  const adminFeeGemas = Math.floor(baseCostGemas * 0.10);    // 10%
+  const totalGemasCost = baseCostGemas + referralFeeGemas + adminFeeGemas; // 130%
+
+  const usdPrice = totalGemasCost / 1000; // Total en dólares que pagará
   const gramPrice = (usdPrice / liveGramUsd).toFixed(2);
   const starsPrice = Math.ceil(usdPrice / 0.013);
 
@@ -172,7 +174,7 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const handleCheckout = () => {
     if (paymentMethod === 'balance') {
-      if (balance < totalClicksCost) return toast.error(`Saldo insuficiente. Necesitas ${totalClicksCost} CLICK.`);
+      if (balanceUSDT < usdPrice) return toast.error(`Saldo insuficiente. Necesitas ${totalGemasCost} Gemas.`);
       handleCreateTaskPaid();
     } else if (paymentMethod === 'gram') generateGramWallet();
     else if (paymentMethod === 'stars') handleStarsPayment();
@@ -184,10 +186,13 @@ export default function AdsTab({ userData, setUserData, t }) {
     const fixedTitle = TASK_TYPES.find(t => t.id === taskType)?.autoName || 'Nueva Tarea';
     const finalTaskType = isDailyTask ? `daily_${taskType}` : taskType;
 
+    // Enviamos solo el Reward Base. El backend calculará el 130% para descontar.
+    const rewardForDb = rewardPerGema / 1000;
+
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ creator_id: userData?.id, action: 'create-task', type: finalTaskType, title: fixedTitle, url: targetUrl, bot_token: botToken || null, completions_total: completions, reward: rewardPerClick })
+        body: JSON.stringify({ creator_id: userData?.id, action: 'create-task', type: finalTaskType, title: fixedTitle, url: targetUrl, bot_token: botToken || null, completions_total: completions, reward: rewardForDb })
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
@@ -203,7 +208,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'generate-payment-wallet', userId: userData.id, packageId: 0, price: gramPrice, clicks: totalClicksCost })
+        body: JSON.stringify({ action: 'generate-payment-wallet', userId: userData.id, packageId: 0, price: gramPrice, clicks: usdPrice })
       });
       const data = await res.json();
       if (data.success) { setTempWallet(data.wallet); setIntentId(data.intentId); toast.dismiss(tid); setCheckoutView(true); }
@@ -218,7 +223,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'verify-crypto-payment', userId: userData.id, intentId: intentId, clicks: totalClicksCost })
+        body: JSON.stringify({ action: 'verify-crypto-payment', userId: userData.id, intentId: intentId, clicks: usdPrice })
       });
       const data = await res.json();
       if (data.success) { toast.success(`Pago Exitoso.`, { id: tid }); await handleCreateTaskPaid(); }
@@ -226,34 +231,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     } catch (e) { toast.error(e.message || "Aún no detectamos el pago.", { id: tid, duration: 6000 }); }
   };
 
-  const handleStarsPayment = async () => {
-    setIsGenerating(true);
-    const tid = toast.loading("Generando factura...");
-    try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'generate-stars-invoice', userId: userData.id, packageId: 0, stars: starsPrice, clicks: totalClicksCost })
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.dismiss(tid);
-        WebApp.openInvoice(data.invoiceUrl, async (status) => {
-          if (status === 'paid') {
-            const confirmTid = toast.loading("Confirmando...");
-            try {
-              const confirmRes = await fetch('/api', {
-                method: 'POST', headers: apiHeaders,
-                body: JSON.stringify({ action: 'confirm-stars-payment', userId: userData.id, intentId: data.intentId, clicks: totalClicksCost })
-              });
-              const confirmData = await confirmRes.json();
-              if (confirmData.success) { toast.success(`Pago exitoso.`, { id: confirmTid }); await handleCreateTaskPaid(); }
-            } catch (err) { toast.error("Error al acreditar.", { id: confirmTid }); }
-          } else { toast.error("Pago no completado."); }
-        });
-      }
-    } catch (e) { toast.error("No se pudo generar factura.", { id: tid }); } finally { setIsGenerating(false); }
-  };
-
+  const handleStarsPayment = () => toast.error("Pagos con Stars en mantenimiento.");
   const cancelCheckout = () => { setCheckoutView(false); setIntentId(null); setTempWallet(''); };
 
   const handleStartTask = (task) => {
@@ -281,7 +259,8 @@ export default function AdsTab({ userData, setUserData, t }) {
         if (data.is_rejoin) {
           toast.success("¡Unión restaurada!", { id: tid });
         } else {
-          toast.success(`+${data.reward} CLICK`, { id: tid });
+          const earnedGemas = Math.floor(Number(data.reward) * 1000);
+          toast.success(`+${earnedGemas} 💎`, { id: tid });
           if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
         }
         setTaskStatus(prev => ({ ...prev, [task.id]: 'completed' }));
@@ -292,28 +271,6 @@ export default function AdsTab({ userData, setUserData, t }) {
         if (data.error && data.error.includes('pausada')) fetchTasks();
       }
     } catch (e) { toast.error("Error de conexión.", { id: tid }); setTaskStatus(prev => ({ ...prev, [task.id]: 'ready' })); } 
-  };
-
-  const handleWatchAd = () => {
-    if (typeof window.showGiga !== 'function') return toast.error("Servidor no disponible.");
-    if (adLoading) return;
-    setAdLoading(true);
-    const tid = toast.loading("Sintonizando anuncio...");
-    window.showGiga().then(async () => {
-        toast.loading("Acreditando +0.50 CLICK...", { id: tid });
-        try {
-          const res = await fetch('/api', {
-            method: 'POST', headers: apiHeaders,
-            body: JSON.stringify({ action: 'claim-bonus', userId: userData.id })
-          });
-          const data = await res.json();
-          if (data.success) {
-            toast.success("+0.50 CLICK", { id: tid });
-            if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
-          } else toast.error("Error al procesar el pago.", { id: tid });
-        } catch (error) { toast.error("Error de conexión.", { id: tid }); }
-        finally { setAdLoading(false); }
-      }).catch(() => { toast.error("Cancelado.", { id: tid }); setAdLoading(false); });
   };
 
   const handleDeleteTask = async (taskId) => {
@@ -362,14 +319,14 @@ export default function AdsTab({ userData, setUserData, t }) {
   };
 
   const getTaskLabel = (type) => {
-    if (type === 'publish_group') return '🌐 Red Comunitaria';
+    if (type === 'publish_group') return 'Red Comunitaria';
     if (type.startsWith('daily_')) return t('ads_type_daily');
     switch (type) {
       case 'group':
       case 'channel': return t('ads_type_group');
       case 'bot': return t('ads_type_bot');
       case 'promo': return t('ads_type_promo');
-      default: return '⚡ Tarea';
+      default: return 'Tarea';
     }
   };
 
@@ -386,20 +343,15 @@ export default function AdsTab({ userData, setUserData, t }) {
   const renderTaskButton = (task) => {
     const status = taskStatus[task.id];
     const isDaily = task.type.startsWith('daily_');
+    const displayGemas = Math.floor(Number(task.reward) * 1000);
 
-    if (task.needs_rejoin) {
-       return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>VOLVER A ENTRAR</button>;
-    }
-
-    if (task.is_completed || status === 'completed') {
-       return <button disabled style={neon.taskButtonDisabled}>{isDaily ? t('ads_btn_wait_tomorrow') : t('ads_completed')}</button>;
-    }
-
+    if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>VOLVER A ENTRAR</button>;
+    if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{isDaily ? t('ads_btn_wait_tomorrow') : t('ads_completed')}</button>;
     if (status === 'waiting') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_waiting')} ({countdown[task.id] || 0}s)</button>;
     if (status === 'ready') return <button onClick={() => handleCheckTask(task)} style={neon.taskButtonCheck}>{Icons.check} {t('ads_btn_check')}</button>;
     if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
 
-    return <button onClick={() => handleStartTask(task)} style={isDaily ? {...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'} : neon.taskButton}>{`+${Number(task.reward).toFixed(2)} CLICK`}</button>;
+    return <button onClick={() => handleStartTask(task)} style={isDaily ? {...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'} : neon.taskButton}>{`+${displayGemas} 💎`}</button>;
   };
 
   return (
@@ -424,17 +376,6 @@ export default function AdsTab({ userData, setUserData, t }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
             <h4 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_explore')}</h4>
             <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update')}</button>
-          </div>
-
-          <div style={{...neon.taskCard, borderColor: '#ff1493', background: 'linear-gradient(145deg, rgba(255, 20, 147, 0.1), #1a0b33)'}}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{...neon.taskIconBox, borderColor: '#ff1493'}}>{TaskIcons.ad('#ff1493')}</div>
-              <div>
-                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900' }}>{t('ads_ad_sponsored')}</div>
-                <div style={{ color: '#ff99dd', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>{t('ads_ad_unlimited')}</div>
-              </div>
-            </div>
-            <button onClick={handleWatchAd} disabled={adLoading} style={adLoading ? neon.taskButtonDisabled : {...neon.taskButton, background: 'linear-gradient(180deg, #ff1493, #d80073)', color: '#fff', boxShadow: '0 4px 0 #8b004b'}}>{adLoading ? t('ads_btn_loading') : '+0.50 CLICK'}</button>
           </div>
 
           {loadingTasks ? (
@@ -516,7 +457,7 @@ export default function AdsTab({ userData, setUserData, t }) {
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>
                         <span style={{ color: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4' }}>{t('ads_progress')}</span>
-                        <span style={{ color: '#fff' }}>{task.completions_done} / {task.completions_total} {t('ads_referrals')}</span>
+                        <span style={{ color: '#fff' }}>{task.completions_done} / {task.completions_total} usuarios</span>
                       </div>
                       <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', marginBottom: '12px' }}>
                         <div style={{ width: `${percent}%`, height: '100%', background: isCompleted ? 'linear-gradient(90deg, #00ffaa, #00bb77)' : isPaused ? 'linear-gradient(90deg, #ffaa00, #ffe600)' : 'linear-gradient(90deg, #ff1493, #ff66cc)', boxShadow: isCompleted ? '0 0 10px #00ffaa' : isPaused ? '0 0 10px #ffaa00' : '0 0 10px #ff1493', transition: 'width 0.3s ease' }}></div>
@@ -641,34 +582,41 @@ export default function AdsTab({ userData, setUserData, t }) {
                     <button onClick={() => setCompletions(1000)} style={neon.pillButton(completions === 1000)}>1K</button>
                     <button onClick={() => setCompletions(5000)} style={neon.pillButton(completions === 5000)}>5K</button>
                   </div>
-                  <span style={neon.label}>Cuántas Completaciones</span>
+                  <span style={neon.label}>Usuarios (Completaciones)</span>
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                     <button onClick={() => setCompletions(p => Math.max(10, p - 10))} style={neon.btnActionCalc}>-</button>
                     <input type="number" value={completions} onChange={(e) => setCompletions(Number(e.target.value) || 0)} style={neon.inputCalc} />
                     <button onClick={() => setCompletions(p => p + 10)} style={neon.btnActionCalc}>+</button>
                   </div>
-                  <span style={neon.label}>Click por Completar</span>
+                  <span style={neon.label}>Pago por Usuario (Gemas)</span>
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                    <button onClick={() => setRewardPerClick(p => Math.max(1, p - 1))} style={neon.btnActionCalc}>-</button>
-                    <input type="number" value={rewardPerClick} onChange={(e) => setRewardPerClick(Number(e.target.value) || 0)} style={neon.inputCalc} />
-                    <button onClick={() => setRewardPerClick(p => p + 1)} style={neon.btnActionCalc}>+</button>
+                    <button onClick={() => setRewardPerGema(p => Math.max(1, p - 0.5))} style={neon.btnActionCalc}>-</button>
+                    <input type="number" step="0.5" value={rewardPerGema} onChange={(e) => setRewardPerGema(Number(e.target.value) || 0)} style={neon.inputCalc} />
+                    <button onClick={() => setRewardPerGema(p => p + 0.5)} style={neon.btnActionCalc}>+</button>
                   </div>
                   <div style={{ display: 'flex', background: 'rgba(15, 5, 28, 0.8)', borderRadius: '12px', border: '2px solid #8a2be2', overflow: 'hidden', marginBottom: '20px' }}>
-                    <button onClick={() => setPaymentMethod('balance')} style={{ flex: 1, padding: '12px', border: 'none', background: paymentMethod === 'balance' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: paymentMethod === 'balance' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>MI SALDO</button>
+                    <button onClick={() => setPaymentMethod('balance')} style={{ flex: 1, padding: '12px', border: 'none', background: paymentMethod === 'balance' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: paymentMethod === 'balance' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>SALDO</button>
                     <button onClick={() => setPaymentMethod('gram')} style={{ flex: 1, padding: '12px', borderLeft: '1px solid #8a2be2', borderRight: '1px solid #8a2be2', background: paymentMethod === 'gram' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: paymentMethod === 'gram' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>GRAM</button>
                     <button onClick={() => setPaymentMethod('stars')} style={{ flex: 1, padding: '12px', border: 'none', background: paymentMethod === 'stars' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: paymentMethod === 'stars' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>STARS</button>
                   </div>
+                  
                   <div style={neon.summaryBox}>
-                    <div>
-                      <div style={{ fontWeight: '900', fontSize: '14px', marginBottom: '4px', color: '#ffffff' }}>Pagas</div>
-                      <div style={{ fontSize: '10px', fontWeight: '800', opacity: 0.8, color: '#ff99dd' }}>Presupuesto: {totalClicksCost} CLICK</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>Pago a usuarios: {baseCostGemas} 💎</div>
+                      <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>Fondo referidos: {referralFeeGemas} 💎</div>
+                      <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '6px' }}>Plataforma: {adminFeeGemas} 💎</div>
+                      <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>TOTAL A PAGAR:</div>
                     </div>
-                    <div style={{ fontWeight: '900', fontSize: '16px', textAlign: 'right', color: '#00f0ff' }}>
-                      {paymentMethod === 'balance' && `${totalClicksCost} CLICK • $0.00`}
-                      {paymentMethod === 'gram' && `${gramPrice} GRAM • $${usdPrice.toFixed(2)}`}
-                      {paymentMethod === 'stars' && `${starsPrice} ⭐ • $${usdPrice.toFixed(2)}`}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: '900', fontSize: '20px', color: '#00f0ff' }}>{totalGemasCost} 💎</div>
+                      <div style={{ fontSize: '12px', color: '#00f0ff', opacity: 0.8 }}>
+                        {paymentMethod === 'gram' && `${gramPrice} GRAM • $${usdPrice.toFixed(2)}`}
+                        {paymentMethod === 'stars' && `${starsPrice} ⭐ • $${usdPrice.toFixed(2)}`}
+                        {paymentMethod === 'balance' && `$${usdPrice.toFixed(2)} USDT`}
+                      </div>
                     </div>
                   </div>
+                  
                   <button onClick={handleCheckout} disabled={isGenerating} style={neon.actionBtn}>{isGenerating ? 'PROCESANDO...' : '+ Crear y pagar'}</button>
                 </div>
               )}
