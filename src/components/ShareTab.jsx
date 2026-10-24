@@ -3,6 +3,38 @@ import toast from 'react-hot-toast';
 import { botApi } from '../api/botApi';
 import WebApp from '@twa-dev/sdk';
 
+// --- ÍCONOS SVG PREMIUM (Sin Emojis) ---
+const Icons = {
+  redGem: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(255, 20, 20, 0.8))' }}>
+      <path d="M12 22L2 9L6 2H18L22 9L12 22Z" fill="url(#gemGradient)" stroke="#ff1414" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M2 9H22" stroke="#ff1414" strokeWidth="1.5"/>
+      <path d="M6 2L12 22M18 2L12 22" stroke="#ff1414" strokeWidth="1.5" opacity="0.6"/>
+      <defs>
+        <linearGradient id="gemGradient" x1="12" y1="2" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#ff4b4b" />
+          <stop offset="1" stopColor="#8b0000" />
+        </linearGradient>
+      </defs>
+    </svg>
+  ),
+  network: (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 5px rgba(0,240,255,0.5))' }}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  ),
+  empty: (
+    <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#ff41b4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 8px rgba(255,65,180,0.5))' }}>
+      <circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+    </svg>
+  ),
+  refresh: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </svg>
+  )
+};
+
 const neon = {
   card: {
     background: 'linear-gradient(145deg, rgba(46, 16, 77, 0.85), rgba(20, 8, 38, 0.95))',
@@ -15,12 +47,12 @@ const neon = {
   btnPrimary: {
     width: '100%', padding: '14px', background: 'linear-gradient(180deg, #ff66cc 0%, #ff1493 50%, #d80073 100%)',
     color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '14px',
-    cursor: 'pointer', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.4)'
+    cursor: 'pointer', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.4)', textTransform: 'uppercase'
   },
   btnOutline: {
     width: '100%', padding: '14px', background: 'rgba(0, 240, 255, 0.1)',
     color: '#00f0ff', border: '2px solid #00f0ff', borderRadius: '16px', fontWeight: '900', fontSize: '14px',
-    cursor: 'pointer', boxShadow: '0 0 15px rgba(0, 240, 255, 0.2)'
+    cursor: 'pointer', boxShadow: '0 0 15px rgba(0, 240, 255, 0.2)', textTransform: 'uppercase'
   },
   statBox: {
     background: 'rgba(15, 5, 28, 0.8)',
@@ -76,7 +108,9 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
   const activeCount = referralsList.filter(r => r.referral_reward_granted).length;
   const pendingCount = n1 - activeCount;
 
-  const totalEarned = parseFloat(earnings).toFixed(2);
+  // 🔥 Transformamos las ganancias en USDT a Gemas (x1000 sin decimales)
+  const gemEarnings = Math.floor(Number(earnings) * 1000);
+  
   const inviteLink = `https://t.me/ClickNetworkbot/app?startapp=${userId}`;
 
   const handleCopy = () => {
@@ -88,7 +122,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
 
   const handleShare = () => {
     if (!userId) return toast.error("Error");
-    const text = t('share_text') || "⚡ ¡Entra a la red y gana CLICK gratis! 🚀";
+    const text = t('share_text') || "💎 ¡Entra a la red y gana Gemas gratis completando tareas! 🚀";
     WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(text)}`);
   };
 
@@ -97,7 +131,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
 
       <div style={neon.card}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-          <span style={{ fontSize: '24px', filter: 'drop-shadow(0 0 10px rgba(0, 240, 255, 0.4))' }}>👥</span>
+          {Icons.network}
           <h4 style={{ margin: 0, color: '#00f0ff', fontSize: '16px', fontWeight: '900', letterSpacing: '1px' }}>
             {t('ref_title') || "PROGRAMA DE AFILIADOS"}
           </h4>
@@ -116,19 +150,21 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
           <button 
             onClick={fetchReferrals} 
             disabled={loading}
-            style={{ ...neon.statBox, background: loading ? '#555' : '#2b0b47', border: '1px solid #ff41b4', padding: '10px', cursor: loading ? 'not-allowed' : 'pointer' }}
+            style={{ ...neon.statBox, background: loading ? '#555' : '#2b0b47', border: '1px solid #ff41b4', padding: '10px', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
           >
-            <div style={{ fontSize: '18px', animation: loading ? 'spin 1s linear infinite' : 'none' }}>🔄</div>
-            <div style={{ color: '#fff', fontSize: '9px', fontWeight: 'bold', marginTop: '4px' }}>{t('ref_update') || "ACTUALIZAR"}</div>
+            <div style={{ animation: loading ? 'spin 1s linear infinite' : 'none', display: 'flex' }}>
+              {Icons.refresh}
+            </div>
+            <div style={{ color: '#fff', fontSize: '9px', fontWeight: 'bold', marginTop: '6px' }}>{t('ref_update') || "ACTUALIZAR"}</div>
           </button>
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
           <button style={{ ...neon.btnPrimary, flex: 1 }} onClick={handleShare}>
-            {t('ref_btn_invite') || "🚀 INVITAR"}
+            🚀 INVITAR
           </button>
           <button style={{ ...neon.btnOutline, flex: 1 }} onClick={handleCopy}>
-            {t('ref_btn_copy') || "📋 COPIAR"}
+            📋 COPIAR
           </button>
         </div>
       </div>
@@ -136,22 +172,22 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
       <div style={{ ...neon.card, borderColor: '#8a2be2' }}>
         <div style={neon.totalCard}>
           <div>
-            <p style={{ fontSize: '11px', color: '#ff99dd', margin: '0 0 4px 0', fontWeight: '900' }}>{t('ref_earnings_title') || "GANANCIAS POR INVITADOS"}</p>
-            <p style={{ fontSize: '24px', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-              {totalEarned} <span style={{ fontSize: '14px', color: '#ffe600' }}>CLICK</span>
+            <p style={{ fontSize: '11px', color: '#ff99dd', margin: '0 0 4px 0', fontWeight: '900', textTransform: 'uppercase' }}>
+              {t('ref_earnings_title') || "Ganancias por Invitados"}
+            </p>
+            <p style={{ fontSize: '32px', fontWeight: '900', color: '#ffffff', margin: 0, textShadow: '0 0 10px rgba(255,255,255,0.3)' }}>
+              {gemEarnings} <span style={{ fontSize: '16px', color: '#ff4b4b' }}>💎</span>
             </p>
           </div>
           <div style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffe600" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 5px rgba(255,230,0,0.5))' }}>
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-            </svg>
+            {Icons.redGem}
           </div>
         </div>
       </div>
 
       <div style={{ ...neon.card, borderColor: '#ff41b4' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h4 style={{ color: '#00f0ff', fontSize: '15px', margin: 0, fontWeight: '900' }}>
+          <h4 style={{ color: '#00f0ff', fontSize: '15px', margin: 0, fontWeight: '900', textTransform: 'uppercase' }}>
             {t('ref_network_title') || "📊 Tu Red"} ({n1})
           </h4>
         </div>
@@ -159,8 +195,8 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
         {loading && n1 === 0 ? (
           <div style={{ textAlign: 'center', padding: '20px 0', color: '#00f0ff', fontSize: '13px', fontWeight: 'bold' }}>{t('ref_syncing') || "Sincronizando..."}</div>
         ) : n1 === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', backgroundColor: 'rgba(255, 65, 180, 0.05)', borderRadius: '14px', border: '1px dashed #ff41b4' }}>
-            <span style={{ fontSize: '30px', display: 'block', marginBottom: '10px' }}>👻</span>
+          <div style={{ textAlign: 'center', padding: '30px 0', backgroundColor: 'rgba(255, 65, 180, 0.05)', borderRadius: '14px', border: '1px dashed #ff41b4' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>{Icons.empty}</div>
             <span style={{ color: '#ff99dd', fontSize: '13px', lineHeight: '1.5', fontWeight: 'bold', whiteSpace: 'pre-wrap' }}>
               {t('ref_empty_desc') || "Aún no tienes afiliados registrados."}
             </span>
@@ -169,11 +205,12 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
           <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
             {referralsList.map((ref, idx) => {
               const avatarLetter = ref.username ? ref.username.charAt(0).toUpperCase() : 'U';
-              
-              // 🔥 CÁLCULO DE CUÁNTO HA GENERADO ESTE USUARIO: 1 CLICK de registro + 20% de lo que ha ganado.
-              const childTotal = Number(ref.total_earnings || 0);
-              const generatedFromTasks = childTotal * 0.20;
-              const generatedTotal = (ref.referral_reward_granted ? 1 : 0) + generatedFromTasks;
+
+              // 🔥 Convertimos lo generado en USDT a Gemas (x1000)
+              const childTotalUSDT = Number(ref.total_earnings || 0);
+              const generatedFromTasksUSDT = childTotalUSDT * 0.20;
+              const generatedTotalUSDT = (ref.referral_reward_granted ? 1 : 0) + generatedFromTasksUSDT;
+              const generatedGemas = Math.floor(generatedTotalUSDT * 1000);
 
               return (
                 <div key={ref.id || idx} style={neon.refItem}>
@@ -203,8 +240,8 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
                         {t('ref_status_pending') || "PENDIENTE"}
                       </span>
                     )}
-                    <div style={{ color: '#00f0ff', fontSize: '12px', fontWeight: 'bold', marginTop: '6px' }}>
-                      Generado: +{generatedTotal.toFixed(2)}
+                    <div style={{ color: '#ff4b4b', fontSize: '12px', fontWeight: '900', marginTop: '6px' }}>
+                      +{generatedGemas} 💎
                     </div>
                   </div>
                 </div>
@@ -215,7 +252,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
 
         <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '12px', padding: '12px', marginTop: '16px', border: '1px dashed #8a2be2' }}>
           <p style={{ textAlign: 'center', fontSize: '11px', color: '#00f0ff', margin: 0, lineHeight: '1.5', fontWeight: 'bold' }}>
-            {t('ref_footer_p1') || "Recibes"} <strong style={{color: '#ffe600'}}>1.0 CLICK</strong> {t('ref_footer_p2') || "por cada afiliado verificado"}<br/>+ <strong style={{color: '#00ffaa'}}>20%</strong> {t('ref_footer_p3') || "de cada tarea que ellos completen."}
+            {t('ref_footer_p1') || "Recibes"} <strong style={{color: '#ff4b4b'}}>1000 GEMAS</strong> {t('ref_footer_p2') || "por cada afiliado verificado"}<br/>+ <strong style={{color: '#00ffaa'}}>20%</strong> {t('ref_footer_p3') || "de cada tarea que ellos completen."}
           </p>
         </div>
       </div>
