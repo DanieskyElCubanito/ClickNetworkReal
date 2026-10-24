@@ -9,9 +9,9 @@ const neonStyles = {
     margin: '10px 0 20px 0', color: '#00f0ff', textShadow: '0 0 15px rgba(0, 240, 255, 0.4)'
   },
   balanceCard: {
-    background: 'linear-gradient(135deg, rgba(20, 8, 38, 0.9), rgba(46, 16, 77, 0.9))',
-    border: '2px solid #ff1493', borderRadius: '24px', padding: '24px', marginBottom: '20px',
-    textAlign: 'center', boxShadow: '0 8px 25px rgba(255, 20, 147, 0.3), inset 0 2px 10px rgba(255, 255, 255, 0.1)',
+    background: 'linear-gradient(135deg, rgba(38, 8, 8, 0.8), rgba(20, 5, 5, 0.95))',
+    border: '2px solid #ff1414', borderRadius: '24px', padding: '24px', marginBottom: '20px',
+    textAlign: 'center', boxShadow: '0 8px 25px rgba(255, 20, 20, 0.2), inset 0 2px 10px rgba(255, 255, 255, 0.1)',
     position: 'relative', overflow: 'hidden'
   },
   card: {
@@ -41,26 +41,23 @@ const neonStyles = {
   },
   tabBtn: (active, isDeposit) => ({
     flex: 1, padding: '14px', borderRadius: '14px', fontWeight: '900', fontSize: '14px', border: 'none', cursor: 'pointer', transition: '0.3s',
-    background: active ? (isDeposit ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'linear-gradient(90deg, #ff1493, #d80073)') : 'transparent',
-    color: active ? (isDeposit ? '#050214' : '#ffffff') : (isDeposit ? '#00f0ff' : '#ff99dd'),
-    boxShadow: active ? (isDeposit ? '0 4px 15px rgba(0,240,255,0.3)' : '0 4px 15px rgba(255,20,147,0.3)') : 'none'
+    background: active ? (isDeposit ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'linear-gradient(90deg, #ff1414, #8b0000)') : 'transparent',
+    color: active ? (isDeposit ? '#050214' : '#ffffff') : (isDeposit ? '#00f0ff' : '#ff9999'),
+    boxShadow: active ? (isDeposit ? '0 4px 15px rgba(0,240,255,0.3)' : '0 4px 15px rgba(255,20,20,0.3)') : 'none'
   })
 };
 
 export default function WalletTab({ userData, setUserData, t }) {
-  const [activeTab, setActiveTab] = useState('withdraw'); // 'deposit' | 'withdraw'
-
-  // Estados para Retiros
+  const [activeTab, setActiveTab] = useState('withdraw'); 
   const [withdrawAddress, setWithdrawAddress] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
-
-  // Estados para Depósitos (Simulación de paquetes)
-  const [depositAmount, setDepositAmount] = useState('10');
+  const [depositAmount, setDepositAmount] = useState('10000');
   const [isDepositing, setIsDepositing] = useState(false);
 
-  const balance = Number(userData?.balance || 0);
-  const totalEarnings = Number(userData?.total_earnings || 0);
+  // 🔥 Transformamos a Gemas
+  const balanceUSDT = Number(userData?.balance || 0);
+  const gemBalance = Math.floor(balanceUSDT * 1000);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
@@ -68,13 +65,15 @@ export default function WalletTab({ userData, setUserData, t }) {
     if (!withdrawAddress.trim()) return toast.error("Ingresa tu billetera TON.");
     if (withdrawAddress.length < 20) return toast.error("Billetera TON inválida.");
 
-    const amount = Number(withdrawAmount);
-    // 🔥 CAMBIO APLICADO: Mínimo 0.2 USDT
-    if (!amount || amount < 0.2) return toast.error("El retiro mínimo es de 0.2 USDT.");
-    if (amount > balance) return toast.error("Saldo insuficiente.");
+    const gemasAmount = Number(withdrawAmount);
+    if (!gemasAmount || gemasAmount < 200) return toast.error("El retiro mínimo es de 200 Gemas.");
+    if (gemasAmount > gemBalance) return toast.error("No tienes suficientes Gemas.");
 
     setIsWithdrawing(true);
     const tid = toast.loading("Procesando retiro...");
+    
+    // Convertimos de vuelta a USDT para el backend
+    const usdtAmount = gemasAmount / 1000;
 
     try {
       const res = await fetch('/api', {
@@ -83,13 +82,13 @@ export default function WalletTab({ userData, setUserData, t }) {
           action: 'request-withdrawal', 
           userId: userData.id, 
           address: withdrawAddress, 
-          amount: amount 
+          amount: usdtAmount 
         })
       });
       const data = await res.json();
 
       if (data.success) {
-        toast.success(data.message || "¡Retiro en proceso! Llegará pronto.", { id: tid });
+        toast.success(data.message || "¡Retiro en proceso!", { id: tid });
         if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
         setWithdrawAddress('');
         setWithdrawAmount('');
@@ -103,73 +102,68 @@ export default function WalletTab({ userData, setUserData, t }) {
     }
   };
 
-  const handleDeposit = () => {
-    toast.error("El módulo de depósitos se activará en la Fase 2.");
-  };
-
   return (
     <div style={neonStyles.container} className="fade-in">
-      <Toaster position="top-center" />
-      <h2 style={neonStyles.title}>Billetera</h2>
+      <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
+      <h2 style={neonStyles.title}>Banco Central</h2>
 
       <div style={neonStyles.balanceCard}>
-        <div style={{ position: 'absolute', top: '-20px', right: '-20px', fontSize: '100px', opacity: 0.1 }}>💎</div>
-        <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase', letterSpacing: '1px' }}>Saldo Disponible</div>
-        <div style={{ fontSize: '42px', fontWeight: '900', color: '#ffffff', margin: '10px 0', textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
-          {balance.toFixed(4)} <span style={{ fontSize: '20px', color: '#00f0ff' }}>USDT</span>
+        <div style={{ position: 'absolute', top: '-20px', right: '-20px', fontSize: '100px', opacity: 0.1 }}>🏦</div>
+        <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff9999', textTransform: 'uppercase', letterSpacing: '1px' }}>Saldo Retirable</div>
+        <div style={{ fontSize: '42px', fontWeight: '900', color: '#ffffff', margin: '10px 0', textShadow: '0 0 20px rgba(255,20,20,0.4)' }}>
+          {gemBalance} <span style={{ fontSize: '20px', color: '#ff4b4b' }}>💎</span>
         </div>
-        <div style={{ fontSize: '12px', color: '#00ffaa', fontWeight: 'bold' }}>
-          Ganancias Históricas: {totalEarnings.toFixed(4)} USDT
+        <div style={{ fontSize: '12px', color: '#ff9999', fontWeight: 'bold' }}>
+          Equivale a {balanceUSDT.toFixed(4)} USDT
         </div>
       </div>
 
       <div style={neonStyles.tabContainer}>
         <button onClick={() => setActiveTab('withdraw')} style={neonStyles.tabBtn(activeTab === 'withdraw', false)}>
-          RETIRAR
+          RETIRAR (OUT)
         </button>
         <button onClick={() => setActiveTab('deposit')} style={neonStyles.tabBtn(activeTab === 'deposit', true)}>
-          DEPOSITAR
+          DEPOSITAR (IN)
         </button>
       </div>
 
       {activeTab === 'withdraw' && (
-        <div className="fade-in" style={neonStyles.card}>
+        <div className="fade-in" style={{...neonStyles.card, borderColor: '#ff1414'}}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
             <div style={{ fontSize: '24px' }}>📤</div>
             <div>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: '18px', fontWeight: '900' }}>Retirar a TON</h3>
-              {/* 🔥 CAMBIO APLICADO: Texto a 0.2 USDT */}
-              <div style={{ fontSize: '12px', color: '#aaa' }}>Mínimo de retiro: 0.2 USDT</div>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '18px', fontWeight: '900' }}>Retirar Ganancias</h3>
+              <div style={{ fontSize: '12px', color: '#aaa' }}>Mínimo de retiro: 200 Gemas</div>
             </div>
           </div>
 
-          <label style={neonStyles.label}>Tu Dirección de Billetera (TON)</label>
+          <label style={{...neonStyles.label, color: '#ff9999'}}>Billetera de Destino (Red TON)</label>
           <input 
-            style={neonStyles.input} 
+            style={{...neonStyles.input, borderColor: '#ff1414'}} 
             placeholder="Ej: UQDgJUo4Ycvd9Q_ICUI6..." 
             value={withdrawAddress} 
             onChange={(e) => setWithdrawAddress(e.target.value)} 
           />
 
-          <label style={neonStyles.label}>Cantidad a retirar (USDT)</label>
+          <label style={{...neonStyles.label, color: '#ff9999'}}>Cantidad a retirar (GEMAS)</label>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
             <input 
               type="number" 
-              style={{ ...neonStyles.input, marginBottom: 0 }} 
-              placeholder="0.00" 
+              style={{ ...neonStyles.input, borderColor: '#ff1414', marginBottom: 0 }} 
+              placeholder="200" 
               value={withdrawAmount} 
               onChange={(e) => setWithdrawAmount(e.target.value)} 
             />
             <button 
-              onClick={() => setWithdrawAmount(balance.toString())}
-              style={{ background: 'rgba(255, 20, 147, 0.2)', border: '1px solid #ff1493', color: '#ff99dd', borderRadius: '14px', padding: '0 20px', fontWeight: '900', cursor: 'pointer' }}
+              onClick={() => setWithdrawAmount(gemBalance.toString())}
+              style={{ background: 'rgba(255, 20, 20, 0.2)', border: '1px solid #ff1414', color: '#ff9999', borderRadius: '14px', padding: '0 20px', fontWeight: '900', cursor: 'pointer' }}
             >
               MÁX
             </button>
           </div>
 
-          <button onClick={handleWithdraw} disabled={isWithdrawing} style={neonStyles.btnPink}>
-            {isWithdrawing ? 'PROCESANDO...' : 'SOLICITAR RETIRO'}
+          <button onClick={handleWithdraw} disabled={isWithdrawing} style={{...neonStyles.btnPink, background: 'linear-gradient(90deg, #ff1414, #8b0000)'}}>
+            {isWithdrawing ? 'PROCESANDO...' : 'SOLICITAR RETIRO ➔'}
           </button>
         </div>
       )}
@@ -179,27 +173,27 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
             <div style={{ fontSize: '24px' }}>📥</div>
             <div>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: '18px', fontWeight: '900' }}>Recargar Saldo</h3>
-              <div style={{ fontSize: '12px', color: '#aaa' }}>Para crear campañas publicitarias</div>
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '18px', fontWeight: '900' }}>Recargar Gemas</h3>
+              <div style={{ fontSize: '12px', color: '#aaa' }}>1000 Gemas = 1 USDT</div>
             </div>
           </div>
 
-          <label style={{...neonStyles.label, color: '#00f0ff'}}>Cantidad a Depositar (USDT)</label>
+          <label style={{...neonStyles.label, color: '#00f0ff'}}>Gemas a Comprar</label>
           <input 
             type="number" 
             style={{ ...neonStyles.input, borderColor: '#00f0ff' }} 
-            placeholder="10" 
+            placeholder="10000" 
             value={depositAmount} 
             onChange={(e) => setDepositAmount(e.target.value)} 
           />
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
-            <button onClick={() => setDepositAmount('5')} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>+5</button>
-            <button onClick={() => setDepositAmount('20')} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>+20</button>
-            <button onClick={() => setDepositAmount('50')} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>+50</button>
+            <button onClick={() => setDepositAmount('5000')} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>5K</button>
+            <button onClick={() => setDepositAmount('20000')} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>20K</button>
+            <button onClick={() => setDepositAmount('50000')} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>50K</button>
           </div>
 
-          <button onClick={handleDeposit} disabled={isDepositing} style={neonStyles.btnCyan}>
+          <button onClick={() => toast.error("Módulo en Fase 2")} style={neonStyles.btnPrimary}>
             PAGAR CON TONKEEPER
           </button>
         </div>
