@@ -16,15 +16,11 @@ const TabIcons = {
       <line x1="9" y1="18" x2="13" y2="18" />
     </svg>
   ),
-  market: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff1493" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(255,20,147,0.5))' }}>
-      <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-    </svg>
-  ),
-  publish: (
+  wallet: (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(0,255,170,0.5))' }}>
-      <path d="M22 2L11 13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" fill="none" />
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
     </svg>
   ),
   referrals: (
@@ -46,17 +42,16 @@ export default function BottomNav({ activeTab, setActiveTab, userData, t }) {
   const ADMIN_IDS = ['8968109534', '8892196101'];
   const isAdmin = userData && ADMIN_IDS.includes(String(userData.id));
 
-  // 🔥 Se usan las traducciones (ahora con 5 o 6 pestañas)
+  // 🔥 Menú MVP: Inicio, Tareas, Billetera y Referidos
   const tabs = [
-    { id: 'home', label: t('nav_home'), icon: TabIcons.home, color: '#ff41b4' },
-    { id: 'tasks', label: t('nav_tasks'), icon: TabIcons.tasks, color: '#00f0ff' },
-    { id: 'market', label: t('nav_market'), icon: TabIcons.market, color: '#ff1493' },
-    { id: 'publish', label: t('nav_publish'), icon: TabIcons.publish, color: '#00ffaa' },
-    { id: 'referrals', label: t('nav_referrals'), icon: TabIcons.referrals, color: '#8a2be2' }
+    { id: 'home', label: t('nav_home') || 'Inicio', icon: TabIcons.home, color: '#ff41b4' },
+    { id: 'tasks', label: t('nav_tasks') || 'Tareas', icon: TabIcons.tasks, color: '#00f0ff' },
+    { id: 'wallet', label: t('nav_wallet') || 'Banco', icon: TabIcons.wallet, color: '#00ffaa' },
+    { id: 'referrals', label: t('nav_referrals') || 'Amigos', icon: TabIcons.referrals, color: '#8a2be2' }
   ];
 
   if (isAdmin) {
-    tabs.push({ id: 'admin', label: t('nav_admin'), icon: TabIcons.admin, color: '#ffe600' });
+    tabs.push({ id: 'admin', label: t('nav_admin') || 'Admin', icon: TabIcons.admin, color: '#ffe600' });
   }
 
   return (
