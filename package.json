@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.5.1",
