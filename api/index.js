@@ -403,6 +403,24 @@ export default async function handler(req, res) {
       } catch (sweepError) {}
       return res.status(200).json({ success: true, deposit_balance: newDepositBalance });
     }
+     
+         if (action === 'verify-admin') {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ success: false, error: 'Enlace no proporcionado.' });
+
+      // Extraemos el @username del enlace
+      const chatId = extractTelegramUsername(url);
+      if (!chatId) return res.status(400).json({ success: false, error: 'Formato de enlace inválido. Usa @usuario o t.me/usuario.' });
+
+      // Verificamos en la API de Telegram si el bot es administrador de ese chat
+      const adminCheck = await checkAdminStatusDetailed(chatId);
+      
+      if (adminCheck.isAdmin) {
+        return res.status(200).json({ success: true });
+      } else {
+        return res.status(400).json({ success: false, error: adminCheck.error || 'El bot no tiene permisos de administrador en esa comunidad.' });
+      }
+    }
 
     if (action === 'create-task') {
       const { creator_id, type, title, url, bot_token, completions_total, reward } = req.body;
