@@ -20,18 +20,12 @@ const BOT_ID = BOT_TOKEN.split(':')[0];
 const ADMIN_IDS = ['8968109534', '8892196101'];
 const MAIN_ADMIN_ID = '8968109534'; 
 
-// 🔥 BILLETERAS DE RESPALDO (Por si falla la base de datos)
 const FALLBACK_MASTER_WALLET_GRAM = "UQBW9toUVg75NhhayTPW2RzMhHJxF1_BOKULqSYDZIvZBoIk";
 const FALLBACK_MASTER_WALLET_USDT = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce";
 
-// ⚡ CONSTANTES BLOCKCHAIN
 const tonClient = new TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRPC' });
 const BSC_RPC = "https://bsc-dataseed.binance.org/";
 const USDT_BEP20_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
-
-// ==========================================
-// 🛡️ MÓDULOS DE CRIPTOGRAFÍA Y BARRIDO
-// ==========================================
 
 async function getTonPrice() {
   try {
@@ -41,21 +35,18 @@ async function getTonPrice() {
   } catch (e) { return 5.0; }
 }
 
-// ⚡ BILLETERA DERIVADA USDT (BEP20) ÚNICA POR USUARIO
 function getDerivedUsdtWallet(userId) {
   const masterKey = process.env.BSC_PRIVATE_KEY; 
   if (!masterKey) throw new Error("Falta la variable BSC_PRIVATE_KEY en Vercel.");
-  // Se genera una clave privada única y determinista para cada usuario
   const userPrivKey = ethers.keccak256(ethers.toUtf8Bytes(masterKey + "_clicknetwork_" + userId));
   return new ethers.Wallet(userPrivKey);
 }
 
-// ⚡ BARRIDO AUTOMÁTICO DE USDT
 async function sweepUsdtAutomated(derivedWallet, usdtAmountWei) {
   try {
     const provider = new ethers.JsonRpcProvider(BSC_RPC);
     const connectedDerived = derivedWallet.connect(provider);
-    const masterWallet = new ethers.Wallet(process.env.BSC_PRIVATE_KEY, provider); // La billetera que pagará el gas (BNB)
+    const masterWallet = new ethers.Wallet(process.env.BSC_PRIVATE_KEY, provider);
     
     let sweepDestination = FALLBACK_MASTER_WALLET_USDT;
     const { data: cfg } = await supabase.from('system_settings').select('master_wallet_usdt_bep20').eq('id', 1).maybeSingle();
@@ -64,9 +55,8 @@ async function sweepUsdtAutomated(derivedWallet, usdtAmountWei) {
     const usdtAbi = ["function transfer(address to, uint256 amount) returns (bool)"];
     const usdtContract = new ethers.Contract(USDT_BEP20_ADDRESS, usdtAbi, connectedDerived);
 
-    // 1. Enviar BNB (Gas) a la billetera temporal si no tiene
     const bnbBalance = await provider.getBalance(derivedWallet.address);
-    const minBnbGas = ethers.parseEther("0.0004"); // Gas estimado para un transfer BEP20
+    const minBnbGas = ethers.parseEther("0.0004");
 
     if (bnbBalance < minBnbGas) {
       const fundTx = await masterWallet.sendTransaction({
@@ -76,16 +66,13 @@ async function sweepUsdtAutomated(derivedWallet, usdtAmountWei) {
       await fundTx.wait(); 
     }
 
-    // 2. Ejecutar la transferencia de USDT a la cuenta del Admin
     const tx = await usdtContract.transfer(sweepDestination, usdtAmountWei);
     await tx.wait();
-
   } catch (error) {
     console.error("Error en barrido automático USDT:", error);
   }
 }
 
-// ⚡ ENVÍO AUTOMÁTICO DE RETIROS (TON)
 async function sendTonAutomated(destinationAddress, usdtAmount) {
   const mnemonic = process.env.MASTER_WALLET_MNEMONIC; 
   if (!mnemonic) throw new Error("Falta la variable MASTER_WALLET_MNEMONIC en Vercel.");
@@ -202,62 +189,35 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    if (req.body && req.body.callback_query) {
-      const cb = req.body.callback_query;
-      const data = cb.data;
-      const chatId = cb.message.chat.id;
-      const messageId = cb.message.message_id;
-
-      if (data.startsWith('w_approve_') || data.startsWith('w_reject_')) {
-          const isApprove = data.startsWith('w_approve_');
-          const withdrawalId = data.replace(isApprove ? 'w_approve_' : 'w_reject_', '');
-
-          const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
-          if (!withdrawal || withdrawal.status !== 'pending') return res.status(200).end();
-
-          if (isApprove) {
-              try {
-                  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', body: JSON.stringify({ callback_query_id: cb.id, text: '🚀 Procesando pago...' }) });
-                  await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
-                  await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawal.id);
-                  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: cb.message.text + "\n\n✅ <b>PAGADO Y ENVIADO AUTOMÁTICAMENTE</b>", parse_mode: 'HTML' }) });
-              } catch (err) {
-                  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `❌ <b>ERROR AL PAGAR:</b> ${err.message}`, parse_mode: 'HTML' }) });
-              }
-          } else {
-              const { data: u } = await supabase.from('users').select('balance').eq('id', withdrawal.user_id).single();
-              if (u) {
-                  await supabase.from('users').update({ balance: Number((u.balance + withdrawal.amount).toFixed(4)) }).eq('id', withdrawal.user_id);
-                  await supabase.from('history_logs').insert([{ user_id: withdrawal.user_id, title: '❌ Retiro Rechazado', description: 'Fondos devueltos al saldo.', amount: withdrawal.amount }]);
-              }
-              await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawal.id);
-              await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: cb.message.text + "\n\n❌ <b>RECHAZADO Y REEMBOLSADO</b>", parse_mode: 'HTML' }) });
-          }
-          return res.status(200).end();
-      }
-      return res.status(200).end();
-    }
-
+    // 🛡️ BATCH TRY/CATCH GLOBAL
     const telegramInitData = req.headers['x-telegram-init-data'];
     if (!telegramInitData || !verifyTelegramWebAppData(telegramInitData)) {
-         return res.status(403).json({ success: false, error: 'Firma de Telegram inválida o ausente.' });
+         return res.status(403).json({ success: false, error: 'Firma de Telegram inválida o ausente. Abre la app desde el bot oficial.' });
+    }
+
+    if (!req.body) {
+      return res.status(400).json({ success: false, error: 'Cuerpo de solicitud vacío.' });
     }
 
     const { user, action, userId, start_param } = req.body; 
 
-    // 🔥 RUTA DE VERIFICACIÓN DE USUARIO (Faltaba en el backend)
+    // 🔥 RUTA DE VERIFICACIÓN DE USUARIO (VERIFY)
     if (action === 'verify') {
       const targetUser = user || { id: userId, is_premium: false };
       const targetId = String(targetUser?.id);
       if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
 
-      let { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
+      let { data: dbUser, error: dbError } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
+      if (dbError) throw new Error("Error en Supabase (select user): " + dbError.message);
+
       if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
       if (!dbUser) {
         const newUserObj = { id: targetId, username: targetUser.username || 'Usuario', balance: 0, deposit_balance: 0, total_earnings: 0, referral_earnings: 0, is_human: false, referral_reward_granted: false };
         if (start_param && String(start_param) !== targetId) newUserObj.referred_by = String(start_param);
-        const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
+        
+        const { data: newUser, error: insertError } = await supabase.from('users').insert([newUserObj]).select().single();
+        if (insertError) throw new Error("Error en Supabase (insert user): " + insertError.message);
         dbUser = newUser;
       }
 
@@ -272,7 +232,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🔥 RUTAS DE CONFIGURACIÓN DEL ADMIN
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
@@ -311,7 +270,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // ⚡ RETIROS (Descuenta de 'balance')
     if (action === 'request-withdrawal') {
       const targetId = String(userId || user?.id);
       const { address, amount } = req.body;
@@ -346,7 +304,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 🔥 RECARGAS Y DEPÓSITOS (BÓVEDA: 'deposit_balance')
     if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
       const targetId = String(userId);
@@ -372,13 +329,11 @@ export default async function handler(req, res) {
 
       if (balanceUsdt < intent.expected_amount) return res.status(400).json({ success: false, error: `Saldo en blockchain: ${balanceUsdt.toFixed(2)} USDT.` });
 
-      // Acreditar a la BÓVEDA
       const { data: dbUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).single();
       const newDepositBalance = Number((Number(dbUser.deposit_balance || 0) + clicks).toFixed(4));
       await supabase.from('users').update({ deposit_balance: newDepositBalance }).eq('id', targetId);
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
 
-      // Iniciar barrido asíncrono
       const derivedWallet = getDerivedUsdtWallet(targetId);
       sweepUsdtAutomated(derivedWallet, balanceWei).catch(e => console.error("Fallo barrido en background:", e));
 
@@ -426,14 +381,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, deposit_balance: newDepositBalance });
     }
 
-    // 🔥 CREACIÓN DE TAREA (DESCUENTA DE 'deposit_balance')
     if (action === 'create-task') {
       const { creator_id, type, title, url, bot_token, completions_total, reward } = req.body;
       const targetId = String(creator_id || userId);
 
       const count = Number(completions_total || 100); 
       const rew = Number(reward || 0.001); 
-      const totalCost = Number((count * rew * 1.30).toFixed(4)); // Costo total 130%
+      const totalCost = Number((count * rew * 1.30).toFixed(4));
 
       const { data: dbUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).single();
       if (!dbUser || Number(dbUser.deposit_balance || 0) < totalCost) return res.status(400).json({ success: false, error: 'Saldo de Bóveda insuficiente.' });
@@ -446,7 +400,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, task: newTask, deposit_balance: newVaultBalance });
     }
 
-    // ACCIONES DE LECTURA Y VALIDACIÓN DE TAREAS (Sin Cambios)
     if (action === 'get-tasks') {
       const targetId = String(userId);
       const { data: allTasks } = await supabase.from('tasks').select('*').or(`status.in.(active,paused),creator_id.eq.${targetId}`).order('created_at', { ascending: false });
@@ -533,11 +486,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
     }
 
-    if (action === 'verify-admin' || action === 'delete-task' || action === 'toggle-task-status' || action === 'edit-task') {
-        // ... (Mantienes tus funciones intactas para estas rutas)
-        return res.status(200).json({ success: true });
-    }
-
     if (action === 'get-history') {
       const targetId = String(userId);
       const { data: history } = await supabase.from('history_logs').select('*').eq('user_id', targetId).order('created_at', { ascending: false }); 
@@ -551,26 +499,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, referrals: lv1 || [], earnings: dbUser?.referral_earnings || 0 });
     }
 
-    const targetUser = user || { id: userId, is_premium: false };
-    const targetId = String(targetUser?.id);
-    if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
+    return res.status(400).json({ success: false, error: `Acción desconocida: ${action}` });
 
-    let { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
-    if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
-
-    if (!dbUser) {
-      const newUserObj = { id: targetId, username: targetUser.username || 'Usuario', balance: 0, deposit_balance: 0, total_earnings: 0, referral_earnings: 0, is_human: false, referral_reward_granted: false };
-      if (start_param && String(start_param) !== targetId) newUserObj.referred_by = String(start_param);
-      const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
-      dbUser = newUser;
-    }
-
-    return res.status(200).json({ success: true, user: dbUser, stats: { n1: 0, c1: String(dbUser?.referral_earnings || 0) } });
-
-   } catch (error) { 
-    // 🔥 BLOQUE CATCH BLINDADO CONTRA CUALQUIER [OBJECT OBJECT]
-    console.error("CRITICAL BACKEND ERROR:", error);
-    const cleanErrorMsg = error?.message || (typeof error === 'object' ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : String(error));
-    return res.status(500).json({ success: false, error: cleanErrorMsg || "Error interno crítico en el servidor." }); 
+  } catch (error) { 
+    console.error("CRITICAL BACKEND ERROR 500:", error);
+    const errorDescription = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+    return res.status(500).json({ success: false, error: `Error en servidor: ${errorDescription}` }); 
   }
 }
