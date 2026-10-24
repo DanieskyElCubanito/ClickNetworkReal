@@ -49,7 +49,7 @@ const neonStyles = {
 
 export default function WalletTab({ userData, setUserData, t }) {
   const [activeTab, setActiveTab] = useState('withdraw'); // 'deposit' | 'withdraw'
-  
+
   // Estados para Retiros
   const [withdrawAddress, setWithdrawAddress] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -67,14 +67,15 @@ export default function WalletTab({ userData, setUserData, t }) {
   const handleWithdraw = async () => {
     if (!withdrawAddress.trim()) return toast.error("Ingresa tu billetera TON.");
     if (withdrawAddress.length < 20) return toast.error("Billetera TON inválida.");
-    
+
     const amount = Number(withdrawAmount);
-    if (!amount || amount < 2) return toast.error("El retiro mínimo es de 2 USDT.");
+    // 🔥 CAMBIO APLICADO: Mínimo 0.2 USDT
+    if (!amount || amount < 0.2) return toast.error("El retiro mínimo es de 0.2 USDT.");
     if (amount > balance) return toast.error("Saldo insuficiente.");
 
     setIsWithdrawing(true);
     const tid = toast.loading("Procesando retiro...");
-    
+
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
@@ -86,9 +87,9 @@ export default function WalletTab({ userData, setUserData, t }) {
         })
       });
       const data = await res.json();
-      
+
       if (data.success) {
-        toast.success("¡Retiro en proceso! Llegará pronto.", { id: tid });
+        toast.success(data.message || "¡Retiro en proceso! Llegará pronto.", { id: tid });
         if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
         setWithdrawAddress('');
         setWithdrawAmount('');
@@ -103,7 +104,6 @@ export default function WalletTab({ userData, setUserData, t }) {
   };
 
   const handleDeposit = () => {
-    // Aquí conectaremos la lógica de Tonkeeper que ya tienes en tu backend
     toast.error("El módulo de depósitos se activará en la Fase 2.");
   };
 
@@ -138,7 +138,8 @@ export default function WalletTab({ userData, setUserData, t }) {
             <div style={{ fontSize: '24px' }}>📤</div>
             <div>
               <h3 style={{ margin: 0, color: '#fff', fontSize: '18px', fontWeight: '900' }}>Retirar a TON</h3>
-              <div style={{ fontSize: '12px', color: '#aaa' }}>Mínimo de retiro: 2 USDT</div>
+              {/* 🔥 CAMBIO APLICADO: Texto a 0.2 USDT */}
+              <div style={{ fontSize: '12px', color: '#aaa' }}>Mínimo de retiro: 0.2 USDT</div>
             </div>
           </div>
 
