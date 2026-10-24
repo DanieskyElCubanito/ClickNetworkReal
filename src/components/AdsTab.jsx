@@ -354,7 +354,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
     if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{isDaily ? t('ads_btn_wait_tomorrow') : t('ads_completed')}</button>;
     if (status === 'waiting') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_waiting')} ({countdown[task.id] || 0}s)</button>;
-    if (status === 'ready') return <button onClick={() => handleCheckTask(task)} style={neon.taskButtonCheck}>{Icons.check} {t('ads_btn_check')}</button>;
+    if (status === 'ready') return <button onClick={() => handleCheckTask(task)} style={neon.taskButtonCheck}>{TaskIcons.check} {t('ads_btn_check')}</button>;
     if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
 
     return <button onClick={() => handleStartTask(task)} style={isDaily ? {...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'} : neon.taskButton}>{`+${displayGemas} 💎`}</button>;
@@ -516,7 +516,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                       <button onClick={openTonkeeper} style={{ flex: 1, padding: '14px', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,240,255,0.4)' }}>TONKEEPER</button>
                     </div>
                     <button onClick={handleVerifyPayment} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      {Icons.check} CONFIRMAR TRANSFERENCIA
+                      {TaskIcons.check} CONFIRMAR TRANSFERENCIA
                     </button>
                   </>
                 )}
@@ -534,7 +534,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                     <button onClick={() => copyWallet(tempWallet)} style={{ width: '100%', padding: '12px', background: 'rgba(0, 255, 170, 0.1)', color: '#00ffaa', border: '1px solid #00ffaa', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', marginBottom: '20px' }}>📋 COPIAR DIRECCIÓN BEP20</button>
                     
                     <button onClick={handleVerifyPayment} disabled={isGenerating} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      {isGenerating ? 'VERIFICANDO TRANSACCIÓN...' : <>{Icons.check} VALIDAR PAGO EN BLOCKCHAIN</>}
+                      {isGenerating ? 'VERIFICANDO TRANSACCIÓN...' : <>{TaskIcons.check} VALIDAR PAGO EN BLOCKCHAIN</>}
                     </button>
                   </>
                 )}
