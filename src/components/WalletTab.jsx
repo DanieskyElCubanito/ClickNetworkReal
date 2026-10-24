@@ -30,7 +30,6 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [intentId, setIntentId] = useState(null);
   const [liveGramUsd, setLiveGramUsd] = useState(5.00);
 
-  // 🔥 Obtener el precio real de TON en tiempo real desde la blockchain/oráculos
   useEffect(() => {
     const fetchTonPrice = async () => {
       try {
@@ -40,7 +39,6 @@ export default function WalletTab({ userData, setUserData, t }) {
           setLiveGramUsd(data['the-open-network'].usd);
         }
       } catch (e) {
-        // Fallback seguro si falla CoinGecko
         setLiveGramUsd(5.00);
       }
     };
@@ -148,7 +146,6 @@ export default function WalletTab({ userData, setUserData, t }) {
       <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
       <h2 style={neonStyles.title}>Banco Central</h2>
 
-      {/* DOBLE SALDO: GEMAS RETIRABLES Y BÓVEDA USDT */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
         <div style={{ ...neonStyles.balanceCard, flex: 1, marginBottom: 0 }}>
           <div style={{ fontSize: '10px', fontWeight: '900', color: '#ff9999', textTransform: 'uppercase' }}>Saco de Gemas</div>
@@ -278,10 +275,9 @@ export default function WalletTab({ userData, setUserData, t }) {
                   onChange={(e) => setRechargeAmount(e.target.value.replace(',', '.'))} 
                 />
                 
-                <button onClick={() => setRechargeAmount(p => Number((Number(p) + 1).toFixed(2))))} style={{ width: '40px', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>+</button>
+                <button onClick={() => setRechargeAmount(p => Number((Number(p) + 1).toFixed(2)))} style={{ width: '40px', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>+</button>
               </div>
 
-              {/* Botones de montos rápidos */}
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                 <button onClick={() => setRechargeAmount(1)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$1</button>
                 <button onClick={() => setRechargeAmount(5)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$5</button>
