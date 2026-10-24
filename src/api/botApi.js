@@ -1,5 +1,5 @@
 import axios from 'axios';
-import WebApp from '@twa-dev/sdk'; // Necesitamos WebApp para obtener initData
+import WebApp from '@twa-dev/sdk';
 
 const api = axios.create({
   baseURL: '/api', 
@@ -7,11 +7,9 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-// Interceptor para inyectar initData de forma segura en CADA petición al backend
 api.interceptors.request.use((config) => {
   const initData = WebApp.initData;
   if (initData) {
-    // Lo enviamos en un header personalizado
     config.headers['X-Telegram-Init-Data'] = initData;
   }
   return config;
@@ -24,18 +22,16 @@ const postAction = async (action, payload = {}) => {
   } catch (error) {
     const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
     console.error(`[API Error - ${action}]:`, errorMessage);
-    throw new Error(errorMessage);
+    throw new Error(typeof errorMessage === 'object' ? JSON.stringify(errorMessage) : errorMessage);
   }
 };
 
 export const botApi = {
   verifyUser: (user, startParam) => postAction('verify', { user, start_param: startParam }),
   verifyHuman: (userId, method) => postAction('verify-human', { userId, method }),
-  checkChannels: (userId) => postAction('check-channels', { userId }),
 
   claimBonus: (userId) => postAction('claim-bonus', { userId }),
   getReferrals: (userId) => postAction('get-referrals', { userId }),
-
   getHistory: (userId) => postAction('get-history', { userId }),
 
   verifyBotAdmin: (url) => postAction('verify-admin', { url }),
@@ -43,11 +39,19 @@ export const botApi = {
   getTasks: (userId) => postAction('get-tasks', { userId }),
   completeTask: (userId, taskId) => postAction('complete-task', { userId, taskId }),
 
+  // 🔥 NUEVOS MÓDULOS DE BÓVEDA USDT Y GRAM
+  generateUsdtWallet: (payload) => postAction('generate-usdt-wallet', payload),
+  verifyUsdtPayment: (payload) => postAction('verify-usdt-payment', payload),
+
   generatePaymentWallet: (payload) => postAction('generate-payment-wallet', payload),
   verifyCryptoPayment: (payload) => postAction('verify-crypto-payment', payload),
 
-  generateStarsInvoice: (payload) => postAction('generate-stars-invoice', payload),
-  confirmStarsPayment: (payload) => postAction('confirm-stars-payment', payload)
+  adminGetConfig: (adminId) => postAction('admin-get-config', { adminId }),
+  adminUpdateConfig: (adminId, config) => postAction('admin-update-config', { adminId, config }),
+  adminStats: (adminId) => postAction('admin-stats', { adminId }),
+  adminSearchUser: (adminId, targetId) => postAction('admin-search-user', { adminId, targetId }),
+  adminUpdateUser: (adminId, targetId, update) => postAction('admin-update-user', { adminId, targetId, update }),
+  adminGetTasks: (adminId) => postAction('admin-get-tasks', { adminId })
 };
 
 export default botApi;
