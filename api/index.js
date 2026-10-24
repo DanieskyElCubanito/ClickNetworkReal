@@ -245,6 +245,33 @@ export default async function handler(req, res) {
 
     const { user, action, userId, start_param } = req.body; 
 
+    // 🔥 RUTA DE VERIFICACIÓN DE USUARIO (Faltaba en el backend)
+    if (action === 'verify') {
+      const targetUser = user || { id: userId, is_premium: false };
+      const targetId = String(targetUser?.id);
+      if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
+
+      let { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
+      if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
+
+      if (!dbUser) {
+        const newUserObj = { id: targetId, username: targetUser.username || 'Usuario', balance: 0, deposit_balance: 0, total_earnings: 0, referral_earnings: 0, is_human: false, referral_reward_granted: false };
+        if (start_param && String(start_param) !== targetId) newUserObj.referred_by = String(start_param);
+        const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
+        dbUser = newUser;
+      }
+
+      await tryGrantReferralReward(targetUser);
+
+      const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
+
+      return res.status(200).json({ 
+        success: true, 
+        user: dbUser, 
+        stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } 
+      });
+    }
+
     // 🔥 RUTAS DE CONFIGURACIÓN DEL ADMIN
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
