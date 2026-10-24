@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import WebApp from '@twa-dev/sdk';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
-import toast, { Toaster } from 'react-hot-toast'; 
+import toast, { Toaster } from 'react-hot-toast';  
 import { botApi } from './api/botApi';
 import { translations } from './translations'; 
 
