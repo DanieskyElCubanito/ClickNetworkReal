@@ -29,8 +29,8 @@ export default function AdminDashboard({ userData }) {
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  // Billetera Receptora (Pública)
-  const [sysConfig, setSysConfig] = useState({ master_wallet_ton: '' });
+  // 🔥 NUEVO: Estado con las dos billeteras separadas
+  const [sysConfig, setSysConfig] = useState({ master_wallet_gram: '', master_wallet_usdt_bep20: '' });
   const [savingConfig, setSavingConfig] = useState(false);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
@@ -72,7 +72,7 @@ export default function AdminDashboard({ userData }) {
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-config', adminId: userData.id, config: sysConfig }) });
       const data = await res.json();
-      if (data.success) toast.success("Billetera actualizada", { id: tid });
+      if (data.success) toast.success("Billeteras actualizadas", { id: tid });
       else throw new Error(data.error);
     } catch (e) { toast.error("Error al guardar", { id: tid }); }
     setSavingConfig(false);
@@ -148,21 +148,30 @@ export default function AdminDashboard({ userData }) {
           {Icons.wallet} Billeteras de Operación
         </h3>
         
-        <span style={neon.label}>Billetera Pública TON (Para recibir depósitos)</span>
+        <span style={neon.label}>Billetera Pública GRAM (Red TON)</span>
         <input 
           type="text" 
           placeholder="Ej: UQDgJUo4Ycvd9Q_ICUI..." 
           style={{ ...neon.input, borderColor: '#ff41b4' }} 
-          value={sysConfig.master_wallet_ton} 
-          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_ton: e.target.value })} 
+          value={sysConfig.master_wallet_gram || ''} 
+          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_gram: e.target.value })} 
+        />
+
+        <span style={neon.label}>Billetera Pública USDT (Red BEP20)</span>
+        <input 
+          type="text" 
+          placeholder="Ej: 0x1234567890abcdef..." 
+          style={{ ...neon.input, borderColor: '#ff41b4', marginBottom: '16px' }} 
+          value={sysConfig.master_wallet_usdt_bep20 || ''} 
+          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_usdt_bep20: e.target.value })} 
         />
 
         <div style={{ background: 'rgba(0, 255, 170, 0.1)', border: '1px dashed #00ffaa', padding: '10px', borderRadius: '10px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#00ffaa' }}>
-          {Icons.lock} <span>La frase semilla está protegida por seguridad en Vercel (process.env).</span>
+          {Icons.lock} <span>La frase semilla de retiro sigue protegida de forma invisible en Vercel (process.env).</span>
         </div>
 
         <button onClick={handleSaveConfig} disabled={savingConfig} style={{ ...neon.btn, background: 'linear-gradient(90deg, #ff1493, #8a2be2)', color: '#fff' }}>
-          {savingConfig ? 'GUARDANDO...' : 'GUARDAR BILLETERA'}
+          {savingConfig ? 'GUARDANDO...' : 'GUARDAR BILLETERAS'}
         </button>
       </div>
 
