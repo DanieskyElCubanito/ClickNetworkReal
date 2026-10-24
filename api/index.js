@@ -540,9 +540,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true, user: dbUser, stats: { n1: 0, c1: String(dbUser?.referral_earnings || 0) } });
 
-  } catch (error) { 
-    // 🔥 SOLUCIÓN FINAL A LA PANTALLA NEGRA [OBJECT OBJECT]
-    const errorMsg = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
-    return res.status(500).json({ success: false, error: errorMsg }); 
+   } catch (error) { 
+    // 🔥 BLOQUE CATCH BLINDADO CONTRA CUALQUIER [OBJECT OBJECT]
+    console.error("CRITICAL BACKEND ERROR:", error);
+    const cleanErrorMsg = error?.message || (typeof error === 'object' ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : String(error));
+    return res.status(500).json({ success: false, error: cleanErrorMsg || "Error interno crítico en el servidor." }); 
   }
 }
