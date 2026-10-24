@@ -36,53 +36,46 @@ const neon = {
 };
 
 export default function HomeTab({ userData, setActiveTab, t }) {
-  // 🔥 SALDO 1: GEMAS (Retirable - Proviene de ganancias orgánicas)
   const gemBalance = Math.floor(Number(userData?.balance || 0) * 1000);
   const gemEarned = Math.floor(Number(userData?.total_earnings || 0) * 1000);
-
-  // 🔥 SALDO 2: USDT BÓVEDA (No retirable - Proviene de depósitos)
   const usdtVault = Number(userData?.deposit_balance || 0).toFixed(2);
 
   return (
     <div className="fade-in" style={{ color: '#fff', paddingBottom: '20px' }}>
 
-      {/* TARJETA 1: BÓVEDA USDT (INVERSIÓN) */}
       <div style={{ ...neon.card, borderColor: '#00ffaa', textAlign: 'center', background: 'linear-gradient(145deg, rgba(0,255,170,0.1), rgba(13,2,23,0.95))', padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>{Icons.vault}</div>
-        <h3 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#00ffaa', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>Bóveda de Campañas</h3>
+        <h3 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#00ffaa', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>Bóveda publicitaria</h3>
         <div style={{ fontSize: '38px', fontWeight: '900', color: '#ffffff', textShadow: '0 0 20px rgba(0, 255, 170, 0.5)', lineHeight: '1' }}>
           ${usdtVault} <span style={{ fontSize: '14px', color: '#00ffaa' }}>USDT</span>
         </div>
         <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#aaa', fontWeight: 'bold' }}>
-          Fondo exclusivo para pagar anuncios. (No retirable)
+          Saldo destinado exclusivamente para la contratación de campañas y visibilidad en red. (No retirable)
         </p>
       </div>
 
-      {/* TARJETA 2: GEMAS (GANANCIAS) */}
       <div style={{ ...neon.card, borderColor: '#ff1414', textAlign: 'center', background: 'linear-gradient(145deg, rgba(255,20,20,0.1), rgba(13,2,23,0.95))', padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>{Icons.gem}</div>
-        <h3 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#ff9999', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>Gemas Retirables</h3>
+        <h3 style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#ff9999', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>Gemas retirables</h3>
         <div style={{ fontSize: '38px', fontWeight: '900', color: '#ffffff', textShadow: '0 0 20px rgba(255, 20, 20, 0.5)', lineHeight: '1' }}>
           {gemBalance} <span style={{ fontSize: '14px', color: '#ff4b4b' }}>💎</span>
         </div>
         <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#ff99dd', fontWeight: 'bold' }}>
-          Ganancias históricas: {gemEarned} 💎
+          Métricas de desempeño total: {gemEarned} 💎
         </p>
       </div>
 
       <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#ffe600', fontWeight: '900', textTransform: 'uppercase' }}>{t('home_quick')}</h4>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
         
-        {/* BOTÓN GANAR */}
         <button onClick={() => setActiveTab('tasks')} style={{ background: 'linear-gradient(135deg, rgba(38,14,66,0.9), rgba(18,7,36,0.9))', border: '2px solid #00f0ff', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0, 240, 255, 0.2)' }}>
           <div>{Icons.earn}</div>
-          <div style={{ color: '#fff', fontSize: '13px', fontWeight: '900' }}>Ganar Gemas</div>
+          <div style={{ color: '#fff', fontSize: '13px', fontWeight: '900' }}>Monetizar interacciones</div>
         </button>
 
-        {/* BOTÓN CREAR (SOLUCIONA EL ERROR DE LA PANTALLA NEGRA AL IR A 'tasks' EN LUGAR DE 'publish') */}
         <button onClick={() => setActiveTab('tasks')} style={{ background: 'linear-gradient(135deg, rgba(38,14,66,0.9), rgba(18,7,36,0.9))', border: '2px solid #ff41b4', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(255, 65, 180, 0.2)' }}>
           <div>{Icons.rocket}</div>
-          <div style={{ color: '#fff', fontSize: '13px', fontWeight: '900' }}>Crear Campaña</div>
+          <div style={{ color: '#fff', fontSize: '13px', fontWeight: '900' }}>Lanzar campaña</div>
         </button>
 
       </div>
@@ -93,11 +86,11 @@ export default function HomeTab({ userData, setActiveTab, t }) {
             {Icons.users}
           </div>
           <div>
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#fff', fontWeight: '900' }}>Invita y Gana</h3>
-            <p style={{ margin: 0, fontSize: '11px', color: '#ff99dd', lineHeight: '1.4' }}>Recibe el 20% de las ganancias de tus amigos de por vida.</p>
+            <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#fff', fontWeight: '900' }}>Programa de afiliados</h3>
+            <p style={{ margin: 0, fontSize: '11px', color: '#ff99dd', lineHeight: '1.4' }}>Perciba un 20% de rendimiento permanente sobre la red que usted refiera.</p>
           </div>
         </div>
-        <button onClick={() => setActiveTab('referrals')} style={neon.btnSecondary}>IR A AFILIADOS ➔</button>
+        <button onClick={() => setActiveTab('referrals')} style={neon.btnSecondary}>Acceder a red de afiliados ➔</button>
       </div>
 
     </div>
