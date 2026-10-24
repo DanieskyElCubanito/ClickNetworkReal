@@ -22,7 +22,9 @@ const neon = {
   btnActionCalc: { width: '45px', height: '45px', background: 'rgba(0, 240, 255, 0.1)', color: '#00f0ff', border: '2px solid #00f0ff', borderRadius: '12px', fontWeight: '900', fontSize: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   inputCalc: { flex: 1, background: 'rgba(15, 5, 28, 0.8)', border: '2px solid #8a2be2', borderRadius: '12px', padding: '10px', fontSize: '18px', fontWeight: '900', color: '#fff', outline: 'none', boxSizing: 'border-box', textAlign: 'center' },
   summaryBox: { background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(138, 43, 226, 0.1))', border: '1px dashed #00f0ff', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', boxShadow: 'inset 0 0 10px rgba(0, 240, 255, 0.1)' },
-  actionBtn: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00f0ff 0%, #0099ff 100%)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }
+  actionBtn: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00f0ff 0%, #0099ff 100%)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' },
+  actionBtnDisabled: { width: '100%', padding: '16px', background: 'rgba(255,255,255,0.05)', color: '#666', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', cursor: 'not-allowed', textTransform: 'uppercase' },
+  actionBtnDanger: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #ff1493 0%, #d80073 100%)', color: '#fff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }
 };
 
 const TaskIcons = {
@@ -35,7 +37,8 @@ const TaskIcons = {
   pause: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>,
   edit: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
-  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
+  vault: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
 };
 
 export default function AdsTab({ userData, setUserData, t }) {
@@ -54,8 +57,11 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const [completions, setCompletions] = useState(100);
   const [rewardPerGema, setRewardPerGema] = useState(2.5); // 2.5 Gemas por usuario = 100%
-  const [paymentMethod, setPaymentMethod] = useState('balance');
-
+  
+  // 🔥 NUEVO: Estados del flujo de Recarga
+  const [recharging, setRecharging] = useState(false);
+  const [rechargeMethod, setRechargeMethod] = useState('gram');
+  const [rechargeAmount, setRechargeAmount] = useState(10); // USD
   const [checkoutView, setCheckoutView] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [tempWallet, setTempWallet] = useState('');
@@ -65,11 +71,8 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [editingTask, setEditingTask] = useState(null);
   const [liveGramUsd, setLiveGramUsd] = useState(5.00);
 
-  // 🔥 NUEVO: Estados para el pago manual USDT (BEP20)
-  const [publicUsdtWallet, setPublicUsdtWallet] = useState('');
-  const [txHash, setTxHash] = useState('');
-
-  const balanceUSDT = Number(userData?.balance || 0);
+  // 🔥 NUEVO: Balance de Bóveda (USDT para crear campañas)
+  const depositBalanceUsdt = Number(userData?.deposit_balance || 0);
 
   const TASK_TYPES = [
     { id: 'bot', icon: TaskIcons.bot('#ffe600'), title: t('ads_type_bot'), desc: 'Usuarios inician tu bot o app', color: '#ffe600', autoName: 'Iniciar Bot/App' },
@@ -92,13 +95,16 @@ export default function AdsTab({ userData, setUserData, t }) {
     fetchLivePrice();
   }, []);
 
+  // MATEMÁTICA DE COSTOS
   const baseCostGemas = completions * rewardPerGema;
   const referralFeeGemas = Math.floor(baseCostGemas * 0.20); 
   const adminFeeGemas = Math.floor(baseCostGemas * 0.10);    
   const totalGemasCost = baseCostGemas + referralFeeGemas + adminFeeGemas; 
 
-  const usdPrice = totalGemasCost / 1000; 
-  const gramPrice = (usdPrice / liveGramUsd).toFixed(2);
+  const campaignCostUsdt = totalGemasCost / 1000; 
+
+  // MATEMÁTICA DE RECARGA
+  const gramRechargePrice = (rechargeAmount / liveGramUsd).toFixed(2);
 
   useEffect(() => {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
@@ -173,29 +179,10 @@ export default function AdsTab({ userData, setUserData, t }) {
     }
   };
 
-  const loadPublicUsdtWallet = async () => {
-    try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'get-public-config' }) });
-      const data = await res.json();
-      if (data.success) setPublicUsdtWallet(data.usdt_wallet);
-    } catch (e) { console.error(e); }
-  };
-
-  const handleCheckout = () => {
-    if (paymentMethod === 'balance') {
-      if (balanceUSDT < usdPrice) return toast.error(`Saldo insuficiente. Necesitas ${totalGemasCost} Gemas.`);
-      handleCreateTaskPaid();
-    } else if (paymentMethod === 'gram') {
-      generateGramWallet();
-    } else if (paymentMethod === 'usdt') {
-      loadPublicUsdtWallet();
-      setCheckoutView(true);
-    }
-  };
-
-  const handleCreateTaskPaid = async () => {
+  // 🔥 CREACIÓN CERRADA CON LA BÓVEDA
+  const handleCreateTaskWithVault = async () => {
     setIsGenerating(true);
-    const tid = toast.loading("Publicando campaña...");
+    const tid = toast.loading("Verificando bóveda y publicando...");
     const fixedTitle = TASK_TYPES.find(t => t.id === taskType)?.autoName || 'Nueva Tarea';
     const finalTaskType = isDailyTask ? `daily_${taskType}` : taskType;
     const rewardForDb = rewardPerGema / 1000;
@@ -207,60 +194,57 @@ export default function AdsTab({ userData, setUserData, t }) {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
-      if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+      if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
       toast.success("¡Campaña activada con éxito!", { id: tid });
-      setTaskType(null); setTargetUrl(''); setBotToken(''); setIsDailyTask(false); setCompletions(100); setCurrentStepIndex(0); setCheckoutView(false); setView('activity');
+      setTaskType(null); setTargetUrl(''); setBotToken(''); setIsDailyTask(false); setCompletions(100); setCurrentStepIndex(0); setRecharging(false); setView('activity');
     } catch (err) { toast.error(err.message || "Error al procesar.", { id: tid }); } finally { setIsGenerating(false); }
   };
 
-  const generateGramWallet = async () => {
+  // 🔥 GENERAR WALLET DERIVADA PARA RECARGA
+  const handleStartRecharge = async () => {
     setIsGenerating(true);
-    const tid = toast.loading("Generando billetera...");
+    const tid = toast.loading("Conectando con la Blockchain...");
     try {
+      const actionRoute = rechargeMethod === 'usdt' ? 'generate-usdt-wallet' : 'generate-payment-wallet';
+      const amountToSend = rechargeMethod === 'usdt' ? rechargeAmount : gramRechargePrice;
+
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'generate-payment-wallet', userId: userData.id, packageId: 0, price: gramPrice, clicks: usdPrice })
+        body: JSON.stringify({ action: actionRoute, userId: userData.id, packageId: 0, price: amountToSend, clicks: rechargeAmount })
       });
       const data = await res.json();
-      if (data.success) { setTempWallet(data.wallet); setIntentId(data.intentId); toast.dismiss(tid); setCheckoutView(true); }
+      if (data.success) { 
+        setTempWallet(data.wallet); 
+        setIntentId(data.intentId); 
+        toast.dismiss(tid); 
+        setCheckoutView(true); 
+      }
     } catch (e) { toast.error("Error conectando a la blockchain.", { id: tid }); } finally { setIsGenerating(false); }
   };
 
   const copyWallet = (wallet) => { navigator.clipboard.writeText(wallet); toast.success("Billetera copiada."); };
-  const openTonkeeper = () => { try { WebApp.openLink(`ton://transfer/${tempWallet}?amount=${gramPrice * 1e9}`); } catch (e) { toast.error("Billetera no instalada."); } };
+  const openTonkeeper = () => { try { WebApp.openLink(`ton://transfer/${tempWallet}?amount=${gramRechargePrice * 1e9}`); } catch (e) { toast.error("Billetera no instalada."); } };
 
-  const handleVerifyGramPayment = async () => {
+  const handleVerifyPayment = async () => {
     const tid = toast.loading("Verificando en la blockchain...");
-    try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'verify-crypto-payment', userId: userData.id, intentId: intentId, clicks: usdPrice })
-      });
-      const data = await res.json();
-      if (data.success) { toast.success(`Pago Exitoso.`, { id: tid }); await handleCreateTaskPaid(); }
-      else throw new Error(data.error);
-    } catch (e) { toast.error(e.message || "Aún no detectamos el pago.", { id: tid, duration: 6000 }); }
-  };
+    const verifyRoute = rechargeMethod === 'usdt' ? 'verify-usdt-payment' : 'verify-crypto-payment';
 
-  // 🔥 NUEVO: Manejo manual de USDT BEP20
-  const handleNotifyUsdtPayment = async () => {
-    if (!txHash.trim()) return toast.error("Ingresa el Hash de Transacción.");
-    const tid = toast.loading("Enviando comprobante...");
-    setIsGenerating(true);
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'notify-usdt-payment', userId: userData.id, amount: usdPrice.toFixed(2), txHash: txHash })
+        body: JSON.stringify({ action: verifyRoute, userId: userData.id, intentId: intentId, clicks: rechargeAmount })
       });
       const data = await res.json();
       if (data.success) { 
-        toast.success("Comprobante enviado. Tu saldo se acreditará pronto.", { id: tid, duration: 5000 });
-        setTxHash(''); cancelCheckout();
-      } else throw new Error();
-    } catch (e) { toast.error("Error al enviar comprobante.", { id: tid }); } finally { setIsGenerating(false); }
+        toast.success(`Depósito de $${rechargeAmount} acreditado en tu Bóveda.`, { id: tid }); 
+        if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
+        setCheckoutView(false); setRecharging(false); setTempWallet(''); setIntentId(null);
+      }
+      else throw new Error(data.error);
+    } catch (e) { toast.error(e.message || "Aún no detectamos el pago. Intenta de nuevo en unos segundos.", { id: tid, duration: 6000 }); }
   };
 
-  const cancelCheckout = () => { setCheckoutView(false); setIntentId(null); setTempWallet(''); setTxHash(''); };
+  const cancelCheckout = () => { setCheckoutView(false); setRecharging(false); setIntentId(null); setTempWallet(''); };
 
   const handleStartTask = (task) => {
     try {
@@ -302,7 +286,7 @@ export default function AdsTab({ userData, setUserData, t }) {
   };
 
   const handleDeleteTask = async (taskId) => {
-    if (!window.confirm("¿Estás seguro de eliminar esta campaña? El saldo no gastado será reembolsado.")) return;
+    if (!window.confirm("¿Estás seguro de eliminar esta campaña? El saldo no gastado será devuelto a tu bóveda.")) return;
     const tid = toast.loading("Eliminando campaña...");
     try {
       const res = await fetch('/api', {
@@ -514,14 +498,108 @@ export default function AdsTab({ userData, setUserData, t }) {
         </div>
       )}
 
-      {view === 'wizard' && (
+      {/* FLUJO CERRADO: RECARGA DE BÓVEDA USDT */}
+      {view === 'wizard' && recharging && (
+        <div className="fade-in">
+           {checkoutView ? (
+              <div className="fade-in" style={neon.calcContainer}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '900', color: '#00f0ff', textTransform: 'uppercase' }}>Pago Seguro</h3>
+                  <button onClick={cancelCheckout} style={{ background: 'rgba(255, 65, 180, 0.2)', border: '1px solid #ff1493', borderRadius: '10px', width: '30px', height: '30px', color: '#ff99dd', fontWeight: '900', cursor: 'pointer' }}>✕</button>
+                </div>
+                
+                {rechargeMethod === 'gram' && (
+                  <>
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía exactamente</div>
+                      <div style={{ fontSize: '36px', fontWeight: '900', color: '#00f0ff', margin: '8px 0', textShadow: '0 0 15px rgba(0,240,255,0.5)' }}>{gramRechargePrice} GRAM</div>
+                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#ffffff' }}>A tu billetera generada para este depósito:</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.4)', padding: '16px', borderRadius: '16px', border: '1px dashed #ff1493', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '13px', fontWeight: 'bold', marginBottom: '20px', color: '#ffffff' }}>
+                      {tempWallet}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                      <button onClick={() => copyWallet(tempWallet)} style={{ flex: 1, padding: '14px', background: 'rgba(0, 240, 255, 0.1)', color: '#00f0ff', border: '2px solid #00f0ff', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer' }}>COPIAR</button>
+                      <button onClick={openTonkeeper} style={{ flex: 1, padding: '14px', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,240,255,0.4)' }}>TONKEEPER</button>
+                    </div>
+                    <button onClick={handleVerifyPayment} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      {Icons.check} YA PAGUÉ, VERIFICAR
+                    </button>
+                  </>
+                )}
+
+                {rechargeMethod === 'usdt' && (
+                  <>
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía exactamente (Red BEP20)</div>
+                      <div style={{ fontSize: '36px', fontWeight: '900', color: '#00ffaa', margin: '8px 0', textShadow: '0 0 15px rgba(0,255,170,0.5)' }}>${rechargeAmount.toFixed(2)} USDT</div>
+                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#ffffff' }}>A tu billetera temporal en BSC:</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.4)', padding: '16px', borderRadius: '16px', border: '1px dashed #00ffaa', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '13px', fontWeight: 'bold', marginBottom: '16px', color: '#ffffff' }}>
+                      {tempWallet}
+                    </div>
+                    <button onClick={() => copyWallet(tempWallet)} style={{ width: '100%', padding: '12px', background: 'rgba(0, 255, 170, 0.1)', color: '#00ffaa', border: '1px solid #00ffaa', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', marginBottom: '20px' }}>📋 COPIAR BILLETERA</button>
+                    
+                    <button onClick={handleVerifyPayment} disabled={isGenerating} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      {isGenerating ? 'VERIFICANDO EN BLOCKCHAIN...' : <>{Icons.check} VERIFICAR PAGO</>}
+                    </button>
+                  </>
+                )}
+              </div>
+           ) : (
+            <div className="fade-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <button onClick={() => setRecharging(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>◀ VOLVER</button>
+                <div style={{ fontSize: '12px', fontWeight: '900', color: '#00f0ff', letterSpacing: '1px' }}>RECARGAR BÓVEDA</div>
+              </div>
+              <div style={neon.calcContainer}>
+                <h2 style={{ margin: '0 0 10px 0', fontSize: '20px', fontWeight: '900', letterSpacing: '-0.5px', color: '#ffffff', textAlign: 'center' }}>
+                  Añadir Fondos a la Bóveda USDT
+                </h2>
+                <div style={{ textAlign: 'center', marginBottom: '20px', color: '#aaa', fontSize: '12px' }}>
+                  El saldo de tu bóveda es de <b style={{color:'#00ffaa'}}>${depositBalanceUsdt.toFixed(2)} USDT</b>. Este saldo no es retirable y se utiliza exclusivamente para pagar campañas y tráfico.
+                </div>
+
+                <span style={neon.label}>Monto a recargar (USDT)</span>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                  <button onClick={() => setRechargeAmount(p => Math.max(5, p - 5))} style={neon.btnActionCalc}>-</button>
+                  <input type="number" value={rechargeAmount} onChange={(e) => setRechargeAmount(Number(e.target.value) || 0)} style={neon.inputCalc} />
+                  <button onClick={() => setRechargeAmount(p => p + 5)} style={neon.btnActionCalc}>+</button>
+                </div>
+
+                <span style={neon.label}>Método de Pago</span>
+                <div style={{ display: 'flex', background: 'rgba(15, 5, 28, 0.8)', borderRadius: '12px', border: '2px solid #8a2be2', overflow: 'hidden', marginBottom: '20px' }}>
+                  <button onClick={() => setRechargeMethod('gram')} style={{ flex: 1, padding: '12px', border: 'none', background: rechargeMethod === 'gram' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: rechargeMethod === 'gram' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>GRAM (TON)</button>
+                  <button onClick={() => setRechargeMethod('usdt')} style={{ flex: 1, padding: '12px', borderLeft: '1px solid #8a2be2', border: 'none', background: rechargeMethod === 'usdt' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: rechargeMethod === 'usdt' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>USDT (BEP20)</button>
+                </div>
+
+                <div style={neon.summaryBox}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>TOTAL A PAGAR:</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: '900', fontSize: '20px', color: '#00f0ff' }}>
+                      {rechargeMethod === 'gram' ? `${gramRechargePrice} GRAM` : `$${rechargeAmount.toFixed(2)} USDT`}
+                    </div>
+                  </div>
+                </div>
+
+                <button onClick={handleStartRecharge} disabled={isGenerating} style={neon.actionBtn}>{isGenerating ? 'CONECTANDO...' : 'PROCEDER AL PAGO'}</button>
+              </div>
+            </div>
+           )}
+        </div>
+      )}
+
+      {/* FLUJO CERRADO: CREACIÓN DE CAMPAÑA */}
+      {view === 'wizard' && !recharging && (
         <div className="fade-in">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            {currentStepIndex > 0 && !checkoutView ? (
+            {currentStepIndex > 0 ? (
               <button onClick={prevStep} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>◀</button>
             ) : <div />}
             <div style={{ fontSize: '12px', fontWeight: '900', color: '#00f0ff', letterSpacing: '1px' }}>PASO {currentStepIndex + 1} DE {totalSteps}</div>
-            <button onClick={() => { setView('list'); setTaskType(null); setCurrentStepIndex(0); setCompletions(100); setIsDailyTask(false); setCheckoutView(false); }} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>✕</button>
+            <button onClick={() => { setView('list'); setTaskType(null); setCurrentStepIndex(0); setCompletions(100); setIsDailyTask(false); }} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>✕</button>
           </div>
           <div style={neon.progressBox}>{stepsFlow.map((step, idx) => <div key={idx} style={neon.progressStep(idx <= currentStepIndex)} />)}</div>
 
@@ -573,112 +651,60 @@ export default function AdsTab({ userData, setUserData, t }) {
 
           {currentStepId === 'budget' && (
             <div className="fade-in" style={neon.calcContainer}>
-              {checkoutView ? (
-                <div className="fade-in">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '900', color: '#00f0ff', textTransform: 'uppercase' }}>Pago Seguro</h3>
-                    <button onClick={cancelCheckout} style={{ background: 'rgba(255, 65, 180, 0.2)', border: '1px solid #ff1493', borderRadius: '10px', width: '30px', height: '30px', color: '#ff99dd', fontWeight: '900', cursor: 'pointer' }}>✕</button>
-                  </div>
-                  
-                  {/* PANTALLA GRAM (AUTOMÁTICA) */}
-                  {paymentMethod === 'gram' && (
-                    <>
-                      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía exactamente</div>
-                        <div style={{ fontSize: '36px', fontWeight: '900', color: '#00f0ff', margin: '8px 0', textShadow: '0 0 15px rgba(0,240,255,0.5)' }}>{gramPrice} GRAM</div>
-                        <div style={{ fontSize: '13px', fontWeight: '800', color: '#ffffff' }}>A tu billetera generada:</div>
-                      </div>
-                      <div style={{ background: 'rgba(0,0,0,0.4)', padding: '16px', borderRadius: '16px', border: '1px dashed #ff1493', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '13px', fontWeight: 'bold', marginBottom: '20px', color: '#ffffff' }}>
-                        {tempWallet}
-                      </div>
-                      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                        <button onClick={() => copyWallet(tempWallet)} style={{ flex: 1, padding: '14px', background: 'rgba(0, 240, 255, 0.1)', color: '#00f0ff', border: '2px solid #00f0ff', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer' }}>COPIAR</button>
-                        <button onClick={openTonkeeper} style={{ flex: 1, padding: '14px', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,240,255,0.4)' }}>TONKEEPER</button>
-                      </div>
-                      <button onClick={handleVerifyGramPayment} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                        {Icons.check} YA PAGUÉ, VERIFICAR
-                      </button>
-                    </>
-                  )}
+              <h2 style={{ margin: '0 0 10px 0', fontSize: '22px', fontWeight: '900', letterSpacing: '-0.5px', color: '#ffffff' }}>¿Cuánto tráfico?</h2>
 
-                  {/* 🔥 NUEVO: PANTALLA USDT (MANUAL) */}
-                  {paymentMethod === 'usdt' && (
-                    <>
-                      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Envía exactamente (Red BEP20)</div>
-                        <div style={{ fontSize: '36px', fontWeight: '900', color: '#00ffaa', margin: '8px 0', textShadow: '0 0 15px rgba(0,255,170,0.5)' }}>{usdPrice.toFixed(2)} USDT</div>
-                        <div style={{ fontSize: '13px', fontWeight: '800', color: '#ffffff' }}>A la billetera oficial:</div>
-                      </div>
-                      <div style={{ background: 'rgba(0,0,0,0.4)', padding: '16px', borderRadius: '16px', border: '1px dashed #00ffaa', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '13px', fontWeight: 'bold', marginBottom: '16px', color: '#ffffff' }}>
-                        {publicUsdtWallet || '0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce'}
-                      </div>
-                      <button onClick={() => copyWallet(publicUsdtWallet || '0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce')} style={{ width: '100%', padding: '12px', background: 'rgba(0, 255, 170, 0.1)', color: '#00ffaa', border: '1px solid #00ffaa', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', marginBottom: '20px' }}>📋 COPIAR BILLETERA</button>
-                      
-                      <div style={{ marginBottom: '20px' }}>
-                        <label style={{...neon.label, color: '#00f0ff'}}>Ingresa el Hash (TxID) del envío</label>
-                        <input style={{...neon.input, borderColor: '#00f0ff'}} placeholder="Pega el hash de la transacción aquí..." value={txHash} onChange={e => setTxHash(e.target.value)} />
-                      </div>
-                      
-                      <button onClick={handleNotifyUsdtPayment} disabled={isGenerating} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                        {isGenerating ? 'PROCESANDO...' : <>{Icons.check} ENVIAR COMPROBANTE</>}
-                      </button>
-                    </>
-                  )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0, 240, 255, 0.1)', padding: '12px', borderRadius: '12px', border: '1px dashed #00f0ff', marginBottom: '20px', cursor: 'pointer' }}>
+                <input type="checkbox" checked={isDailyTask} onChange={(e) => setIsDailyTask(e.target.checked)} style={{ width: '18px', height: '18px' }} />
+                <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#00f0ff' }}>Hacer Tarea Diaria (Los usuarios pueden repetirla cada 24h)</span>
+              </label>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                <button onClick={() => setCompletions(100)} style={neon.pillButton(completions === 100)}>100</button>
+                <button onClick={() => setCompletions(500)} style={neon.pillButton(completions === 500)}>500</button>
+                <button onClick={() => setCompletions(1000)} style={neon.pillButton(completions === 1000)}>1K</button>
+                <button onClick={() => setCompletions(5000)} style={neon.pillButton(completions === 5000)}>5K</button>
+              </div>
+              
+              <span style={neon.label}>Usuarios a contratar</span>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <button onClick={() => setCompletions(p => Math.max(10, p - 10))} style={neon.btnActionCalc}>-</button>
+                <input type="number" value={completions} onChange={(e) => setCompletions(Number(e.target.value) || 0)} style={neon.inputCalc} />
+                <button onClick={() => setCompletions(p => p + 10)} style={neon.btnActionCalc}>+</button>
+              </div>
+
+              <span style={neon.label}>Pago a usuarios (Gemas)</span>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <button onClick={() => setRewardPerGema(p => Math.max(1, p - 0.5))} style={neon.btnActionCalc}>-</button>
+                <input type="number" step="0.5" value={rewardPerGema} onChange={(e) => setRewardPerGema(Number(e.target.value) || 0)} style={neon.inputCalc} />
+                <button onClick={() => setRewardPerGema(p => p + 0.5)} style={neon.btnActionCalc}>+</button>
+              </div>
+
+              <div style={neon.summaryBox}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>1. Pago a usuarios: {baseCostGemas} 💎</div>
+                  <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>2. Fondo referidos: {referralFeeGemas} 💎</div>
+                  <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '6px' }}>3. Tasa de Plataforma: {adminFeeGemas} 💎</div>
+                  <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>TOTAL A DESCONTAR DE BÓVEDA:</div>
                 </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: '900', fontSize: '20px', color: '#00f0ff' }}>{totalGemasCost} 💎</div>
+                  <div style={{ fontSize: '12px', color: '#00f0ff', opacity: 0.8 }}>${campaignCostUsdt.toFixed(2)} USDT</div>
+                </div>
+              </div>
+
+              {depositBalanceUsdt >= campaignCostUsdt ? (
+                <button onClick={handleCreateTaskWithVault} disabled={isGenerating} style={neon.actionBtn}>
+                  {isGenerating ? 'PUBLICANDO...' : '✔️ CREAR CAMPAÑA'}
+                </button>
               ) : (
-                <div className="fade-in">
-                  <h2 style={{ margin: '0 0 10px 0', fontSize: '22px', fontWeight: '900', letterSpacing: '-0.5px', color: '#ffffff' }}>¿Cuánto tráfico?</h2>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0, 240, 255, 0.1)', padding: '12px', borderRadius: '12px', border: '1px dashed #00f0ff', marginBottom: '20px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={isDailyTask} onChange={(e) => setIsDailyTask(e.target.checked)} style={{ width: '18px', height: '18px' }} />
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#00f0ff' }}>Hacer Tarea Diaria (Los usuarios pueden repetirla cada 24h)</span>
-                  </label>
-
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                    <button onClick={() => setCompletions(100)} style={neon.pillButton(completions === 100)}>100</button>
-                    <button onClick={() => setCompletions(500)} style={neon.pillButton(completions === 500)}>500</button>
-                    <button onClick={() => setCompletions(1000)} style={neon.pillButton(completions === 1000)}>1K</button>
-                    <button onClick={() => setCompletions(5000)} style={neon.pillButton(completions === 5000)}>5K</button>
+                <>
+                  <div style={{ textAlign: 'center', marginBottom: '12px', fontSize: '12px', color: '#ff4b4b', fontWeight: 'bold' }}>
+                    Saldo de Bóveda insuficiente: ${depositBalanceUsdt.toFixed(2)} USDT
                   </div>
-                  <span style={neon.label}>Usuarios (Completaciones)</span>
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                    <button onClick={() => setCompletions(p => Math.max(10, p - 10))} style={neon.btnActionCalc}>-</button>
-                    <input type="number" value={completions} onChange={(e) => setCompletions(Number(e.target.value) || 0)} style={neon.inputCalc} />
-                    <button onClick={() => setCompletions(p => p + 10)} style={neon.btnActionCalc}>+</button>
-                  </div>
-                  <span style={neon.label}>Pago por Usuario (Gemas)</span>
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                    <button onClick={() => setRewardPerGema(p => Math.max(1, p - 0.5))} style={neon.btnActionCalc}>-</button>
-                    <input type="number" step="0.5" value={rewardPerGema} onChange={(e) => setRewardPerGema(Number(e.target.value) || 0)} style={neon.inputCalc} />
-                    <button onClick={() => setRewardPerGema(p => p + 0.5)} style={neon.btnActionCalc}>+</button>
-                  </div>
-                  
-                  {/* BOTONES DE PAGO CON USDT EN VEZ DE STARS */}
-                  <div style={{ display: 'flex', background: 'rgba(15, 5, 28, 0.8)', borderRadius: '12px', border: '2px solid #8a2be2', overflow: 'hidden', marginBottom: '20px' }}>
-                    <button onClick={() => setPaymentMethod('balance')} style={{ flex: 1, padding: '12px', border: 'none', background: paymentMethod === 'balance' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: paymentMethod === 'balance' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>SALDO</button>
-                    <button onClick={() => setPaymentMethod('gram')} style={{ flex: 1, padding: '12px', borderLeft: '1px solid #8a2be2', borderRight: '1px solid #8a2be2', background: paymentMethod === 'gram' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: paymentMethod === 'gram' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>GRAM</button>
-                    <button onClick={() => setPaymentMethod('usdt')} style={{ flex: 1, padding: '12px', border: 'none', background: paymentMethod === 'usdt' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: paymentMethod === 'usdt' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>USDT</button>
-                  </div>
-                  
-                  <div style={neon.summaryBox}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>Pago a usuarios: {baseCostGemas} 💎</div>
-                      <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>Fondo referidos: {referralFeeGemas} 💎</div>
-                      <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '6px' }}>Plataforma: {adminFeeGemas} 💎</div>
-                      <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>TOTAL A PAGAR:</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: '900', fontSize: '20px', color: '#00f0ff' }}>{totalGemasCost} 💎</div>
-                      <div style={{ fontSize: '12px', color: '#00f0ff', opacity: 0.8 }}>
-                        {paymentMethod === 'balance' && `$${usdPrice.toFixed(2)} USDT`}
-                        {paymentMethod === 'gram' && `${gramPrice} GRAM • $${usdPrice.toFixed(2)}`}
-                        {paymentMethod === 'usdt' && `${usdPrice.toFixed(2)} USDT`}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <button onClick={handleCheckout} disabled={isGenerating} style={neon.actionBtn}>{isGenerating ? 'PROCESANDO...' : '+ Continuar al Pago'}</button>
-                </div>
+                  <button onClick={() => { setRechargeAmount(Math.ceil(campaignCostUsdt)); setRecharging(true); }} style={neon.actionBtnDanger}>
+                    RECARGAR BÓVEDA USDT
+                  </button>
+                </>
               )}
             </div>
           )}
