@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
+
+const Icons = {
+  shield: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffe600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  search: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#050214" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  ban: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff1493" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>,
+  restore: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>,
+  trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  refresh: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
+  wallet: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff99dd" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+};
 
 const neon = {
   card: { background: 'linear-gradient(145deg, #18052a, #0d0217)', border: '2px solid #ffe600', borderRadius: '20px', padding: '16px', marginBottom: '16px', boxShadow: '0 4px 20px rgba(255, 230, 0, 0.15)' },
-  input: { width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid #ffe600', borderRadius: '12px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', marginBottom: '10px' },
-  btn: { width: '100%', background: 'linear-gradient(90deg, #ffe600, #ffaa00)', color: '#050214', fontWeight: '900', padding: '12px', border: 'none', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(255, 230, 0, 0.3)' },
-  btnDanger: { width: '100%', background: 'transparent', color: '#ff1493', fontWeight: '900', padding: '12px', border: '2px solid #ff1493', borderRadius: '12px', cursor: 'pointer' },
+  input: { width: '100%', background: 'rgba(0,0,0,0.5)', border: '1px solid #ffe600', borderRadius: '12px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', marginBottom: '10px', boxSizing: 'border-box' },
+  btn: { width: '100%', background: 'linear-gradient(90deg, #ffe600, #ffaa00)', color: '#050214', fontWeight: '900', padding: '12px', border: 'none', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(255, 230, 0, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textTransform: 'uppercase' },
+  btnDanger: { width: '100%', background: 'transparent', color: '#ff1493', fontWeight: '900', padding: '12px', border: '2px solid #ff1493', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textTransform: 'uppercase' },
   label: { fontSize: '10px', color: '#ff99dd', fontWeight: '900', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }
 };
 
@@ -18,19 +28,21 @@ export default function AdminDashboard({ userData }) {
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
+  // 🔥 NUEVO: Estado para Billeteras de Configuración
+  const [sysConfig, setSysConfig] = useState({ master_wallet_ton: '', master_wallet_mnemonic: '' });
+  const [savingConfig, setSavingConfig] = useState(false);
+
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
   useEffect(() => {
     loadStats();
     loadAllTasks();
+    loadSysConfig();
   }, []);
 
   const loadStats = async () => {
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'admin-stats', adminId: userData.id })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-stats', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setStats(data.stats);
     } catch (e) { console.error(e); }
@@ -39,34 +51,42 @@ export default function AdminDashboard({ userData }) {
   const loadAllTasks = async () => {
     setLoadingTasks(true);
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'admin-get-tasks', adminId: userData.id })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-tasks', adminId: userData.id }) });
       const data = await res.json();
-      if (data.success) {
-        setAllTasks(data.tasks || []);
-      }
-    } catch (e) { console.error("Error cargando campañas", e); }
-    finally { setLoadingTasks(false); }
+      if (data.success) setAllTasks(data.tasks || []);
+    } catch (e) { console.error("Error cargando campañas", e); } finally { setLoadingTasks(false); }
+  };
+
+  // 🔥 NUEVO: Cargar Billeteras
+  const loadSysConfig = async () => {
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-config', adminId: userData.id }) });
+      const data = await res.json();
+      if (data.success && data.config) setSysConfig(data.config);
+    } catch (e) { console.error(e); }
+  };
+
+  // 🔥 NUEVO: Guardar Billeteras
+  const handleSaveConfig = async () => {
+    const tid = toast.loading("Guardando configuración...");
+    setSavingConfig(true);
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-config', adminId: userData.id, config: sysConfig }) });
+      const data = await res.json();
+      if (data.success) toast.success("Billeteras actualizadas", { id: tid });
+      else throw new Error(data.error);
+    } catch (e) { toast.error("Error al guardar", { id: tid }); }
+    setSavingConfig(false);
   };
 
   const handleDeleteTask = async (taskId) => {
     if (!window.confirm("¿Seguro que quieres eliminar esta campaña por violar las normas? Se reembolsará el saldo al creador.")) return;
     const tid = toast.loading("Eliminando campaña...");
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'delete-task', taskId: taskId, requestingUserId: userData.id, isAdminAction: true })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'delete-task', taskId: taskId, requestingUserId: userData.id, isAdminAction: true }) });
       const data = await res.json();
-      if (data.success) { 
-        toast.success("Campaña eliminada", { id: tid }); 
-        loadAllTasks(); 
-        loadStats(); 
-      } else { 
-        throw new Error(data.error); 
-      }
+      if (data.success) { toast.success("Campaña eliminada", { id: tid }); loadAllTasks(); loadStats(); } 
+      else throw new Error(data.error);
     } catch (err) { toast.error(err.message || "Error al eliminar.", { id: tid }); }
   };
 
@@ -74,19 +94,11 @@ export default function AdminDashboard({ userData }) {
     if (!searchId) return toast.error("Ingresa un ID");
     const tid = toast.loading("Buscando...");
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'admin-search-user', adminId: userData.id, targetId: searchId })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-search-user', adminId: userData.id, targetId: searchId }) });
       const data = await res.json();
       if (data.success && data.user) {
-        setFoundUser(data.user);
-        setNewBalance(data.user.balance);
-        toast.success("Usuario encontrado", { id: tid });
-      } else {
-        toast.error("Usuario no existe", { id: tid });
-        setFoundUser(null);
-      }
+        setFoundUser(data.user); setNewBalance(data.user.balance); toast.success("Usuario encontrado", { id: tid });
+      } else { toast.error("Usuario no existe", { id: tid }); setFoundUser(null); }
     } catch (e) { toast.error("Error al buscar", { id: tid }); }
   };
 
@@ -94,15 +106,10 @@ export default function AdminDashboard({ userData }) {
     if (!foundUser) return;
     const tid = toast.loading("Actualizando saldo...");
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { balance: Number(newBalance) } })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { balance: Number(newBalance) } }) });
       const data = await res.json();
-      if (data.success) {
-        toast.success("Saldo actualizado", { id: tid });
-        setFoundUser(prev => ({ ...prev, balance: Number(newBalance) }));
-      } else throw new Error();
+      if (data.success) { toast.success("Saldo actualizado", { id: tid }); setFoundUser(prev => ({ ...prev, balance: Number(newBalance) })); } 
+      else throw new Error();
     } catch (e) { toast.error("Error al actualizar", { id: tid }); }
   };
 
@@ -111,22 +118,17 @@ export default function AdminDashboard({ userData }) {
     const isBanning = !foundUser.is_banned;
     const tid = toast.loading(isBanning ? "Baneando..." : "Desbaneando...");
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { is_banned: isBanning } })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { is_banned: isBanning } }) });
       const data = await res.json();
-      if (data.success) {
-        toast.success(isBanning ? "Usuario baneado" : "Usuario restaurado", { id: tid });
-        setFoundUser(prev => ({ ...prev, is_banned: isBanning }));
-      } else throw new Error();
+      if (data.success) { toast.success(isBanning ? "Usuario baneado" : "Usuario restaurado", { id: tid }); setFoundUser(prev => ({ ...prev, is_banned: isBanning })); } 
+      else throw new Error();
     } catch (e) { toast.error("Error en la operación", { id: tid }); }
   };
 
   return (
     <div style={{ color: '#fff', paddingBottom: '20px' }}>
-      <h2 style={{ color: '#ffe600', fontWeight: '900', textAlign: 'center', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-        Panel de Control
+      <h2 style={{ color: '#ffe600', fontWeight: '900', textAlign: 'center', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+        {Icons.shield} Panel de Control
       </h2>
 
       {/* MÉTRICAS GLOBALES */}
@@ -141,6 +143,35 @@ export default function AdminDashboard({ userData }) {
         </div>
       </div>
 
+      {/* 🔥 NUEVO: CONFIGURACIÓN DE BILLETERAS */}
+      <div style={{ ...neon.card, borderColor: '#ff41b4' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff99dd', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {Icons.wallet} Billeteras de Operación
+        </h3>
+        
+        <span style={neon.label}>Billetera Receptora TON (Depósitos de Usuarios)</span>
+        <input 
+          type="text" 
+          placeholder="UQDgJUo4Ycvd9Q_ICUI..." 
+          style={{ ...neon.input, borderColor: '#ff41b4' }} 
+          value={sysConfig.master_wallet_ton} 
+          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_ton: e.target.value })} 
+        />
+
+        <span style={neon.label}>Frase Semilla Vercel (Para retiros automáticos)</span>
+        <input 
+          type="password" 
+          placeholder="palabra1 palabra2 palabra3..." 
+          style={{ ...neon.input, borderColor: '#ff41b4' }} 
+          value={sysConfig.master_wallet_mnemonic} 
+          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_mnemonic: e.target.value })} 
+        />
+
+        <button onClick={handleSaveConfig} disabled={savingConfig} style={{ ...neon.btn, background: 'linear-gradient(90deg, #ff1493, #8a2be2)', color: '#fff' }}>
+          {savingConfig ? 'GUARDANDO...' : 'GUARDAR BILLETERAS'}
+        </button>
+      </div>
+
       {/* BUSCADOR DE USUARIOS */}
       <div style={neon.card}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ffe600' }}>Control de Usuarios</h3>
@@ -153,7 +184,7 @@ export default function AdminDashboard({ userData }) {
             value={searchId} 
             onChange={(e) => setSearchId(e.target.value)} 
           />
-          <button onClick={handleSearchUser} style={{ ...neon.btn, width: 'auto', padding: '0 20px' }}>BUSCAR</button>
+          <button onClick={handleSearchUser} style={{ ...neon.btn, width: 'auto', padding: '0 20px' }}>{Icons.search}</button>
         </div>
 
         {foundUser && (
@@ -174,12 +205,12 @@ export default function AdminDashboard({ userData }) {
                   value={newBalance} 
                   onChange={(e) => setNewBalance(e.target.value)} 
                 />
-                <button onClick={handleUpdateBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00f0ff, #0088ff)' }}>Guardar</button>
+                <button onClick={handleUpdateBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#000' }}>Guardar</button>
               </div>
             </div>
 
             <button onClick={handleToggleBan} style={foundUser.is_banned ? { ...neon.btnDanger, borderColor: '#00ffaa', color: '#00ffaa' } : neon.btnDanger}>
-              {foundUser.is_banned ? 'DESBANEAR USUARIO' : 'BANEAR USUARIO'}
+              {foundUser.is_banned ? <>{Icons.restore} DESBANEAR USUARIO</> : <>{Icons.ban} BANEAR USUARIO</>}
             </button>
           </div>
         )}
@@ -189,7 +220,7 @@ export default function AdminDashboard({ userData }) {
       <div style={neon.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, fontSize: '16px', color: '#00ffaa' }}>Auditoría de Campañas</h3>
-          <button onClick={loadAllTasks} style={{ background: 'transparent', border: 'none', color: '#00ffaa', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>ACTUALIZAR</button>
+          <button onClick={loadAllTasks} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>{Icons.refresh}</button>
         </div>
 
         {loadingTasks ? (
@@ -214,8 +245,8 @@ export default function AdminDashboard({ userData }) {
                   <span style={{ color: '#ffe600', fontWeight: 'bold' }}>{task.completions_done}/{task.completions_total}</span>
                 </div>
                 <div style={{ marginTop: '10px', textAlign: 'right' }}>
-                  <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#ff1493', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    Eliminar Forzadamente
+                  <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#ff1493', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}>
+                    {Icons.trash} Eliminar Forzada
                   </button>
                 </div>
               </div>
