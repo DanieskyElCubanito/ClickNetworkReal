@@ -29,14 +29,16 @@ function App() {
   const [activeTab, setActiveTab] = useState('home'); 
   const [userData, setUserData] = useState(null);
   const [stats, setStats] = useState({ n1: 0, c1: "0.000" });
+  
+  // 🔥 Desactivamos el Captcha visual como solicitaste (isHuman: true por defecto)
   const [isHuman, setIsHuman] = useState(true);
+  
   const [errorMessage, setErrorMessage] = useState('');
 
   const [lang, setLang] = useState(localStorage.getItem('click_lang') || 'es');
   const initialized = useRef(false);
   const t = (key) => translations[lang][key] || key;
 
-  // 🔥 Helper para limpiar mensajes de error tipo Object
   const safeErrorMessage = (errorPayload, fallbackMsg) => {
     if (!errorPayload) return fallbackMsg;
     if (typeof errorPayload === 'string') return errorPayload;
@@ -51,30 +53,63 @@ function App() {
 
   const verifyUser = async (teleUser, startParam) => {
     try {
+      // 🛡️ SISTEMA FINGERPRINT (Anti Multi-cuentas)
       const fp = await FingerprintJS.load();
       const result = await fp.get();
       const generatedDeviceId = result.visitorId;
       const storedFirstUser = localStorage.getItem('xpro_linked_user');
       let previousAccount = null;
 
-      if (!storedFirstUser) { localStorage.setItem('xpro_linked_user', String(teleUser.id)); } 
-      else if (storedFirstUser !== String(teleUser.id)) { previousAccount = storedFirstUser; }
+      // Si es la primera vez en este móvil, lo marcamos como el dueño legítimo
+      if (!storedFirstUser) { 
+        localStorage.setItem('xpro_linked_user', String(teleUser.id)); 
+      } 
+      // Si ya hay un dueño y es distinto, lo detectamos como multicuenta
+      else if (storedFirstUser !== String(teleUser.id)) { 
+        previousAccount = storedFirstUser; 
+      }
 
-      const userPayload = { ...teleUser, deviceId: generatedDeviceId, previousAccountDetected: previousAccount };
-      const data = await botApi.verifyUser(userPayload, startParam);
+      // 🔥 CORRECCIÓN 1: Aseguramos enviar explícitamente start_param
+      // 🔥 CORRECCIÓN 2: Enviamos el flag de clon (is_clone)
+      const userPayload = { 
+        ...teleUser, 
+        deviceId: generatedDeviceId, 
+        is_clone: previousAccount !== null // Si no es nulo, es una multicuenta
+      };
+
+      // Realizamos la petición al backend con el user modificado y el start_param
+      const payloadRequest = {
+        action: 'verify',
+        user: userPayload,
+        userId: teleUser.id,
+        start_param: startParam // Aquí garantizamos que viaja el referido
+      };
+
+      // Hacemos el POST directo para evitar que botApi.js interfiera con los nombres de las variables
+      const response = await fetch('/api', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Telegram-Init-Data': WebApp.initData || ''
+        },
+        body: JSON.stringify(payloadRequest)
+      });
+      
+      const data = await response.json();
 
       if (data && data.success && data.user) {
         setUserData(data.user);
         setStats(data.stats || { n1: 0, c1: "0.000" });
         setStatus('member');
-        if (data.user?.is_human) setIsHuman(true);
+        
+        // Si el backend lo marcó como baneo/fraude, se queda atrapado sin poder hacer tareas
+        if (data.user?.is_human === false) setIsHuman(false); 
+        else setIsHuman(true);
       } else {
-        // 🔥 Uso del Helper para evitar "[object Object]"
         setErrorMessage(safeErrorMessage(data, "Error al sincronizar con el servidor."));
         setStatus('error');
       }
     } catch (err) {
-        // 🔥 Uso del Helper para errores Axios / Red
         const errPayload = err.response?.data || err;
         setErrorMessage(safeErrorMessage(errPayload, "Fallo de conexión o base de datos."));
         setStatus('error');
@@ -133,13 +168,12 @@ function App() {
       <div style={neonTheme.center}>
         <div style={neonTheme.errorCard}>
           <div style={{ fontSize: '42px', marginBottom: '8px' }}>
-            {/* Ícono de Alerta en Vector (Sin Emojis) */}
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ffe600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 10px rgba(255,230,0,0.5))' }}>
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </div>
           <h2 style={{ color: '#ffe600', margin: '0 0 10px 0', fontSize: '20px', fontWeight: '900', textTransform: 'uppercase' }}>{t('access_interrupted')}</h2>
-          
+
           <div style={{ background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255, 65, 180, 0.4)', marginBottom: '16px' }}>
              <p style={{ color: '#ff99dd', fontSize: '13px', lineHeight: '1.5', margin: 0, wordBreak: 'break-word', fontFamily: 'monospace' }}>
                {errorMessage}
