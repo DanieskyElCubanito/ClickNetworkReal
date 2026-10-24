@@ -7,13 +7,18 @@ import { translations } from './translations';
 
 import ProfileHeader from './components/ProfileHeader';
 import HomeTab from './components/HomeTab';
-import PublishTab from './components/PublishTab';
 import AdsTab from './components/AdsTab';
 import ShareTab from './components/ShareTab';
 import BottomNav from './components/BottomNav';
 import CaptchaVerification from './components/CaptchaVerification';
 import AdminDashboard from './components/AdminDashboard';
-import MarketTab from './components/MarketTab'; // 🔥 Nuevo componente para el mercado de canales
+
+// 🔥 Importamos la nueva Billetera para la Fase 1
+import WalletTab from './components/WalletTab'; 
+
+// 🛑 Componentes de Fase 2 (Ocultos temporalmente para el lanzamiento MVP)
+// import PublishTab from './components/PublishTab';
+// import MarketTab from './components/MarketTab';
 
 const neonTheme = {
   container: { backgroundColor: '#0a0314', backgroundImage: 'radial-gradient(circle at 50% 10%, #2b0b47 0%, #0a0314 80%)', minHeight: '100vh', height: 'var(--tg-viewport-height, 100vh)', color: '#ffffff', fontFamily: "'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif", display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
@@ -130,13 +135,13 @@ function App() {
       <div style={neonTheme.main}>
         {activeTab === 'home' && <div className="fade-in"><ProfileHeader userData={userData} t={t} lang={lang} setLang={setLang} /><HomeTab userData={userData} setUserData={setUserData} setActiveTab={setActiveTab} t={t} /></div>}
         {activeTab === 'tasks' && <div className="fade-in"><AdsTab userData={userData} setUserData={setUserData} t={t} /></div>}
-        
-        {/* 🔥 Nueva ruta para el Mercado de Canales */}
-        {activeTab === 'market' && <div className="fade-in"><MarketTab userData={userData} setUserData={setUserData} t={t} /></div>}
-        
-        {activeTab === 'publish' && <div className="fade-in"><PublishTab userData={userData} setUserData={setUserData} setActiveTabGlobal={setActiveTab} t={t} /></div>}
         {activeTab === 'referrals' && <div className="fade-in"><ShareTab stats={stats} handleShare={handleShare} userId={userData?.id} totalReferralEarnings={userData?.referral_earnings} t={t} /></div>}
+        {activeTab === 'wallet' && <div className="fade-in"><WalletTab userData={userData} setUserData={setUserData} t={t} /></div>}
         {activeTab === 'admin' && <div className="fade-in"><AdminDashboard userData={userData} t={t} /></div>}
+
+        {/* 🛑 Rutas Ocultas Temporalmente */}
+        {/* {activeTab === 'market' && <div className="fade-in"><MarketTab userData={userData} setUserData={setUserData} t={t} /></div>} */}
+        {/* {activeTab === 'publish' && <div className="fade-in"><PublishTab userData={userData} setUserData={setUserData} setActiveTabGlobal={setActiveTab} t={t} /></div>} */}
       </div>
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} userData={userData} t={t} />
     </div>
@@ -144,5 +149,3 @@ function App() {
 }
 
 export default App;
-
-
