@@ -12,13 +12,7 @@ import ShareTab from './components/ShareTab';
 import BottomNav from './components/BottomNav';
 import CaptchaVerification from './components/CaptchaVerification';
 import AdminDashboard from './components/AdminDashboard';
-
-// 🔥 Importamos la nueva Billetera para la Fase 1
 import WalletTab from './components/WalletTab'; 
-
-// 🛑 Componentes de Fase 2 (Ocultos temporalmente para el lanzamiento MVP)
-// import PublishTab from './components/PublishTab';
-// import MarketTab from './components/MarketTab';
 
 const neonTheme = {
   container: { backgroundColor: '#0a0314', backgroundImage: 'radial-gradient(circle at 50% 10%, #2b0b47 0%, #0a0314 80%)', minHeight: '100vh', height: 'var(--tg-viewport-height, 100vh)', color: '#ffffff', fontFamily: "'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif", display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
@@ -41,6 +35,19 @@ function App() {
   const initialized = useRef(false);
   const t = (key) => translations[lang][key] || key;
 
+  // 🔥 Helper para limpiar mensajes de error tipo Object
+  const safeErrorMessage = (errorPayload, fallbackMsg) => {
+    if (!errorPayload) return fallbackMsg;
+    if (typeof errorPayload === 'string') return errorPayload;
+    if (errorPayload.message) return errorPayload.message;
+    if (errorPayload.error) return errorPayload.error;
+    try {
+      return JSON.stringify(errorPayload);
+    } catch {
+      return fallbackMsg;
+    }
+  };
+
   const verifyUser = async (teleUser, startParam) => {
     try {
       const fp = await FingerprintJS.load();
@@ -61,12 +68,15 @@ function App() {
         setStatus('member');
         if (data.user?.is_human) setIsHuman(true);
       } else {
-        setErrorMessage(data?.message || data?.error || "Error");
+        // 🔥 Uso del Helper para evitar "[object Object]"
+        setErrorMessage(safeErrorMessage(data, "Error al sincronizar con el servidor."));
         setStatus('error');
       }
     } catch (err) {
-      setErrorMessage(err.response?.data?.error || err.message || "Error");
-      setStatus('error');
+        // 🔥 Uso del Helper para errores Axios / Red
+        const errPayload = err.response?.data || err;
+        setErrorMessage(safeErrorMessage(errPayload, "Fallo de conexión o base de datos."));
+        setStatus('error');
     }
   };
 
@@ -94,7 +104,10 @@ function App() {
 
         initialized.current = true;
         verifyUser(user, inviterId);
-      } catch (e) { setErrorMessage("Error SDK"); setStatus('error'); }
+      } catch (e) { 
+          setErrorMessage("Error de compatibilidad con Telegram."); 
+          setStatus('error'); 
+      }
     }, 150);
     return () => clearTimeout(initTimer);
   }, []);
@@ -118,10 +131,21 @@ function App() {
     return (
       <div style={neonTheme.center}>
         <div style={neonTheme.errorCard}>
-          <div style={{ fontSize: '42px', marginBottom: '8px' }}>⚠️</div>
-          <h2 style={{ color: '#ffe600', margin: '0 0 10px 0', fontSize: '20px', fontWeight: '900' }}>{t('access_interrupted')}</h2>
-          <p style={{ color: '#ff99dd', fontSize: '13px', lineHeight: '1.5', margin: 0 }}>{errorMessage}</p>
-          <button style={neonTheme.btnRetry} onClick={() => window.location.reload()}>🔄 {t('retry')}</button>
+          <div style={{ fontSize: '42px', marginBottom: '8px' }}>
+            {/* Ícono de Alerta en Vector (Sin Emojis) */}
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ffe600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 10px rgba(255,230,0,0.5))' }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h2 style={{ color: '#ffe600', margin: '0 0 10px 0', fontSize: '20px', fontWeight: '900', textTransform: 'uppercase' }}>{t('access_interrupted')}</h2>
+          
+          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255, 65, 180, 0.4)', marginBottom: '16px' }}>
+             <p style={{ color: '#ff99dd', fontSize: '13px', lineHeight: '1.5', margin: 0, wordBreak: 'break-word', fontFamily: 'monospace' }}>
+               {errorMessage}
+             </p>
+          </div>
+
+          <button style={neonTheme.btnRetry} onClick={() => window.location.reload()}>REINTENTAR</button>
         </div>
       </div>
     );
@@ -131,7 +155,6 @@ function App() {
 
   return (
     <div style={neonTheme.container}>
-      {/* 🔥 FIX APLICADO: duration: 3000 añadido aquí */}
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#1d0833', color: '#fff', border: '2px solid #00f0ff', boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)', fontWeight: '800', fontSize: '13px' } }} />
       <div style={neonTheme.main}>
         {activeTab === 'home' && <div className="fade-in"><ProfileHeader userData={userData} t={t} lang={lang} setLang={setLang} /><HomeTab userData={userData} setUserData={setUserData} setActiveTab={setActiveTab} t={t} /></div>}
