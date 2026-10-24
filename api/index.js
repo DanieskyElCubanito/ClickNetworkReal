@@ -18,7 +18,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const BOT_ID = BOT_TOKEN.split(':')[0];
 const ADMIN_IDS = ['8968109534', '8892196101'];
 const MAIN_ADMIN_ID = '8968109534'; 
-const MY_MASTER_WALLET = "UQDgJUo4Ycvd9Q_ICUI6I-trCRcZgzBXHmhe0z_8lRHWfU3I";
+const FALLBACK_MASTER_WALLET = "UQDgJUo4Ycvd9Q_ICUI6I-trCRcZgzBXHmhe0z_8lRHWfU3I";
 
 const tonClient = new TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRPC' });
 
@@ -35,11 +35,11 @@ async function getTonPrice() {
 async function sendTonAutomated(destinationAddress, usdtAmount) {
   const mnemonic = process.env.MASTER_WALLET_MNEMONIC; 
   if (!mnemonic) throw new Error("Falta la variable MASTER_WALLET_MNEMONIC en Vercel.");
-  
+
   const tonPrice = await getTonPrice();
   const tonAmount = usdtAmount / tonPrice; 
   const nanoTonAmount = Math.floor(tonAmount * 1e9).toString();
-  
+
   const mnemonics = mnemonic.split(" ");
   const keyPair = await mnemonicToPrivateKey(mnemonics);
   const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
@@ -148,7 +148,6 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // ⚡ BYPASS PARA WEBHOOKS DE TELEGRAM (Botones del Admin)
     if (req.body && req.body.callback_query) {
       const cb = req.body.callback_query;
       const data = cb.data;
@@ -205,6 +204,22 @@ export default async function handler(req, res) {
     }
 
     const { user, action, userId, start_param } = req.body; 
+
+    // 🔥 NUEVAS RUTAS DE BILLETERAS DE ADMINISTRADOR
+    if (action === 'admin-get-config') {
+      const { adminId } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
+      const { data } = await supabase.from('system_settings').select('*').eq('id', 1).maybeSingle();
+      return res.status(200).json({ success: true, config: data || { master_wallet_ton: '', master_wallet_usdt_bep20: '' } });
+    }
+
+    if (action === 'admin-update-config') {
+      const { adminId, config } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
+      const { error } = await supabase.from('system_settings').upsert({ id: 1, master_wallet_ton: config.master_wallet_ton, master_wallet_usdt_bep20: config.master_wallet_usdt_bep20 });
+      if (error) return res.status(400).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true });
+    }
 
     // ⚡ LÓGICA DE RETIROS
     if (action === 'request-withdrawal') {
@@ -446,12 +461,26 @@ export default async function handler(req, res) {
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '💎 Recarga con GRAM', description: `Has recargado ${intent.expected_amount} GRAM.`, amount: clicks }]);
 
+      // 🔥 BARRIDO A LA BILLETERA DINÁMICA DEL ADMIN
       try {
-        const mnemonics = intent.encrypted_private_key.split(" "); const keyPair = await mnemonicToPrivateKey(mnemonics);
+        let sweepWallet = FALLBACK_MASTER_WALLET;
+        const { data: cfg } = await supabase.from('system_settings').select('master_wallet_ton').eq('id', 1).maybeSingle();
+        if (cfg && cfg.master_wallet_ton) sweepWallet = cfg.master_wallet_ton;
+
+        const mnemonics = intent.encrypted_private_key.split(" "); 
+        const keyPair = await mnemonicToPrivateKey(mnemonics);
         const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
-        const contract = tonClient.open(wallet); const seqno = await contract.getSeqno();
-        await contract.sendTransfer({ seqno: seqno || 0, secretKey: keyPair.secretKey, messages: [ internal({ to: MY_MASTER_WALLET, value: 0n, bounce: false, body: "Barrido Automático" }) ], sendMode: 128 });
-      } catch (sweepError) {}
+        const contract = tonClient.open(wallet); 
+        const seqno = await contract.getSeqno();
+        
+        await contract.sendTransfer({ 
+          seqno: seqno || 0, secretKey: keyPair.secretKey, 
+          messages: [ internal({ to: sweepWallet, value: 0n, bounce: false, body: "Barrido Automático" }) ], 
+          sendMode: 128 
+        });
+      } catch (sweepError) {
+        console.error("Error en barrido:", sweepError);
+      }
       return res.status(200).json({ success: true, balance: newBalance });
     }
 
@@ -466,12 +495,17 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // 🔥 CREACIÓN DE TAREA CON COMISIÓN DEL 130%
     if (action === 'create-task') {
       const { creator_id, type, title, url, bot_token, completions_total, reward } = req.body;
       const targetId = String(creator_id || userId);
+      
       const count = Number(completions_total || 100); 
       const rew = Number(reward || 0.001); 
-      const totalCost = Number((count * rew).toFixed(4));
+      
+      // Aplicar multiplicador del 1.30 (100% usuario + 20% referidos + 10% sistema)
+      const totalCost = Number((count * rew * 1.30).toFixed(4));
+      
       const { data: dbUser } = await supabase.from('users').select('balance').eq('id', targetId).single();
       if (!dbUser || Number(dbUser.balance || 0) < totalCost) return res.status(400).json({ success: false, error: 'Saldo insuficiente.' });
 
@@ -659,13 +693,12 @@ export default async function handler(req, res) {
     }
 
     await tryGrantReferralReward(targetUser);
-    
-    // 🔥 CALCULAR CLICKS GLOBALES Y RECIBIDOS REALES
+
     const { data: totalTasks } = await supabase.from('tasks').select('completions_done, creator_id').neq('type', 'publish_group');
-    
+
     let globalclicks = 0;
     let receivedclicks = 0;
-    
+
     if (totalTasks) {
       totalTasks.forEach(t => {
         const done = t.completions_done || 0;
@@ -683,7 +716,7 @@ export default async function handler(req, res) {
     dbUser.received_clicks = formattedReceived;
 
     const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
-    
+
     return res.status(200).json({ success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } });
 
   } catch (error) { return res.status(500).json({ success: false, error: error.message }); }
