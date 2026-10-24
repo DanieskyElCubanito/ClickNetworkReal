@@ -114,7 +114,7 @@ function App() {
   }, []);
 
   const handleShare = () => {
-    const inviteLink = `https://t.me/ClickNetworkbot/app?startapp=${userData?.id}`;
+    const inviteLink = `https://t.me/TeleGemAds_bot/app?startapp=${userData?.id}`;
     WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(t('share_text'))}`);
   };
 
