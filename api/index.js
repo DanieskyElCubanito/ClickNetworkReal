@@ -304,27 +304,36 @@ export default async function handler(req, res) {
       }
     }
 
-     
-          if (action === 'generate-usdt-wallet') {
+         if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
       const targetId = String(userId);
       
-      const masterKey = process.env.BSC_PRIVATE_KEY;
-      if (!masterKey) return res.status(400).json({ success: false, error: 'Falta la variable BSC_PRIVATE_KEY en Vercel.' });
-      
-      const { ethers } = await import('ethers');
-      const userPrivKey = ethers.keccak256(ethers.toUtf8Bytes(masterKey + "_clicknetwork_" + targetId));
-      const derivedWallet = new ethers.Wallet(userPrivKey);
-      const publicAddress = derivedWallet.address;
+      // 1. Obtenemos la billetera maestra USDT configurada en el panel de administración
+      let masterUsdtWallet = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce"; // Respaldo por defecto
+      try {
+        const { data: cfg } = await supabase.from('system_settings').select('master_wallet_usdt_bep20').eq('id', 1).maybeSingle();
+        if (cfg && cfg.master_wallet_usdt_bep20) {
+          masterUsdtWallet = cfg.master_wallet_usdt_bep20;
+        }
+      } catch (e) {}
 
+      // 2. Generamos una billetera temporal de pago única para este intento vinculada al panel
+      const { ethers } = await import('ethers');
+      const randomWallet = ethers.Wallet.createRandom();
+      const publicAddress = randomWallet.address;
+      const privateKey = randomWallet.privateKey;
+
+      // 3. Guardamos el intento en Supabase (incluyendo la llave privada temporal para futuras verificaciones o barridos)
       const { data: newIntent, error: intentErr } = await supabase.from('payment_intents').insert([{ 
         user_id: targetId, 
         expected_amount: Number(price), 
         public_wallet: publicAddress, 
+        encrypted_private_key: privateKey, // Guardamos temporalmente para el barrido hacia tu wallet del panel
         status: 'pending' 
       }]).select().single();
 
       if (intentErr) return res.status(400).json({ success: false, error: intentErr.message });
+      
       return res.status(200).json({ success: true, wallet: publicAddress, intentId: newIntent.id });
     }
 
