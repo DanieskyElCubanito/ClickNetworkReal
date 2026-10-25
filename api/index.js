@@ -27,6 +27,72 @@ const tonClient = new TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRP
 const BSC_RPC = "https://bsc-dataseed.binance.org/";
 const USDT_BEP20_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 
+// 🛡️ 1. CIFRADO AES-256-GCM (Vulnerabilidad Criptográfica)
+const RAW_KEY = process.env.ENCRYPTION_KEY || 'TeleGemFallbackKey2026NeedsToChangeNow';
+const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest(); 
+
+function encryptText(text) {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag().toString('hex');
+  return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+}
+
+function decryptText(text) {
+  try {
+    const [ivHex, authTagHex, encryptedHex] = text.split(':');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', ENCRYPTION_KEY, Buffer.from(ivHex, 'hex'));
+    decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
+    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (e) {
+    throw new Error('Fallo en desencriptado. Llave incorrecta o datos corruptos.');
+  }
+}
+
+// 🛡️ 2. MEMORIA DE RATE LIMITING (Ataques DDoS)
+const rateLimitMap = new Map();
+function checkRateLimit(ip) {
+  const now = Date.now();
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, { count: 1, firstRequest: now });
+    return true;
+  }
+  const data = rateLimitMap.get(ip);
+  if (now - data.firstRequest > 60000) { 
+    data.count = 1;
+    data.firstRequest = now;
+    return true;
+  }
+  data.count++;
+  return data.count <= 30; 
+}
+
+// 🛡️ 3. FIRMA ANTI-SPOOFING (auth_date)
+function verifyTelegramWebAppData(telegramInitData) {
+  if (!telegramInitData || !BOT_TOKEN) return false;
+  const urlParams = new URLSearchParams(telegramInitData);
+  const hash = urlParams.get('hash');
+  
+  const authDate = urlParams.get('auth_date');
+  if (authDate) {
+    const timeDiff = (Date.now() / 1000) - Number(authDate);
+    if (timeDiff > 86400) return false; 
+  }
+
+  urlParams.delete('hash');
+  urlParams.sort();
+  let dataCheckString = '';
+  for (const [key, value] of urlParams.entries()) { dataCheckString += `${key}=${value}\n`; }
+  dataCheckString = dataCheckString.slice(0, -1);
+  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
+  const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+  return calculatedHash === hash;
+}
+
 async function getTonPrice() {
   try {
     const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
@@ -47,7 +113,7 @@ async function sweepUsdtAutomated(derivedWallet, usdtAmountWei) {
     const provider = new ethers.JsonRpcProvider(BSC_RPC);
     const connectedDerived = derivedWallet.connect(provider);
     const masterWallet = new ethers.Wallet(process.env.BSC_PRIVATE_KEY, provider);
-    
+
     let sweepDestination = FALLBACK_MASTER_WALLET_USDT;
     const { data: cfg } = await supabase.from('system_settings').select('master_wallet_usdt_bep20').eq('id', 1).maybeSingle();
     if (cfg && cfg.master_wallet_usdt_bep20) sweepDestination = cfg.master_wallet_usdt_bep20;
@@ -95,20 +161,6 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
   });
 }
 
-function verifyTelegramWebAppData(telegramInitData) {
-  if (!telegramInitData || !BOT_TOKEN) return false;
-  const urlParams = new URLSearchParams(telegramInitData);
-  const hash = urlParams.get('hash');
-  urlParams.delete('hash');
-  urlParams.sort();
-  let dataCheckString = '';
-  for (const [key, value] of urlParams.entries()) { dataCheckString += `${key}=${value}\n`; }
-  dataCheckString = dataCheckString.slice(0, -1);
-  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
-  const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-  return calculatedHash === hash;
-}
-
 function extractTelegramUsername(url) {
   let val = url.trim();
   if (val.startsWith('@')) return val;
@@ -139,16 +191,6 @@ async function checkMembership(userId, chatId) {
   } catch (error) { return false; }
 }
 
-async function checkAdminStatus(chatId) {
-  try {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${BOT_ID}`;
-    const response = await fetchWithTimeout(url);
-    const resData = await response.json();
-    if (!resData.ok) return false;
-    return ['administrator', 'creator'].includes(resData.result.status);
-  } catch (error) { return false; }
-}
-
 async function checkAdminStatusDetailed(chatId) {
   try {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${BOT_ID}`;
@@ -169,6 +211,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+    
+    // Mitigación DDoS
+    if (!checkRateLimit(clientIp)) {
+      return res.status(429).json({ success: false, error: 'Demasiadas solicitudes. Intente más tarde.' });
+    }
+
     const telegramInitData = req.headers['x-telegram-init-data'];
     if (!telegramInitData || !verifyTelegramWebAppData(telegramInitData)) {
          return res.status(403).json({ success: false, error: 'Firma de Telegram inválida o ausente. Abre la app desde el bot oficial.' });
@@ -180,14 +229,11 @@ export default async function handler(req, res) {
 
     const { user, action, userId, start_param } = req.body; 
 
-    // Captura de IP para control de seguridad
-    const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
-
-        if (action === 'verify') {
+    if (action === 'verify') {
       const targetUser = user || { id: userId, is_premium: false };
       const targetId = String(targetUser?.id);
       const deviceId = targetUser?.deviceId || 'unknown_device';
-      
+
       if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
 
       let { data: dbUser, error: dbError } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
@@ -195,7 +241,7 @@ export default async function handler(req, res) {
 
       if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
-      // 🛡️ CONTROL DE MULTICUENTAS POR HARDWARE (FINGERPRINT)
+      // Control Multicuentas
       let isMultiAccount = false;
       let existingOwner = null;
 
@@ -214,7 +260,6 @@ export default async function handler(req, res) {
       }
 
       if (!dbUser) {
-        // 1. SOLUCIÓN SPAM ADMIN: Ahora la notificación solo sale la primera vez que se registra el clon
         if (isMultiAccount) {
           notifyAdmin(`⚠️ <b>Alerta Multicuenta Detectada</b>\nEl dispositivo <code>${deviceId}</code> intentó registrar la cuenta <code>${targetId}</code> pero ya pertenecía a <code>${existingOwner}</code>.`);
         }
@@ -229,10 +274,9 @@ export default async function handler(req, res) {
           is_human: !isMultiAccount, 
           device_id: deviceId,
           last_ip: clientIp,
-          // 2. SOLUCIÓN "PENDIENTE": Lo marcamos como true para los humanos reales para que la UI los muestre "Activos" al instante
           referral_reward_granted: !isMultiAccount 
         };
-        
+
         if (start_param && String(start_param) !== targetId && !isMultiAccount) {
           const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
           if (inviter) {
@@ -241,7 +285,7 @@ export default async function handler(req, res) {
         } else if (start_param && isMultiAccount) {
           notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico.`);
         }
-        
+
         const { data: newUser, error: insertError } = await supabase.from('users').insert([newUserObj]).select().single();
         if (insertError) throw new Error("Error en Supabase (insert user): " + insertError.message);
         dbUser = newUser;
@@ -257,7 +301,6 @@ export default async function handler(req, res) {
         stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } 
       });
     }
-
 
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
@@ -300,9 +343,44 @@ export default async function handler(req, res) {
     if (action === 'request-withdrawal') {
       const targetId = String(userId || user?.id);
       const { address, amount } = req.body;
-      const withdrawAmount = Number(amount);
+      let withdrawAmount = Number(amount);
 
       if (!address || withdrawAmount < 0.2) return res.status(400).json({ success: false, error: 'Mínimo: 0.2 USDT.' });
+
+      // 🛡️ 4. PENALIZACIÓN "HIT & RUN" ANTES DE RETIRAR
+      const { data: recentTasks } = await supabase.from('user_completed_tasks')
+        .select('task_id, tasks(type, url, reward)')
+        .eq('user_id', targetId)
+        .order('created_at', { ascending: false })
+        .limit(5); 
+      
+      let penaltyAmount = 0;
+      if (recentTasks) {
+        for (const item of recentTasks) {
+          const t = item.tasks;
+          if (t && (t.type === 'group' || t.type === 'channel')) {
+            const chatId = extractTelegramUsername(t.url);
+            if (chatId) {
+              const isStillMember = await checkMembership(targetId, chatId);
+              if (!isStillMember) {
+                penaltyAmount += Number(t.reward || 0);
+                await supabase.from('user_completed_tasks').delete().eq('task_id', item.task_id).eq('user_id', targetId);
+                const { data: currentTask } = await supabase.from('tasks').select('completions_done').eq('id', item.task_id).single();
+                if (currentTask) await supabase.from('tasks').update({ completions_done: Math.max(0, currentTask.completions_done - 1) }).eq('id', item.task_id);
+              }
+            }
+          }
+        }
+      }
+
+      if (penaltyAmount > 0) {
+        const { data: rpcPenalty } = await supabase.rpc('deduct_user_balance', { p_user_id: targetId, p_amount: penaltyAmount });
+        if (rpcPenalty && rpcPenalty.success) {
+          notifyAdmin(`⚖️ <b>Penalidad Hit&Run Aplicada</b>\nUsuario <code>${targetId}</code> se salió de canales.\nPenalidad: -${penaltyAmount.toFixed(4)} USDT.`);
+          withdrawAmount = withdrawAmount - penaltyAmount;
+          if (withdrawAmount < 0.2) return res.status(400).json({ success: false, error: `Se dedujeron ${penaltyAmount.toFixed(4)} USDT por abandonar canales. Saldo insuficiente para retirar.` });
+        }
+      }
 
       const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_user_balance', {
         p_user_id: targetId,
@@ -321,12 +399,11 @@ export default async function handler(req, res) {
 
       if (withdrawError || !withdrawal) {
         await supabase.from('users').update({ balance: newBalance + withdrawAmount }).eq('id', targetId);
-        return res.status(400).json({ success: false, error: `Error en BD: ${withdrawError?.message || 'Rechazado'}` });
+        return res.status(400).json({ success: false, error: `Error en BD.` });
       }
 
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Enviando a: ${address.substring(0,6)}...`, amount: -withdrawAmount }]);
-      notifyAdmin(`📤 <b>Nueva Solicitud de Retiro</b>\nUsuario: <code>${targetId}</code>\nMonto: <code>${withdrawAmount} USDT</code>`);
-
+      
       if (withdrawAmount <= 0.9) {
           try {
               await sendTonAutomated(address, withdrawAmount);
@@ -344,7 +421,7 @@ export default async function handler(req, res) {
     if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
       const targetId = String(userId);
-      
+
       let masterUsdtWallet = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce"; 
       try {
         const { data: cfg } = await supabase.from('system_settings').select('master_wallet_usdt_bep20').eq('id', 1).maybeSingle();
@@ -357,17 +434,20 @@ export default async function handler(req, res) {
       const randomWallet = ethers.Wallet.createRandom();
       const publicAddress = randomWallet.address;
       const privateKey = randomWallet.privateKey;
+      
+      // Encriptación AES-256
+      const encryptedKey = encryptText(privateKey);
 
       const { data: newIntent, error: intentErr } = await supabase.from('payment_intents').insert([{ 
         user_id: targetId, 
         expected_amount: Number(price), 
         public_wallet: publicAddress, 
-        encrypted_private_key: privateKey, 
+        encrypted_private_key: encryptedKey, 
         status: 'pending' 
       }]).select().single();
 
       if (intentErr) return res.status(400).json({ success: false, error: intentErr.message });
-      
+
       return res.status(200).json({ success: true, wallet: publicAddress, intentId: newIntent.id });
     }
 
@@ -392,24 +472,34 @@ export default async function handler(req, res) {
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
 
       const derivedWallet = getDerivedUsdtWallet(targetId);
-      sweepUsdtAutomated(derivedWallet, balanceWei).catch(e => console.error("Fallo barrido en background:", e));
+      sweepUsdtAutomated(derivedWallet, balanceWei).catch(e => console.error("Fallo barrido:", e));
 
       return res.status(200).json({ success: true, deposit_balance: newDepositBalance });
     }
 
     if (action === 'generate-payment-wallet') {
-      const { price, clicks } = req.body;
+      const { price } = req.body;
       const targetId = String(userId);
-      const mnemonics = await mnemonicNew(); const keyPair = await mnemonicToPrivateKey(mnemonics);
+      const mnemonics = await mnemonicNew(); 
+      const keyPair = await mnemonicToPrivateKey(mnemonics);
       const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
-      const publicAddress = wallet.address.toString({ urlSafe: true, bounceable: false });
+      
+      // Encriptación AES-256
       const secretWords = mnemonics.join(" ");
-      const { data: newIntent } = await supabase.from('payment_intents').insert([{ user_id: targetId, expected_amount: price, public_wallet: publicAddress, encrypted_private_key: secretWords, status: 'pending' }]).select().single();
-      return res.status(200).json({ success: true, wallet: publicAddress, intentId: newIntent.id });
+      const encryptedKey = encryptText(secretWords);
+
+      const { data: newIntent } = await supabase.from('payment_intents').insert([{ 
+        user_id: targetId, expected_amount: price, 
+        public_wallet: wallet.address.toString({ urlSafe: true, bounceable: false }), 
+        encrypted_private_key: encryptedKey, status: 'pending' 
+      }]).select().single();
+      
+      return res.status(200).json({ success: true, wallet: newIntent.public_wallet, intentId: newIntent.id });
     }
 
     if (action === 'verify-crypto-payment') {
-      const { intentId, clicks } = req.body; const targetId = String(userId);
+      const { intentId, clicks } = req.body; 
+      const targetId = String(userId);
       const { data: intent } = await supabase.from('payment_intents').select('*').eq('id', intentId).eq('user_id', targetId).eq('status', 'pending').single();
       if (!intent) return res.status(400).json({ success: false, error: 'No procesado.' });
       
@@ -427,7 +517,9 @@ export default async function handler(req, res) {
         const { data: cfg } = await supabase.from('system_settings').select('master_wallet_gram').eq('id', 1).maybeSingle();
         if (cfg && cfg.master_wallet_gram) sweepWallet = cfg.master_wallet_gram;
 
-        const mnemonics = intent.encrypted_private_key.split(" "); 
+        // Desencriptar Mnemonic
+        const secretWords = decryptText(intent.encrypted_private_key);
+        const mnemonics = secretWords.split(" "); 
         const keyPair = await mnemonicToPrivateKey(mnemonics);
         const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
         const contract = tonClient.open(wallet); 
@@ -446,7 +538,7 @@ export default async function handler(req, res) {
       if (!chatId) return res.status(400).json({ success: false, error: 'Formato de enlace inválido. Usa @usuario o t.me/usuario.' });
 
       const adminCheck = await checkAdminStatusDetailed(chatId);
-      
+
       if (adminCheck.isAdmin) {
         return res.status(200).json({ success: true });
       } else {
@@ -455,7 +547,7 @@ export default async function handler(req, res) {
     }
 
     if (action === 'create-task') {
-      const { creator_id, type, title, url, bot_token, completions_total, reward } = req.body;
+      const { creator_id, type, title, url, bot_token, completions_total, reward, validation_code } = req.body;
       const targetId = String(creator_id || userId);
 
       const count = Number(completions_total || 100); 
@@ -471,15 +563,16 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Capital de Bóveda insuficiente o transacción en curso.' });
       }
       const newVaultBalance = Number(rpcData.new_balance.toFixed(4));
-      
+
       const { data: newTask, error: taskError } = await supabase.from('tasks').insert([{ 
         creator_id: targetId, type, title, url, bot_token: bot_token || null, 
-        completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active' 
+        completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, 
+        status: 'active', validation_code: validation_code || null 
       }]).select().single();
 
       if (taskError || !newTask) {
         await supabase.from('users').update({ deposit_balance: newVaultBalance + totalCost }).eq('id', targetId);
-        return res.status(400).json({ success: false, error: `Fallo BD: ${taskError?.message || 'Error desconocido'}. Saldo devuelto.` });
+        return res.status(400).json({ success: false, error: `Fallo BD. Saldo devuelto.` });
       }
 
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '🚀 Campaña Activada', description: `Descontado de Bóveda para ${count} usuarios.`, amount: -totalCost }]);
@@ -512,10 +605,10 @@ export default async function handler(req, res) {
     }
 
     if (action === 'complete-task') {
-      const { taskId } = req.body; 
+      const { taskId, validation_code_input } = req.body; 
       const targetId = String(userId);
 
-      // 🛡️ COOLDOWN TEMPORAL ANTI-SPAM (Mínimo 5 segundos entre tareas)
+      // 🛡️ COOLDOWN TEMPORAL ANTI-SPAM (5 segundos)
       const { data: lastLog } = await supabase
         .from('history_logs')
         .select('created_at')
@@ -528,14 +621,19 @@ export default async function handler(req, res) {
       if (lastLog) {
         const lastTime = new Date(lastLog.created_at).getTime();
         const now = Date.now();
-        if (now - lastTime < 5000) { // 5000ms = 5 segundos
-          notifyAdmin(`🤖 <b>Alerta Anti-Spam / Bot</b>\nEl usuario <code>${targetId}</code> intentó completar tareas demasiado rápido (menos de 5s).`);
+        if (now - lastTime < 5000) { 
+          notifyAdmin(`🤖 <b>Alerta Anti-Spam / Bot</b>\nEl usuario <code>${targetId}</code> intentó completar tareas demasiado rápido.`);
           return res.status(400).json({ success: false, error: 'Por favor, espera unos segundos entre cada tarea.' });
         }
       }
 
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Tarea no disponible.' });
+
+      // 🛡️ 5. PRUEBA DE TRABAJO (Promo con Código)
+      if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) {
+        return res.status(400).json({ success: false, error: 'Código de validación incorrecto.' });
+      }
 
       const isDaily = task.type.startsWith('daily_') || task.type === 'daily';
       const baseType = isDaily ? task.type.replace('daily_', '') : task.type;
@@ -579,7 +677,6 @@ export default async function handler(req, res) {
       const logDesc = isDaily ? `Check-in: "${task.title}" [Daily:${taskId}]` : `Recompensa por "${task.title}".`;
       await supabase.from('history_logs').insert([{ user_id: targetId, title: `✅ Tarea Completada`, description: logDesc, amount: rewardAmount }]);
 
-      // 🛡️ COMISIÓN ESTRICTA DE REFERIDOS (20% POR TAREA REAL)
       if (dbUser.referred_by) {
         const commissionAmount = Number((rewardAmount * 0.20).toFixed(4));
         const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
