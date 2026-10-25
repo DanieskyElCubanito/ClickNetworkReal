@@ -688,7 +688,7 @@ export default async function handler(req, res) {
       const logDesc = isDaily ? `Check-in: "${task.title}" [Daily:${taskId}]` : `Recompensa por "${task.title}".`;
       await supabase.from('history_logs').insert([{ user_id: targetId, title: `✅ Tarea Completada`, description: logDesc, amount: rewardAmount }]);
 
-      if (dbUser.referred_by) {
+            if (dbUser.referred_by) {
         const commissionAmount = Number((rewardAmount * 0.20).toFixed(4));
         const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
         if (referrer) {
@@ -697,8 +697,12 @@ export default async function handler(req, res) {
             referral_earnings: Number((Number(referrer.referral_earnings || 0) + commissionAmount).toFixed(4)), 
             total_earnings: Number((Number(referrer.total_earnings || 0) + commissionAmount).toFixed(4)) 
           }).eq('id', referrer.id);
+          
+          // LÍNEA NUEVA PARA EL HISTORIAL:
+          await supabase.from('history_logs').insert([{ user_id: referrer.id, title: '👥 Comisión de Afiliado', description: `20% por tarea completada.`, amount: commissionAmount }]);
         }
       }
+
 
       const newDoneCount = Number(task.completions_done || 0) + 1;
       await supabase.from('tasks').update({ completions_done: newDoneCount, status: (newDoneCount >= Number(task.completions_total)) ? 'completed' : 'active' }).eq('id', taskId);
