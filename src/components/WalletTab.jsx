@@ -46,7 +46,7 @@ export default function WalletTab({ userData, setUserData, t }) {
   }, []);
 
   const balanceUSDT = Number(userData?.balance || 0);
-  const gemBalance = Math.floor(balanceUSDT * 1000);
+  const gemBalance = Number((Number(balanceUSDT) * 1000).toFixed(2));
   const depositBalanceUsdt = Number(userData?.deposit_balance || 0);
   
   const numericRecharge = Number(rechargeAmount) || 0;
