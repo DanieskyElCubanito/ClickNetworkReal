@@ -369,7 +369,8 @@ export default function AdsTab({ userData, setUserData, t }) {
   const renderTaskButton = (task) => {
     const status = taskStatus[task.id];
     const isDaily = task.type.startsWith('daily_');
-    const displayGemas = Math.floor(Number(task.reward) * 1000);
+    const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
+
 
     if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
     if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{isDaily ? t('ads_btn_wait_tomorrow') : t('ads_completed')}</button>;
