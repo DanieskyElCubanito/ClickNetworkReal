@@ -481,9 +481,11 @@ export default function AdsTab({ userData, setUserData, t }) {
                 const isCompleted = task.status === 'completed' || task.completions_done >= task.completions_total;
                 const iconType = getTaskIconType(task.type);
 
-                return (
+                               return (
                   <div key={task.id} style={{...neon.taskCard, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4', opacity: (isPaused || isCompleted) ? 0.7 : 1}}>
                     <div style={{ width: '100%' }}>
+                      
+                      {/* --- CABECERA (Icono, Título y Enlace) --- */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
                         <div style={{...neon.taskIconBox, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493', background: isCompleted ? 'rgba(0, 255, 170, 0.1)' : isPaused ? 'rgba(255, 170, 0, 0.1)' : 'rgba(255, 20, 147, 0.1)'}}>
                           {TaskIcons[iconType] ? TaskIcons[iconType](isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493') : TaskIcons.promo(isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493')}
@@ -498,6 +500,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                         </div>
                       </div>
 
+                      {/* --- BARRA DE PROGRESO --- */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>
                         <span style={{ color: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4' }}>{t('ads_progress')}</span>
                         <span style={{ color: '#fff' }}>{task.completions_done} / {task.completions_total} usuarios asignados</span>
@@ -506,18 +509,23 @@ export default function AdsTab({ userData, setUserData, t }) {
                         <div style={{ width: `${percent}%`, height: '100%', background: isCompleted ? 'linear-gradient(90deg, #00ffaa, #00bb77)' : isPaused ? 'linear-gradient(90deg, #ffaa00, #ffe600)' : 'linear-gradient(90deg, #ff1493, #ff66cc)', boxShadow: isCompleted ? '0 0 10px #00ffaa' : isPaused ? '0 0 10px #ffaa00' : '0 0 10px #ff1493', transition: 'width 0.3s ease' }}></div>
                       </div>
 
+                      {/* --- BOTONES DE ACCIÓN (Con la regla de ocultar el botón eliminar) --- */}
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                         {!isCompleted && (
                           <button onClick={() => handleToggleStatus(task)} style={{ background: isPaused ? '#00ffaa' : '#ffaa00', color: '#050214', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {isPaused ? TaskIcons.play : TaskIcons.pause} {isPaused ? t('ads_btn_resume') : t('ads_btn_pause')}
                           </button>
                         )}
+                        
                         <button onClick={() => handleOpenEdit(task)} style={{ background: '#00f0ff', color: '#050214', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           {TaskIcons.edit} {t('ads_btn_edit')}
                         </button>
-                        <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#ff1493', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {TaskIcons.trash} {t('ads_btn_delete')}
-                        </button>
+                        
+                        {!isCompleted && (
+                          <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#ff1493', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {TaskIcons.trash} {t('ads_btn_delete')}
+                          </button>
+                        )}
                       </div>
 
                     </div>
