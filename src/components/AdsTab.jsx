@@ -15,7 +15,7 @@ const neon = {
   taskButton: { background: 'linear-gradient(180deg, #ffe600, #ffaa00)', color: '#050214', border: 'none', borderRadius: '14px', padding: '10px 14px', fontWeight: '900', fontSize: '13px', boxShadow: '0 4px 0 #cc8800, 0 6px 15px rgba(255, 230, 0, 0.3)', cursor: 'pointer', whiteSpace: 'nowrap' },
   taskButtonRejoin: { background: 'transparent', color: '#ffe600', border: '2px solid #ffe600', borderRadius: '14px', padding: '10px 14px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' },
   taskButtonDisabled: { background: '#2b0b47', color: '#00f0ff', border: '1px solid #8a2be2', borderRadius: '14px', padding: '10px 14px', fontWeight: '900', fontSize: '13px', whiteSpace: 'nowrap', cursor: 'not-allowed' },
-  taskButtonCheck: { background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '14px', padding: '10px 14px', fontWeight: '900', fontSize: '13px', boxShadow: '0 4px 0 #007744, 0 6px 15px rgba(0, 255, 170, 0.3)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' },
+  taskButtonCheck: { background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '14px', padding: '10px 14px', fontWeight: '900', fontSize: '13px', boxShadow: '0 4px 0 #007744, 0 6px 15px rgba(0, 255, 170, 0.3)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' },
   calcContainer: { background: 'linear-gradient(145deg, rgba(46, 16, 77, 0.85), rgba(20, 8, 38, 0.95))', border: '2px solid #8a2be2', borderRadius: '24px', padding: '20px', color: '#ffffff', boxShadow: '0 8px 24px rgba(138, 43, 226, 0.15)' },
   pillButton: (active) => ({ flex: 1, padding: '10px 0', fontSize: '14px', fontWeight: '900', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s', background: active ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'rgba(15, 5, 28, 0.8)', color: active ? '#050214' : '#ffffff', border: active ? 'none' : '1px solid #8a2be2', boxShadow: active ? '0 0 10px rgba(0, 240, 255, 0.5)' : 'none' }),
   label: { fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', color: '#ff99dd', marginBottom: '8px', display: 'block', letterSpacing: '0.5px' },
@@ -48,16 +48,18 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const [taskStatus, setTaskStatus] = useState({}); 
   const [countdown, setCountdown] = useState({});
+  const [verifyInputs, setVerifyInputs] = useState({}); // Nuevo estado para los códigos ingresados
 
   const [taskType, setTaskType] = useState(null);
   const [targetUrl, setTargetUrl] = useState('');
   const [botToken, setBotToken] = useState('');
+  const [validationCode, setValidationCode] = useState(''); // Nuevo estado para creadores
   const [isVerifying, setIsVerifying] = useState(false);
   const [isDailyTask, setIsDailyTask] = useState(false);
 
   const [completions, setCompletions] = useState(100);
   const [rewardPerGema, setRewardPerGema] = useState(2.5);
-  
+
   const [recharging, setRecharging] = useState(false);
   const [rechargeMethod, setRechargeMethod] = useState('gram');
   const [rechargeAmount, setRechargeAmount] = useState(10); 
@@ -185,13 +187,26 @@ export default function AdsTab({ userData, setUserData, t }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ creator_id: userData?.id, action: 'create-task', type: finalTaskType, title: fixedTitle, url: targetUrl, bot_token: botToken || null, completions_total: completions, reward: rewardForDb })
+        body: JSON.stringify({ 
+          creator_id: userData?.id, 
+          action: 'create-task', 
+          type: finalTaskType, 
+          title: fixedTitle, 
+          url: targetUrl, 
+          bot_token: botToken || null, 
+          completions_total: completions, 
+          reward: rewardForDb,
+          validation_code: validationCode || null
+        })
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
       if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
       toast.success("La campaña publicitaria se ha activado exitosamente.", { id: tid });
-      setTaskType(null); setTargetUrl(''); setBotToken(''); setIsDailyTask(false); setCompletions(100); setCurrentStepIndex(0); setRecharging(false); setView('activity');
+      
+      // Limpiar estados
+      setTaskType(null); setTargetUrl(''); setBotToken(''); setValidationCode(''); setIsDailyTask(false); 
+      setCompletions(100); setCurrentStepIndex(0); setRecharging(false); setView('activity');
     } catch (err) { toast.error(err.message || "Se ha producido un error durante el procesamiento.", { id: tid }); } finally { setIsGenerating(false); }
   };
 
@@ -258,7 +273,12 @@ export default function AdsTab({ userData, setUserData, t }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'complete-task', userId: userData.id, taskId: task.id })
+        body: JSON.stringify({ 
+          action: 'complete-task', 
+          userId: userData.id, 
+          taskId: task.id,
+          validation_code_input: verifyInputs[task.id] || ''
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -354,8 +374,25 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
     if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{isDaily ? t('ads_btn_wait_tomorrow') : t('ads_completed')}</button>;
     if (status === 'waiting') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_waiting')} ({countdown[task.id] || 0}s)</button>;
-    if (status === 'ready') return <button onClick={() => handleCheckTask(task)} style={neon.taskButtonCheck}>{TaskIcons.check} {t('ads_btn_check')}</button>;
     if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
+
+    if (status === 'ready') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+          {task.validation_code && (
+            <input
+              style={{ ...neon.input, padding: '8px', fontSize: '12px', width: '130px', textAlign: 'center', background: 'rgba(0,0,0,0.5)' }}
+              placeholder="Escribe el código..."
+              value={verifyInputs[task.id] || ''}
+              onChange={(e) => setVerifyInputs({ ...verifyInputs, [task.id]: e.target.value })}
+            />
+          )}
+          <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '130px' : 'auto'}}>
+            {TaskIcons.check} {t('ads_btn_check')}
+          </button>
+        </div>
+      );
+    }
 
     return <button onClick={() => handleStartTask(task)} style={isDaily ? {...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'} : neon.taskButton}>{`+${displayGemas} 💎`}</button>;
   };
@@ -500,7 +537,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                   <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '900', color: '#00f0ff', textTransform: 'uppercase' }}>Pasarela de Pago Segura</h3>
                   <button onClick={cancelCheckout} style={{ background: 'rgba(255, 65, 180, 0.2)', border: '1px solid #ff1493', borderRadius: '10px', width: '30px', height: '30px', color: '#ff99dd', fontWeight: '900', cursor: 'pointer' }}>✕</button>
                 </div>
-                
+
                 {rechargeMethod === 'gram' && (
                   <>
                     <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -532,7 +569,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                       {tempWallet}
                     </div>
                     <button onClick={() => copyWallet(tempWallet)} style={{ width: '100%', padding: '12px', background: 'rgba(0, 255, 170, 0.1)', color: '#00ffaa', border: '1px solid #00ffaa', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', marginBottom: '20px' }}>📋 COPIAR DIRECCIÓN BEP20</button>
-                    
+
                     <button onClick={handleVerifyPayment} disabled={isGenerating} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                       {isGenerating ? 'VERIFICANDO TRANSACCIÓN...' : <>{TaskIcons.check} VALIDAR PAGO EN BLOCKCHAIN</>}
                     </button>
@@ -591,7 +628,7 @@ export default function AdsTab({ userData, setUserData, t }) {
               <button onClick={prevStep} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>◀</button>
             ) : <div />}
             <div style={{ fontSize: '12px', fontWeight: '900', color: '#00f0ff', letterSpacing: '1px' }}>PASO {currentStepIndex + 1} DE {totalSteps}</div>
-            <button onClick={() => { setView('list'); setTaskType(null); setCurrentStepIndex(0); setCompletions(100); setIsDailyTask(false); }} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>✕</button>
+            <button onClick={() => { setView('list'); setTaskType(null); setCurrentStepIndex(0); setCompletions(100); setIsDailyTask(false); setValidationCode(''); }} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>✕</button>
           </div>
           <div style={neon.progressBox}>{stepsFlow.map((step, idx) => <div key={idx} style={neon.progressStep(idx <= currentStepIndex)} />)}</div>
 
@@ -623,8 +660,23 @@ export default function AdsTab({ userData, setUserData, t }) {
                   {(taskType === 'promo' || taskType === 'daily') && t('ads_url_desc_promo')}
                 </p>
                 <input style={neon.input} placeholder="https://t.me/..." value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
+                
+                {taskType === 'promo' && (
+                  <div style={{ marginTop: '16px', borderTop: '1px dashed #8a2be2', paddingTop: '16px' }}>
+                    <label style={neon.label}>Código de Validación (Opcional)</label>
+                    <input 
+                      style={{...neon.input, background: 'rgba(0,0,0,0.4)', borderColor: '#00f0ff'}} 
+                      placeholder="Ej: MIBOT2026" 
+                      value={validationCode} 
+                      onChange={(e) => setValidationCode(e.target.value)} 
+                    />
+                    <p style={{ fontSize: '11px', color: '#00f0ff', marginTop: '6px', fontWeight: 'bold' }}>
+                      Los usuarios deberán escribir este código para poder reclamar la recompensa de esta campaña.
+                    </p>
+                  </div>
+                )}
               </div>
-              <button onClick={handleVerifyUrl} disabled={isVerifying} style={neon.btnPrimary}>{isVerifying ? 'VERIFICANDO ACCESO...' : 'VALIDAR URL ➔'}</button>
+              <button onClick={handleVerifyUrl} disabled={isVerifying} style={neon.btnPrimary}>{isVerifying ? 'VERIFICANDO ACCESO...' : 'VALIDAR ➔'}</button>
             </div>
           )}
 
@@ -656,7 +708,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                 <button onClick={() => setCompletions(1000)} style={neon.pillButton(completions === 1000)}>1K</button>
                 <button onClick={() => setCompletions(5000)} style={neon.pillButton(completions === 5000)}>5K</button>
               </div>
-              
+
               <span style={neon.label}>Volumen de interacciones (Usuarios)</span>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <button onClick={() => setCompletions(p => Math.max(10, p - 10))} style={neon.btnActionCalc}>-</button>
