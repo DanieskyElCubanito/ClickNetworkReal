@@ -183,7 +183,7 @@ export default async function handler(req, res) {
     // Captura de IP para control de seguridad
     const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
 
-    if (action === 'verify') {
+        if (action === 'verify') {
       const targetUser = user || { id: userId, is_premium: false };
       const targetId = String(targetUser?.id);
       const deviceId = targetUser?.deviceId || 'unknown_device';
@@ -196,8 +196,9 @@ export default async function handler(req, res) {
       if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
       // 🛡️ CONTROL DE MULTICUENTAS POR HARDWARE (FINGERPRINT)
-      // Verificamos si este deviceId ya fue registrado por OTRO usuario en la base de datos
       let isMultiAccount = false;
+      let existingOwner = null;
+
       if (deviceId !== 'unknown_device') {
         const { data: existingDeviceUser } = await supabase
           .from('users')
@@ -208,11 +209,16 @@ export default async function handler(req, res) {
 
         if (existingDeviceUser) {
           isMultiAccount = true;
-          notifyAdmin(`⚠️ <b>Alerta Multicuenta Detectada</b>\nEl dispositivo <code>${deviceId}</code> intentó registrar la cuenta <code>${targetId}</code> pero ya pertenecía a <code>${existingDeviceUser.id}</code>.`);
+          existingOwner = existingDeviceUser.id;
         }
       }
 
       if (!dbUser) {
+        // 1. SOLUCIÓN SPAM ADMIN: Ahora la notificación solo sale la primera vez que se registra el clon
+        if (isMultiAccount) {
+          notifyAdmin(`⚠️ <b>Alerta Multicuenta Detectada</b>\nEl dispositivo <code>${deviceId}</code> intentó registrar la cuenta <code>${targetId}</code> pero ya pertenecía a <code>${existingOwner}</code>.`);
+        }
+
         const newUserObj = { 
           id: targetId, 
           username: targetUser.username || 'Usuario', 
@@ -223,25 +229,23 @@ export default async function handler(req, res) {
           is_human: !isMultiAccount, 
           device_id: deviceId,
           last_ip: clientIp,
-          referral_reward_granted: false 
+          // 2. SOLUCIÓN "PENDIENTE": Lo marcamos como true para los humanos reales para que la UI los muestre "Activos" al instante
+          referral_reward_granted: !isMultiAccount 
         };
         
-        // 🛡️ BLOQUEO DE REFERIDO SI ES EL MISMO TELÉFONO O AUTO-REFERIDO
         if (start_param && String(start_param) !== targetId && !isMultiAccount) {
-          // Validamos además que el invitador exista
           const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
           if (inviter) {
             newUserObj.referred_by = String(start_param);
           }
         } else if (start_param && isMultiAccount) {
-          notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico.`);
+          notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico.`);
         }
         
         const { data: newUser, error: insertError } = await supabase.from('users').insert([newUserObj]).select().single();
         if (insertError) throw new Error("Error en Supabase (insert user): " + insertError.message);
         dbUser = newUser;
       } else {
-        // Actualizamos IP y device_id si faltaban
         await supabase.from('users').update({ device_id: deviceId, last_ip: clientIp }).eq('id', targetId);
       }
 
@@ -253,6 +257,7 @@ export default async function handler(req, res) {
         stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } 
       });
     }
+
 
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
