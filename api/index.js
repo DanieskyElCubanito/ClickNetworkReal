@@ -706,6 +706,53 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
     }
 
+        if (action === 'toggle-task-status') {
+      const { taskId, requestingUserId } = req.body;
+      const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).eq('creator_id', String(requestingUserId)).single();
+      if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada o sin permisos.' });
+      
+      const newStatus = task.status === 'active' ? 'paused' : 'active';
+      await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
+      return res.status(200).json({ success: true, status: newStatus });
+    }
+
+    if (action === 'delete-task') {
+      const { taskId, requestingUserId, isAdminAction } = req.body;
+      const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+      if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
+      
+      if (task.creator_id !== String(requestingUserId) && !isAdminAction) {
+         return res.status(403).json({ success: false, error: 'Sin permisos para eliminar.' });
+      }
+
+      // Sistema de reembolso automático por interacciones no consumidas
+      const remainingCompletions = task.completions_total - (task.completions_done || 0);
+      if (remainingCompletions > 0) {
+        // Se devuelve el costo base + 30% de comisiones por cada usuario faltante
+        const refundAmount = Number((remainingCompletions * task.reward * 1.30).toFixed(4));
+        const { data: user } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
+        if (user) {
+          await supabase.from('users').update({ deposit_balance: Number((Number(user.deposit_balance) + refundAmount).toFixed(4)) }).eq('id', task.creator_id);
+          await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: '💰 Reembolso de Campaña', description: `Saldo devuelto por eliminación.`, amount: refundAmount }]);
+        }
+      }
+      await supabase.from('tasks').delete().eq('id', taskId);
+      return res.status(200).json({ success: true });
+    }
+
+    if (action === 'edit-task') {
+      const { taskId, requestingUserId, newTitle, newUrl, isAdminAction } = req.body;
+      const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+      if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
+      
+      if (task.creator_id !== String(requestingUserId) && !isAdminAction) {
+         return res.status(403).json({ success: false, error: 'Sin permisos para editar.' });
+      }
+
+      await supabase.from('tasks').update({ title: newTitle, url: newUrl }).eq('id', taskId);
+      return res.status(200).json({ success: true });
+    }
+
     if (action === 'get-history') {
       const targetId = String(userId);
       const { data: history } = await supabase.from('history_logs').select('*').eq('user_id', targetId).order('created_at', { ascending: false }); 
