@@ -284,8 +284,8 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (data.success) {
         if (data.is_rejoin) {
           toast.success("Suscripción verificada y restaurada.", { id: tid });
-        } else {
-          const earnedGemas = Math.floor(Number(data.reward) * 1000);
+                } else {
+          const earnedGemas = Number((Number(data.reward) * 1000).toFixed(2));
           toast.success(`+${earnedGemas} 💎`, { id: tid });
           if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
         }
