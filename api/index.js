@@ -191,6 +191,16 @@ async function checkMembership(userId, chatId) {
   } catch (error) { return false; }
 }
 
+async function checkAdminStatus(chatId) {
+  try {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${BOT_ID}`;
+    const response = await fetchWithTimeout(url);
+    const resData = await response.json();
+    if (!resData.ok) return false;
+    return ['administrator', 'creator'].includes(resData.result.status);
+  } catch (error) { return false; }
+}
+
 async function checkAdminStatusDetailed(chatId) {
   try {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${BOT_ID}`;
@@ -202,6 +212,7 @@ async function checkAdminStatusDetailed(chatId) {
     return { isAdmin: false, error: `El bot es ${status}, no es administrador.` };
   } catch (error) { return { isAdmin: false, error: error.message }; }
 }
+
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
