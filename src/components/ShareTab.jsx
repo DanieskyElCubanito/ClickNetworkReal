@@ -108,8 +108,9 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
   const activeCount = referralsList.filter(r => r.referral_reward_granted).length;
   const pendingCount = n1 - activeCount;
 
-  // 🔥 Transformamos las ganancias en USDT a Gemas (x1000 sin decimales)
-  const gemEarnings = Math.floor(Number(earnings) * 1000);
+  // 🔥 Transformamos las ganancias en USDT a Gemas (con hasta 2 decimales)
+const gemEarnings = Number((Number(earnings) * 1000).toFixed(2));
+
   
   const inviteLink = `https://t.me/TeleGemAds_bot/app?startapp=${userId}`;
 
