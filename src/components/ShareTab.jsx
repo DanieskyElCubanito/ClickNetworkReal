@@ -209,7 +209,8 @@ const gemEarnings = Number((Number(earnings) * 1000).toFixed(2));
               // 🔥 Solo calcula el 20% real de las tareas completadas por el afiliado
               const childTotalUSDT = Number(ref.total_earnings || 0);
               const generatedTotalUSDT = childTotalUSDT * 0.20;
-              const generatedGemas = Math.floor(generatedTotalUSDT * 1000);
+              const generatedGemas = Number((Number(generatedTotalUSDT) * 1000).toFixed(2));
+
 
               return (
                 <div key={ref.id || idx} style={neon.refItem}>
