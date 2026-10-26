@@ -366,57 +366,37 @@ export default async function handler(req, res) {
     }
     // 🔥 FIN FUNCIÓN PARA OBTENER RETIROS PENDIENTES 🔥
 
-    // 🔥🔥🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥🔥🔥
+        // 🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥
     if (action === 'admin-approve-withdrawal') {
       const { adminId, withdrawalId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
       const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
       if (!withdrawal) return res.status(400).json({ success: false, error: 'Retiro no encontrado.' });
+      if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue pagado.' });
 
-      // Actualizar estado a completado
-      await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
-      
-      // Crear recibo visual para el usuario
-      await supabase.from('history_logs').insert([{ 
-        user_id: withdrawal.user_id, 
-        title: '✅ Retiro Completado', 
-        description: `Tu retiro ha sido enviado a tu billetera exitosamente.`, 
-        amount: 0 
-      }]);
+      try {
+        // 1. Ejecutar la transacción real en la blockchain (Red TON)
+        await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
 
-      return res.status(200).json({ success: true });
-    }
+        // 2. Si el dinero se envió con éxito, actualizamos la base de datos
+        await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
+        
+        // 3. Crear recibo visual para el usuario
+        await supabase.from('history_logs').insert([{ 
+          user_id: withdrawal.user_id, 
+          title: '✅ Retiro Completado', 
+          description: `Pago de ${withdrawal.amount} USDT procesado con éxito.`, 
+          amount: 0 
+        }]);
 
-    if (action === 'admin-reject-withdrawal') {
-      const { adminId, withdrawalId, reason } = req.body;
-      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-
-      const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
-      if (!withdrawal) return res.status(400).json({ success: false, error: 'Retiro no encontrado.' });
-      if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue procesado y no puede rechazarse.' });
-
-      // Devolver los fondos al balance del usuario
-      const { data: userToRefund } = await supabase.from('users').select('balance').eq('id', withdrawal.user_id).single();
-      if (userToRefund) {
-        const refundedBalance = Number((Number(userToRefund.balance) + Number(withdrawal.amount)).toFixed(4));
-        await supabase.from('users').update({ balance: refundedBalance }).eq('id', withdrawal.user_id);
+        return res.status(200).json({ success: true });
+      } catch (error) {
+        console.error("Fallo al enviar cripto:", error);
+        return res.status(400).json({ success: false, error: 'Fallo en la blockchain. Revisa el saldo de gas (TON) en tu Master Wallet.' });
       }
-
-      // Marcar como rechazado en la base de datos
-      await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
-      
-      // Crear registro de reembolso
-      await supabase.from('history_logs').insert([{ 
-        user_id: withdrawal.user_id, 
-        title: '❌ Retiro Rechazado', 
-        description: reason ? `Devolución. Motivo: ${reason}` : 'Fondos devueltos al balance tras revisión de seguridad.', 
-        amount: Number(withdrawal.amount) 
-      }]);
-
-      return res.status(200).json({ success: true });
     }
-    // 🔥🔥🔥 FIN FUNCIONES DE APROBACIÓN DE RETIROS 🔥🔥🔥
+
 
     if (action === 'request-withdrawal') {
       const targetId = String(userId || user?.id);
