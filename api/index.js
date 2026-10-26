@@ -515,12 +515,32 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: `Error en BD.` });
       }
 
-      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Enviando a: ${address.substring(0,6)}...`, amount: -withdrawAmount }]);
+            await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Enviando a: ${address.substring(0,6)}...`, amount: -withdrawAmount }]);
       
       if (withdrawAmount <= 0.9) {
           try {
+              // 1. Envía el pago a la blockchain
               await sendTonAutomated(address, withdrawAmount);
+              
+              // 2. Marca el retiro como completado
               await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawal.id);
+              
+              // 3. 🔥 Actualiza el mensaje en el historial a "Completado" 🔥
+              const { data: lastLog } = await supabase.from('history_logs')
+                .select('id')
+                .eq('user_id', targetId)
+                .eq('title', '📤 Retiro Procesando')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (lastLog) {
+                await supabase.from('history_logs').update({
+                  title: '✅ Retiro Completado',
+                  description: `Pago enviado a: ${address.substring(0,6)}...`
+                }).eq('id', lastLog.id);
+              }
+
               return res.status(200).json({ success: true, balance: newBalance, message: 'Pago enviado a la blockchain.' });
           } catch (err) {
               await supabase.from('withdrawals').update({ status: 'pending' }).eq('id', withdrawal.id);
@@ -530,6 +550,7 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en revisión administrativa.' });
       }
     }
+
 
     if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
