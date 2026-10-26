@@ -59,7 +59,7 @@ export default function WalletTab({ userData, setUserData, t }) {
     if (withdrawAddress.length < 20) return toast.error("Billetera TON inválida.");
 
     const gemasAmount = Number(withdrawAmount);
-    if (!gemasAmount || gemasAmount < 200) return toast.error("El retiro mínimo es de 200 Gemas.");
+    if (!gemasAmount || gemasAmount < 50) return toast.error("El retiro mínimo es de 50 Gemas.");
     if (gemasAmount > gemBalance) return toast.error("No tienes suficientes Gemas.");
 
     setIsWithdrawing(true);
