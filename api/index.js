@@ -350,6 +350,21 @@ export default async function handler(req, res) {
       await supabase.from('users').update(update).eq('id', String(targetId));
       return res.status(200).json({ success: true });
     }
+     
+        // 🔥 INICIO FUNCIÓN PARA OBTENER RETIROS PENDIENTES 🔥
+    if (action === 'admin-get-withdrawals') {
+      const { adminId } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
+
+      const { data: withdrawals } = await supabase
+        .from('withdrawals')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
+    }
+    // 🔥 FIN FUNCIÓN PARA OBTENER RETIROS PENDIENTES 🔥
 
     // 🔥🔥🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥🔥🔥
     if (action === 'admin-approve-withdrawal') {
