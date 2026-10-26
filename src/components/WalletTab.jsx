@@ -174,7 +174,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
             <div>
               <h3 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '900' }}>Retirar a Billetera TON</h3>
-              <div style={{ fontSize: '11px', color: '#aaa' }}>Mínimo de retiro: 200 Gemas</div>
+              <div style={{ fontSize: '11px', color: '#aaa' }}>Mínimo de retiro: 50 Gemas</div>
             </div>
           </div>
 
