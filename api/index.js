@@ -366,7 +366,7 @@ export default async function handler(req, res) {
     }
     // 🔥 FIN FUNCIÓN PARA OBTENER RETIROS PENDIENTES 🔥
 
-          // 🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥
+         // 🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥
     if (action === 'admin-approve-withdrawal') {
       const { adminId, withdrawalId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
