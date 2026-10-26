@@ -366,7 +366,7 @@ export default async function handler(req, res) {
     }
     // 🔥 FIN FUNCIÓN PARA OBTENER RETIROS PENDIENTES 🔥
 
-        // 🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥
+          // 🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥
     if (action === 'admin-approve-withdrawal') {
       const { adminId, withdrawalId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
@@ -382,20 +382,70 @@ export default async function handler(req, res) {
         // 2. Si el dinero se envió con éxito, actualizamos la base de datos
         await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
         
-        // 3. Crear recibo visual para el usuario
-        await supabase.from('history_logs').insert([{ 
-          user_id: withdrawal.user_id, 
-          title: '✅ Retiro Completado', 
-          description: `Pago de ${withdrawal.amount} USDT procesado con éxito.`, 
-          amount: 0 
-        }]);
+        // 3. Buscar el recibo original de "Procesando" y actualizarlo a "Completado"
+        const { data: lastLog } = await supabase.from('history_logs')
+          .select('id')
+          .eq('user_id', withdrawal.user_id)
+          .eq('title', '📤 Retiro Procesando')
+          .eq('amount', -Number(withdrawal.amount))
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastLog) {
+          await supabase.from('history_logs').update({
+            title: '✅ Retiro Completado',
+            description: `Pago enviado a: ${withdrawal.wallet_address.substring(0,6)}...`
+          }).eq('id', lastLog.id);
+        }
 
         return res.status(200).json({ success: true });
       } catch (error) {
         console.error("Fallo al enviar cripto:", error);
-        return res.status(400).json({ success: false, error: 'Fallo en la blockchain. Revisa el saldo de gas (TON) en tu Master Wallet.' });
+        return res.status(400).json({ success: false, error: 'Fallo en blockchain. Revisa el saldo de tu Master Wallet.' });
       }
     }
+
+    if (action === 'admin-reject-withdrawal') {
+      const { adminId, withdrawalId, reason } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
+
+      const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
+      if (!withdrawal) return res.status(400).json({ success: false, error: 'Retiro no encontrado.' });
+      if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue procesado y no puede rechazarse.' });
+
+      // Devolver los fondos al balance del usuario
+      const { data: userToRefund } = await supabase.from('users').select('balance').eq('id', withdrawal.user_id).single();
+      if (userToRefund) {
+        const refundedBalance = Number((Number(userToRefund.balance) + Number(withdrawal.amount)).toFixed(4));
+        await supabase.from('users').update({ balance: refundedBalance }).eq('id', withdrawal.user_id);
+      }
+
+      // Marcar como rechazado en la base de datos
+      await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
+      
+      // Buscar el recibo original y cambiarlo a Rechazado (poniendo el monto en 0 para anular el gasto visual)
+      const { data: lastLog } = await supabase.from('history_logs')
+        .select('id')
+        .eq('user_id', withdrawal.user_id)
+        .eq('title', '📤 Retiro Procesando')
+        .eq('amount', -Number(withdrawal.amount))
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastLog) {
+        await supabase.from('history_logs').update({
+          title: '❌ Retiro Rechazado',
+          description: reason ? `Devolución. Motivo: ${reason}` : 'Fondos devueltos por seguridad.',
+          amount: 0
+        }).eq('id', lastLog.id);
+      }
+
+      return res.status(200).json({ success: true });
+    }
+    // 🔥 FIN FUNCIONES DE APROBACIÓN DE RETIROS 🔥
+
 
 
     if (action === 'request-withdrawal') {
