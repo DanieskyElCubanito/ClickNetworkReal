@@ -143,13 +143,14 @@ async function sweepUsdtAutomated(derivedWallet, usdtAmountWei) {
   }
 }
 
+
 async function sendTonAutomated(destinationAddress, usdtAmount) {
   const mnemonic = process.env.MASTER_WALLET_MNEMONIC; 
   if (!mnemonic) throw new Error("Falta la variable MASTER_WALLET_MNEMONIC en Vercel.");
 
   const tonPrice = await getTonPrice();
-  const tonAmount = usdtAmount / tonPrice; 
-  const nanoTonAmount = Math.floor(tonAmount * 1e9).toString();
+  // Se calcula la cantidad exacta en TON con máximo 9 decimales
+  const tonAmount = (usdtAmount / tonPrice).toFixed(9); 
 
   const mnemonics = mnemonic.split(" ");
   const keyPair = await mnemonicToPrivateKey(mnemonics);
@@ -160,7 +161,7 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
   await contract.sendTransfer({
       seqno: seqno || 0,
       secretKey: keyPair.secretKey,
-      messages: [internal({ to: destinationAddress, value: nanoTonAmount, bounce: false, body: "Retiro TeleGem" })],
+      messages: [internal({ to: destinationAddress, value: tonAmount.toString(), bounce: false, body: "Retiro TeleGem" })],
       sendMode: 3 
   });
 }
