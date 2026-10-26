@@ -23,7 +23,11 @@ const MAIN_ADMIN_ID = '8968109534';
 const FALLBACK_MASTER_WALLET_GRAM = "UQBW9toUVg75NhhayTPW2RzMhHJxF1_BOKULqSYDZIvZBoIk";
 const FALLBACK_MASTER_WALLET_USDT = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce";
 
-const tonClient = new TonClient({ endpoint: 'https://toncenter.com/api/v2/jsonRPC' });
+const tonClient = new TonClient({ 
+  endpoint: 'https://toncenter.com/api/v2/jsonRPC',
+  apiKey: process.env.TONCENTER_API_KEY || ''
+});
+
 const BSC_RPC = "https://bsc-dataseed.binance.org/";
 const USDT_BEP20_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 
