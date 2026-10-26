@@ -389,7 +389,7 @@ export default async function handler(req, res) {
         if (rpcPenalty && rpcPenalty.success) {
           notifyAdmin(`⚖️ <b>Penalidad Hit&Run Aplicada</b>\nUsuario <code>${targetId}</code> se salió de canales.\nPenalidad: -${penaltyAmount.toFixed(4)} USDT.`);
           withdrawAmount = withdrawAmount - penaltyAmount;
-          if (withdrawAmount < 0.2) return res.status(400).json({ success: false, error: `Se dedujeron ${penaltyAmount.toFixed(4)} USDT por abandonar canales. Saldo insuficiente para retirar.` });
+          if (withdrawAmount < 0.05) return res.status(400).json({ success: false, error: `Se dedujeron ${penaltyAmount.toFixed(4)} USDT por abandonar canales. Saldo insuficiente para retirar.` });
         }
       }
 
