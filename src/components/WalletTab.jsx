@@ -192,7 +192,7 @@ export default function WalletTab({ userData, setUserData, t }) {
               type="text" 
               inputMode="decimal"
               style={{ ...neonStyles.input, borderColor: '#ff1414', marginBottom: 0 }} 
-              placeholder="200" 
+              placeholder="50" 
               value={withdrawAmount} 
               onChange={(e) => setWithdrawAmount(e.target.value.replace(',', '.'))} 
             />
