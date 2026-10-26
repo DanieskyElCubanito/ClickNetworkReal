@@ -351,6 +351,58 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // 🔥🔥🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥🔥🔥
+    if (action === 'admin-approve-withdrawal') {
+      const { adminId, withdrawalId } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
+
+      const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
+      if (!withdrawal) return res.status(400).json({ success: false, error: 'Retiro no encontrado.' });
+
+      // Actualizar estado a completado
+      await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
+      
+      // Crear recibo visual para el usuario
+      await supabase.from('history_logs').insert([{ 
+        user_id: withdrawal.user_id, 
+        title: '✅ Retiro Completado', 
+        description: `Tu retiro ha sido enviado a tu billetera exitosamente.`, 
+        amount: 0 
+      }]);
+
+      return res.status(200).json({ success: true });
+    }
+
+    if (action === 'admin-reject-withdrawal') {
+      const { adminId, withdrawalId, reason } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
+
+      const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
+      if (!withdrawal) return res.status(400).json({ success: false, error: 'Retiro no encontrado.' });
+      if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue procesado y no puede rechazarse.' });
+
+      // Devolver los fondos al balance del usuario
+      const { data: userToRefund } = await supabase.from('users').select('balance').eq('id', withdrawal.user_id).single();
+      if (userToRefund) {
+        const refundedBalance = Number((Number(userToRefund.balance) + Number(withdrawal.amount)).toFixed(4));
+        await supabase.from('users').update({ balance: refundedBalance }).eq('id', withdrawal.user_id);
+      }
+
+      // Marcar como rechazado en la base de datos
+      await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
+      
+      // Crear registro de reembolso
+      await supabase.from('history_logs').insert([{ 
+        user_id: withdrawal.user_id, 
+        title: '❌ Retiro Rechazado', 
+        description: reason ? `Devolución. Motivo: ${reason}` : 'Fondos devueltos al balance tras revisión de seguridad.', 
+        amount: Number(withdrawal.amount) 
+      }]);
+
+      return res.status(200).json({ success: true });
+    }
+    // 🔥🔥🔥 FIN FUNCIONES DE APROBACIÓN DE RETIROS 🔥🔥🔥
+
     if (action === 'request-withdrawal') {
       const targetId = String(userId || user?.id);
       const { address, amount } = req.body;
