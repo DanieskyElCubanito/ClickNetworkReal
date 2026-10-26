@@ -37,7 +37,7 @@ const neon = {
 
 export default function HomeTab({ userData, setActiveTab, t }) {
   const gemBalance = Math.floor(Number(userData?.balance || 0) * 1000);
-  const gemEarned = Math.floor(Number(userData?.total_earnings || 0) * 1000);
+  const gemEarned = Number((Number(userData?.total_earnings || 0) * 1000).toFixed(2));
   const usdtVault = Number(userData?.deposit_balance || 0).toFixed(2);
 
   return (
