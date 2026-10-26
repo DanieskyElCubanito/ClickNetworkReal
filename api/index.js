@@ -356,7 +356,7 @@ export default async function handler(req, res) {
       const { address, amount } = req.body;
       let withdrawAmount = Number(amount);
 
-      if (!address || withdrawAmount < 0.2) return res.status(400).json({ success: false, error: 'Mínimo: 0.2 USDT.' });
+      if (!address || withdrawAmount < 0.05) return res.status(400).json({ success: false, error: 'Mínimo: 0.05 USDT.' });
 
       // 🛡️ 4. PENALIZACIÓN "HIT & RUN" ANTES DE RETIRAR
       const { data: recentTasks } = await supabase.from('user_completed_tasks')
