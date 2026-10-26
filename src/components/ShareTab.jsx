@@ -111,7 +111,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
   // 🔥 Transformamos las ganancias en USDT a Gemas (con hasta 2 decimales)
 const gemEarnings = Number((Number(earnings) * 1000).toFixed(2));
 
-  
+
   const inviteLink = `https://t.me/TeleGemAds_bot/app?startapp=${userId}`;
 
   const handleCopy = () => {
@@ -140,11 +140,11 @@ const gemEarnings = Number((Number(earnings) * 1000).toFixed(2));
 
         <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
           <div style={{ ...neon.statBox, flex: 1, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.05)' }}>
-            <div style={{ color: '#00ffaa', fontSize: '10px', fontWeight: '900', letterSpacing: '0.5px', marginBottom: '4px' }}>ACTIVOS</div>
+            <div style={{ color: '#00ffaa', fontSize: '10px', fontWeight: '900', letterSpacing: '0.5px', marginBottom: '4px' }}>{t('ref_status_active') || "ACTIVOS"}</div>
             <div style={{ color: '#ffffff', fontSize: '22px', fontWeight: '900' }}>{activeCount}</div>
           </div>
           <div style={{ ...neon.statBox, flex: 1, borderColor: '#ffe600', background: 'rgba(255, 230, 0, 0.05)' }}>
-            <div style={{ color: '#ffe600', fontSize: '10px', fontWeight: '900', letterSpacing: '0.5px', marginBottom: '4px' }}>PENDIENTES</div>
+            <div style={{ color: '#ffe600', fontSize: '10px', fontWeight: '900', letterSpacing: '0.5px', marginBottom: '4px' }}>{t('ref_status_pending') || "PENDIENTES"}</div>
             <div style={{ color: '#ffffff', fontSize: '22px', fontWeight: '900' }}>{pendingCount}</div>
           </div>
           <button 
@@ -161,10 +161,10 @@ const gemEarnings = Number((Number(earnings) * 1000).toFixed(2));
 
         <div style={{ display: 'flex', gap: '12px' }}>
           <button style={{ ...neon.btnPrimary, flex: 1 }} onClick={handleShare}>
-            🚀 INVITAR
+            {t('ref_btn_invite') || "🚀 INVITAR"}
           </button>
           <button style={{ ...neon.btnOutline, flex: 1 }} onClick={handleCopy}>
-            📋 COPIAR
+            {t('ref_btn_copy') || "📋 COPIAR"}
           </button>
         </div>
       </div>
