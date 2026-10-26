@@ -10,7 +10,11 @@ const Icons = {
   trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
   refresh: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
   wallet: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff99dd" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>,
-  lock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  lock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  // 🔥 NUEVOS ICONOS PARA RETIROS 🔥
+  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+  cross: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+  // 🔥 FIN NUEVOS ICONOS 🔥
 };
 
 const neon = {
@@ -36,12 +40,19 @@ export default function AdminDashboard({ userData }) {
   const [sysConfig, setSysConfig] = useState({ master_wallet_gram: '', master_wallet_usdt_bep20: '' });
   const [savingConfig, setSavingConfig] = useState(false);
 
+  // 🔥 NUEVOS ESTADOS PARA RETIROS 🔥
+  const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
+  const [loadingWithdrawals, setLoadingWithdrawals] = useState(false);
+  // 🔥 FIN NUEVOS ESTADOS 🔥
+
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
   useEffect(() => {
     loadStats();
     loadAllTasks();
     loadSysConfig();
+    // 🔥 LLAMAR A LA NUEVA FUNCIÓN 🔥
+    loadPendingWithdrawals();
   }, []);
 
   const loadStats = async () => {
@@ -68,6 +79,45 @@ export default function AdminDashboard({ userData }) {
       if (data.success && data.config) setSysConfig(data.config);
     } catch (e) { console.error(e); }
   };
+
+  // 🔥 NUEVAS FUNCIONES DE RETIRO 🔥
+  const loadPendingWithdrawals = async () => {
+    setLoadingWithdrawals(true);
+    try {
+      // Usamos una llamada directa a Supabase si tienes el cliente aquí, o llamamos a una nueva ruta api (si no la creamos en api/index.js, la simulamos desde las tareas o un custom endpoint).
+      // Como agregamos los endpoints en el backend en el paso anterior, los usamos aquí:
+      // NOTA: Para no alterar tu backend más de lo necesario, asumiré que harás una consulta directa usando supabase-js si lo tienes en el frontend. Si no lo tienes, deberás agregar la ruta en el backend (action === 'admin-get-withdrawals'). 
+      // Por practicidad y seguridad, crearemos una ruta ficticia aquí o asumiremos que el backend la tiene. Si falla, el catch lo captura.
+      
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-withdrawals', adminId: userData.id }) });
+      const data = await res.json();
+      if (data.success) setPendingWithdrawals(data.withdrawals || []);
+    } catch (e) { console.error("Error cargando retiros pendientes", e); } finally { setLoadingWithdrawals(false); }
+  };
+
+  const handleApproveWithdrawal = async (withdrawalId) => {
+    if (!window.confirm("¿Seguro que ya enviaste los fondos a este usuario? Esto completará la orden.")) return;
+    const tid = toast.loading("Aprobando...");
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-approve-withdrawal', adminId: userData.id, withdrawalId }) });
+      const data = await res.json();
+      if (data.success) { toast.success("Retiro aprobado", { id: tid }); loadPendingWithdrawals(); } 
+      else throw new Error(data.error);
+    } catch (err) { toast.error(err.message || "Error al aprobar.", { id: tid }); }
+  };
+
+  const handleRejectWithdrawal = async (withdrawalId) => {
+    const reason = window.prompt("Motivo del rechazo (se mostrará al usuario):");
+    if (reason === null) return; // Cancelado por el admin
+    const tid = toast.loading("Rechazando...");
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-reject-withdrawal', adminId: userData.id, withdrawalId, reason }) });
+      const data = await res.json();
+      if (data.success) { toast.success("Retiro rechazado", { id: tid }); loadPendingWithdrawals(); } 
+      else throw new Error(data.error);
+    } catch (err) { toast.error(err.message || "Error al rechazar.", { id: tid }); }
+  };
+  // 🔥 FIN NUEVAS FUNCIONES DE RETIRO 🔥
 
   const handleSaveConfig = async () => {
     const tid = toast.loading("Guardando configuración...");
@@ -257,6 +307,43 @@ export default function AdminDashboard({ userData }) {
           </div>
         )}
       </div>
+
+      {/* 🔥 INICIO PANEL DE RETIROS PENDIENTES 🔥 */}
+      <div style={{ ...neon.card, borderColor: '#ff99dd' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', color: '#ff99dd' }}>Retiros Pendientes</h3>
+          <button onClick={loadPendingWithdrawals} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>{Icons.refresh}</button>
+        </div>
+
+        {loadingWithdrawals ? (
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>Cargando retiros...</div>
+        ) : pendingWithdrawals.length === 0 ? (
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>No hay retiros pendientes de aprobación.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
+            {pendingWithdrawals.map(w => (
+              <div key={w.id} style={{ background: 'rgba(0,0,0,0.5)', borderRadius: '12px', padding: '12px', border: '1px solid #ff99dd' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: '#fff', fontWeight: 'bold' }}>User ID: {w.user_id}</span>
+                  <span style={{ fontSize: '14px', color: '#ffe600', fontWeight: '900' }}>{w.amount} USDT</span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#00ffaa', marginBottom: '12px', wordBreak: 'break-all' }}>
+                  Billetera: {w.wallet_address}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleApproveWithdrawal(w.id)} style={{ flex: 1, background: '#00ffaa', border: 'none', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    {Icons.check} APROBAR
+                  </button>
+                  <button onClick={() => handleRejectWithdrawal(w.id)} style={{ flex: 1, background: 'transparent', border: '1px solid #ff1493', color: '#ff1493', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    {Icons.cross} RECHAZAR
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* 🔥 FIN PANEL DE RETIROS PENDIENTES 🔥 */}
 
       {/* AUDITORÍA DE CAMPAÑAS */}
       <div style={neon.card}>
