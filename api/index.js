@@ -247,10 +247,10 @@ async function runRetentionAudit(userId) {
           const isStillMember = await checkMembership(userId, chatId);
           if (!isStillMember) {
             const penaltyAmount = Number(t.reward || 0);
-            
+
             const { data: rpcPenalty } = await supabase.rpc('deduct_user_balance', { p_user_id: userId, p_amount: penaltyAmount });
             if (rpcPenalty && rpcPenalty.success) {
-              
+
               await supabase.from('user_completed_tasks').delete().eq('task_id', item.task_id).eq('user_id', userId);
               const { data: currentTask } = await supabase.from('tasks').select('completions_done').eq('id', item.task_id).single();
               if (currentTask) await supabase.from('tasks').update({ completions_done: Math.max(0, currentTask.completions_done - 1) }).eq('id', item.task_id);
@@ -536,7 +536,7 @@ export default async function handler(req, res) {
       await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
 
       const gemasReembolso = (Number(withdrawal.amount) * 1000).toFixed(2);
-      
+
       // 🛠️ NOTIFICACIÓN AL USUARIO DE PAGO RECHAZADO
       const userMsg = `❌ <b>RETIRO RECHAZADO</b>\n\nTu solicitud de retiro por <b>${gemasReembolso} Gemas</b> fue rechazada.\nMotivo: <i>${reason || 'Revisión de seguridad'}</i>\n\nLos fondos han sido devueltos a tu cuenta.`;
       await notifyUser(withdrawal.user_id, userMsg);
@@ -571,6 +571,25 @@ export default async function handler(req, res) {
       let withdrawAmount = Number(amount);
 
       if (!address || withdrawAmount < 0.05) return res.status(400).json({ success: false, error: 'Mínimo: 0.05 USDT.' });
+
+      // 🛠️ NUEVO: REQUISITOS DE RETIRO (15 Anuncios o 3 Referidos)
+      const todayDate = new Date();
+      todayDate.setUTCHours(0, 0, 0, 0); // Inicio del día para calcular los anuncios de hoy
+      const todayStr = todayDate.toISOString();
+
+      const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
+      const { count: adsCount } = await supabase.from('history_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', targetId)
+        .like('description', '%[AdView]%')
+        .gte('created_at', todayStr);
+
+      if ((refCount || 0) < 3 && (adsCount || 0) < 15) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Requisito incompleto: Necesitas 3 referidos activos (tienes ${refCount || 0}) O ver 15 anuncios hoy (llevas ${adsCount || 0}/15).` 
+        });
+      }
 
       // 🛠️ Ejecutar auditoría instantánea antes del retiro para evitar escapes (La trampa final)
       await runRetentionAudit(targetId).catch(e => console.error("Error audit pre-retiro", e));
@@ -1060,6 +1079,43 @@ export default async function handler(req, res) {
       let { data: lv1 } = await supabase.from('users').select('*').eq('referred_by', targetId);
       const { data: dbUser } = await supabase.from('users').select('referral_earnings').eq('id', targetId).maybeSingle();
       return res.status(200).json({ success: true, referrals: lv1 || [], earnings: dbUser?.referral_earnings || 0 });
+    }
+
+    // 🛠️ NUEVO: Rutas para Requisitos de Retiro (Barra de progreso de AdsGram)
+    if (action === 'get-withdrawal-reqs') {
+      const targetId = String(userId);
+      const todayDate = new Date();
+      todayDate.setUTCHours(0, 0, 0, 0);
+      
+      const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
+      const { count: adsCount } = await supabase.from('history_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', targetId)
+        .like('description', '%[AdView]%')
+        .gte('created_at', todayDate.toISOString());
+        
+      return res.status(200).json({ success: true, referrals: refCount || 0, ads: adsCount || 0 });
+    }
+
+    if (action === 'watch-ad-progress') {
+      const targetId = String(userId);
+      // Recompensa simbólica por ver los anuncios para llenar la barra
+      const earnedGemas = 0.50; 
+      const rewardForDb = earnedGemas / 1000;
+      
+      const { data: dbUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
+      const newBalance = Number((Number(dbUser.balance || 0) + rewardForDb).toFixed(4));
+      const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardForDb).toFixed(4));
+      
+      await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
+      await supabase.from('history_logs').insert([{ 
+        user_id: targetId, 
+        title: '📺 Anuncio Visto', 
+        description: `Visualización para retiro [AdView] | +${earnedGemas.toFixed(2)} Gemas`, 
+        amount: rewardForDb 
+      }]);
+      
+      return res.status(200).json({ success: true, balance: newBalance });
     }
 
     return res.status(400).json({ success: false, error: `Acción desconocida: ${action}` });
