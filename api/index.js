@@ -377,6 +377,40 @@ export default async function handler(req, res) {
       });
     }
 
+         // 🔥 NUEVO: Estadísticas Globales para el ProfileHeader
+    if (action === 'get-global-stats') {
+      try {
+        // 1. Total de Usuarios
+        const { count: totalUsers } = await supabase.from('users').select('*', { count: 'exact', head: true });
+        
+        // 2. Gemas Retiradas (Solo los retiros completados)
+        const { data: withdrawals } = await supabase.from('withdrawals').select('amount').eq('status', 'completed');
+        const totalWithdrawnUsdt = withdrawals ? withdrawals.reduce((sum, w) => sum + Number(w.amount), 0) : 0;
+        const totalGemsWithdrawn = totalWithdrawnUsdt * 1000;
+
+        // 3. Fondos Depositados (Suma del deposit_balance actual de todos)
+        // (En un entorno real sumarías el historial de recargas, pero esto es más rápido)
+        const { data: deposits } = await supabase.from('users').select('deposit_balance');
+        const totalDeposited = deposits ? deposits.reduce((sum, u) => sum + Number(u.deposit_balance), 0) : 0;
+
+        // 4. Días en línea (Suponiendo que el proyecto se lanzó hoy o en una fecha fija)
+        const launchDate = new Date("2026-10-01T00:00:00Z"); // Cambia esto a la fecha real de creación
+        const daysOnline = Math.floor((Date.now() - launchDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        return res.status(200).json({
+          success: true,
+          stats: {
+            users: totalUsers || 0,
+            withdrawn: totalGemsWithdrawn,
+            deposited: totalDeposited,
+            daysOnline: Math.max(1, daysOnline) // Mínimo 1 día
+          }
+        });
+      } catch (error) {
+        return res.status(400).json({ success: false, error: 'Error calculando stats' });
+      }
+    }
+
         // 🔥 NUEVO: Obtener los Tops (Completores y Referidos)
     if (action === 'get-leaderboard') {
       // Top completores de tareas
