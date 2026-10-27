@@ -244,8 +244,12 @@ async function runRetentionAudit(userId) {
           if (!isStillMember) {
             const penaltyAmount = Number(t.reward || 0);
 
-            const { data: rpcPenalty } = await supabase.rpc('deduct_user_balance', { p_user_id: userId, p_amount: penaltyAmount });
-            if (rpcPenalty && rpcPenalty.success) {
+            // 🛠️ DEDUCCIÓN DIRECTA SIN RPC (Fix Penalidad e Inflación)
+            const { data: pUser } = await supabase.from('users').select('balance, total_earnings').eq('id', userId).single();
+            if (pUser) {
+              const newBal = Math.max(0, Number(pUser.balance) - penaltyAmount);
+              const newTot = Math.max(0, Number(pUser.total_earnings) - penaltyAmount);
+              await supabase.from('users').update({ balance: newBal, total_earnings: newTot }).eq('id', userId);
 
               await supabase.from('user_completed_tasks').delete().eq('task_id', item.task_id).eq('user_id', userId);
               const { data: currentTask } = await supabase.from('tasks').select('completions_done').eq('id', item.task_id).single();
@@ -259,7 +263,7 @@ async function runRetentionAudit(userId) {
                 amount: -penaltyAmount 
               }]);
 
-              const penaltyMsg = `⚠️ <b>PENALIZACIÓN DE RED</b>\n\nHemos detectado que has abandonado la comunidad <b>${t.title}</b> antes de completar el ciclo mínimo de 24 horas.\n\n🔻 Se han deducido <b>${gemasPenalidad} Gemas</b> de tu balance de retiro.\n\n<i>El sistema audita continuamente la permanencia para garantizar tráfico de calidad.</i>`;
+              const penaltyMsg = `⚠️ <b>PENALIZACIÓN DE RED</b>\n\nHemos detectado que has abandonado la comunidad <b>${t.title}</b> antes de completar el ciclo mínimo de 24 horas.\n\n🔻 Se han deducido <b>${gemasPenalidad} Gemas</b> de tu balance.\n\n<i>El sistema audita continuamente la permanencia para garantizar tráfico de calidad.</i>`;
               await notifyUser(userId, penaltyMsg);
             }
           }
@@ -371,7 +375,7 @@ export default async function handler(req, res) {
     if (action === 'get-global-stats') {
       try {
         const { count: totalUsers } = await supabase.from('users').select('*', { count: 'exact', head: true });
-        
+
         const { data: withdrawals } = await supabase.from('withdrawals').select('amount').eq('status', 'completed');
         const totalWithdrawnUsdt = withdrawals ? withdrawals.reduce((sum, w) => sum + Number(w.amount), 0) : 0;
         const totalGemsWithdrawn = totalWithdrawnUsdt * 1000;
@@ -379,7 +383,6 @@ export default async function handler(req, res) {
         const { data: deposits } = await supabase.from('users').select('deposit_balance');
         const totalDeposited = deposits ? deposits.reduce((sum, u) => sum + Number(u.deposit_balance), 0) : 0;
 
-        // Leer Clicks Globales desde platform_stats
         const { data: statsRow } = await supabase.from('platform_stats').select('total_global_clicks').eq('id', 1).maybeSingle();
         const totalGlobalClicks = statsRow ? statsRow.total_global_clicks : 0;
 
@@ -401,7 +404,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 🔥 NUEVO: Obtener Evento Activo y Leaderboard con Candado
     if (action === 'get-active-event') {
       try {
         const { data: activeEvent } = await supabase
@@ -414,7 +416,6 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, activeEvent: null, leaderboard: [] });
         }
 
-        // Obtener participantes de este evento ordenados por score
         const { data: participants } = await supabase
           .from('event_participants')
           .select('user_id, score')
@@ -440,7 +441,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 🔥 PANEL ADMIN: Crear Evento / Torneo
     if (action === 'admin-create-event') {
       const { adminId, title, event_type, start_date, end_date, prizes } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
@@ -458,7 +458,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, event: data });
     }
 
-    // 🔥 PANEL ADMIN: Finalizar/Eliminar Evento
     if (action === 'admin-manage-event') {
       const { adminId, eventId, newStatus } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
@@ -722,32 +721,38 @@ export default async function handler(req, res) {
         }
       }
 
+      // 🛠️ DEDUCCIÓN DIRECTA HIT & RUN Y RETIRO (Sin RPC)
+      let newBalance = 0;
+      const { data: wUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
+      
+      if (!wUser) return res.status(400).json({ success: false, error: 'Usuario no encontrado.' });
+
       if (penaltyAmount > 0) {
-        const { data: rpcPenalty } = await supabase.rpc('deduct_user_balance', { p_user_id: targetId, p_amount: penaltyAmount });
-        if (rpcPenalty && rpcPenalty.success) {
-          notifyAdmin(`⚖️ <b>Penalidad Hit&Run Aplicada</b>\nUsuario <code>${targetId}</code> se salió de canales.\nPenalidad: -${penaltyAmount.toFixed(4)} USDT.`);
+        const balAfterPenalty = Math.max(0, Number(wUser.balance) - penaltyAmount);
+        const totAfterPenalty = Math.max(0, Number(wUser.total_earnings) - penaltyAmount);
+        await supabase.from('users').update({ balance: balAfterPenalty, total_earnings: totAfterPenalty }).eq('id', targetId);
+        
+        notifyAdmin(`⚖️ <b>Penalidad Hit&Run Aplicada</b>\nUsuario <code>${targetId}</code> se salió de canales.\nPenalidad: -${penaltyAmount.toFixed(4)} USDT.`);
 
-          await supabase.from('history_logs').insert([{ 
-            user_id: targetId, 
-            title: '⚠️ Penalidad de Red', 
-            description: `Abandono de canales. Sanción: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, 
-            amount: -penaltyAmount 
-          }]);
+        await supabase.from('history_logs').insert([{ 
+          user_id: targetId, 
+          title: '⚠️ Penalidad de Red', 
+          description: `Abandono de canales. Sanción: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, 
+          amount: -penaltyAmount 
+        }]);
 
-          withdrawAmount = withdrawAmount - penaltyAmount;
-          if (withdrawAmount < 0.05) return res.status(400).json({ success: false, error: `Se dedujeron ${penaltyAmount.toFixed(4)} USDT por abandonar canales. Saldo insuficiente para retirar.` });
-        }
+        withdrawAmount = withdrawAmount - penaltyAmount;
+        if (withdrawAmount < 0.05) return res.status(400).json({ success: false, error: `Se dedujeron ${penaltyAmount.toFixed(4)} USDT por abandonar canales. Saldo insuficiente para retirar.` });
+        
+        wUser.balance = balAfterPenalty;
       }
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_user_balance', {
-        p_user_id: targetId,
-        p_amount: withdrawAmount
-      });
-
-      if (rpcError || !rpcData.success) {
-        return res.status(400).json({ success: false, error: 'Saldo insuficiente o transacción bloqueada por seguridad.' });
+      if (Number(wUser.balance) < withdrawAmount) {
+         return res.status(400).json({ success: false, error: 'Saldo insuficiente o transacción bloqueada por seguridad.' });
       }
-      const newBalance = Number(rpcData.new_balance.toFixed(4));
+
+      newBalance = Number((Number(wUser.balance) - withdrawAmount).toFixed(4));
+      await supabase.from('users').update({ balance: newBalance }).eq('id', targetId);
 
       const { data: withdrawal, error: withdrawError } = await supabase.from('withdrawals').insert([{
         user_id: targetId, wallet_address: address, amount: withdrawAmount,
@@ -948,15 +953,13 @@ export default async function handler(req, res) {
       const rew = Number(reward || 0.001); 
       const totalCost = Number((count * rew * 1.30).toFixed(4));
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_vault_balance', {
-        p_user_id: targetId,
-        p_amount: totalCost
-      });
-
-      if (rpcError || !rpcData.success) {
-        return res.status(400).json({ success: false, error: 'Capital de Bóveda insuficiente o transacción en curso.' });
+      // 🛠️ DEDUCCIÓN DE BÓVEDA SIN RPC
+      const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).single();
+      if (!cUser || Number(cUser.deposit_balance) < totalCost) {
+         return res.status(400).json({ success: false, error: 'Capital de Bóveda insuficiente.' });
       }
-      const newVaultBalance = Number(rpcData.new_balance.toFixed(4));
+      const newVaultBalance = Number((Number(cUser.deposit_balance) - totalCost).toFixed(4));
+      await supabase.from('users').update({ deposit_balance: newVaultBalance }).eq('id', targetId);
 
       const { data: newTask, error: taskError } = await supabase.from('tasks').insert([{ 
         creator_id: targetId, type, title, url, bot_token: bot_token || null, 
@@ -1002,6 +1005,23 @@ export default async function handler(req, res) {
       });
 
       return res.status(200).json({ success: true, tasks: mappedTasks });
+    }
+
+    if (action === 'claim-adsgram-daily') {
+      const targetId = String(userId);
+      const earnedGemas = 5.00; 
+      const rewardForDb = earnedGemas / 1000;
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).like('description', '%[AdsGramDaily]%').gte('created_at', yesterday).maybeSingle();
+      if (recentLog) return res.status(400).json({ success: false, error: 'Ya reclamaste tu bono hoy. Vuelve mañana.' });
+
+      const { data: dbUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
+      const newBalance = Number((Number(dbUser.balance || 0) + rewardForDb).toFixed(4));
+      const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardForDb).toFixed(4));
+      
+      await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '🎁 Bono Diario (Check-in)', description: `Anuncio completado [AdsGramDaily] | +${earnedGemas.toFixed(2)} Gemas`, amount: rewardForDb }]);
+      return res.status(200).json({ success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance });
     }
 
     if (action === 'complete-task') {
@@ -1104,16 +1124,16 @@ export default async function handler(req, res) {
         status: (newDoneCount >= Number(task.completions_total)) ? 'completed' : 'active' 
       }).eq('id', taskId);
 
-      // Actualizar Clicks Globales
-      await supabase.rpc('increment_global_clicks').catch(async () => {
+      // 🛠️ ACTUALIZACIÓN DE CLICKS GLOBALES SEGURA (Fix crash RPC)
+      const { error: rpcGlobalErr } = await supabase.rpc('increment_global_clicks');
+      if (rpcGlobalErr) {
         // Fallback seguro si no existe el RPC en base de datos
-        const { data: s } = await supabase.from('platform_stats').select('total_global_clicks').eq('id', 1).single();
+        const { data: s } = await supabase.from('platform_stats').select('total_global_clicks').eq('id', 1).maybeSingle();
         if (s) {
           await supabase.from('platform_stats').update({ total_global_clicks: (s.total_global_clicks || 0) + 1 }).eq('id', 1);
         }
-      });
+      }
 
-      // Actualizar Leaderboard del Evento Activo si existe
       const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
       if (activeEv && activeEv.event_type === 'task_completion') {
         const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', targetId).maybeSingle();
@@ -1189,7 +1209,6 @@ export default async function handler(req, res) {
       let { data: lv1 } = await supabase.from('users').select('*').eq('referred_by', targetId);
       const { data: dbUser } = await supabase.from('users').select('referral_earnings').eq('id', targetId).maybeSingle();
 
-      // Si hay evento activo de referidos, actualizar score
       const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
       if (activeEv && activeEv.event_type === 'referral' && lv1) {
         const refCountTotal = lv1.length;
@@ -1208,14 +1227,14 @@ export default async function handler(req, res) {
       const targetId = String(userId);
       const todayDate = new Date();
       todayDate.setUTCHours(0, 0, 0, 0);
-      
+
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
       const { count: adsCount } = await supabase.from('history_logs')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', targetId)
         .like('description', '%[AdView]%')
         .gte('created_at', todayDate.toISOString());
-        
+
       return res.status(200).json({ success: true, referrals: refCount || 0, ads: adsCount || 0 });
     }
 
@@ -1223,11 +1242,11 @@ export default async function handler(req, res) {
       const targetId = String(userId);
       const earnedGemas = 0.50; 
       const rewardForDb = earnedGemas / 1000;
-      
+
       const { data: dbUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
       const newBalance = Number((Number(dbUser.balance || 0) + rewardForDb).toFixed(4));
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardForDb).toFixed(4));
-      
+
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
       await supabase.from('history_logs').insert([{ 
         user_id: targetId, 
@@ -1235,7 +1254,7 @@ export default async function handler(req, res) {
         description: `Visualización para retiro [AdView] | +${earnedGemas.toFixed(2)} Gemas`, 
         amount: rewardForDb 
       }]);
-      
+
       return res.status(200).json({ success: true, balance: newBalance });
     }
 
