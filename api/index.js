@@ -31,7 +31,7 @@ const tonClient = new TonClient({
 const BSC_RPC = "https://bsc-dataseed.binance.org/";
 const USDT_BEP20_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 
-// 🛡️ 1. CIFRADO AES-256-GCM (Vulnerabilidad Criptográfica)
+// 🛡️ 1. CIFRADO AES-256-GCM
 const RAW_KEY = process.env.ENCRYPTION_KEY || 'TeleGemFallbackKey2026NeedsToChangeNow';
 const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest(); 
 
@@ -57,7 +57,7 @@ function decryptText(text) {
   }
 }
 
-// 🛡️ 2. MEMORIA DE RATE LIMITING (Ataques DDoS)
+// 🛡️ 2. MEMORIA DE RATE LIMITING
 const rateLimitMap = new Map();
 function checkRateLimit(ip) {
   const now = Date.now();
@@ -75,7 +75,7 @@ function checkRateLimit(ip) {
   return data.count <= 30; 
 }
 
-// 🛡️ 3. FIRMA ANTI-SPOOFING (auth_date)
+// 🛡️ 3. FIRMA ANTI-SPOOFING
 function verifyTelegramWebAppData(telegramInitData) {
   if (!telegramInitData || !BOT_TOKEN) return false;
   const urlParams = new URLSearchParams(telegramInitData);
@@ -129,27 +129,20 @@ async function sweepUsdtAutomated(derivedWallet, usdtAmountWei) {
     const minBnbGas = ethers.parseEther("0.0004");
 
     if (bnbBalance < minBnbGas) {
-      const fundTx = await masterWallet.sendTransaction({
-        to: derivedWallet.address,
-        value: minBnbGas - bnbBalance
-      });
+      const fundTx = await masterWallet.sendTransaction({ to: derivedWallet.address, value: minBnbGas - bnbBalance });
       await fundTx.wait(); 
     }
 
     const tx = await usdtContract.transfer(sweepDestination, usdtAmountWei);
     await tx.wait();
-  } catch (error) {
-    console.error("Error en barrido automático USDT:", error);
-  }
+  } catch (error) { console.error("Error en barrido:", error); }
 }
-
 
 async function sendTonAutomated(destinationAddress, usdtAmount) {
   const mnemonic = process.env.MASTER_WALLET_MNEMONIC; 
-  if (!mnemonic) throw new Error("Falta la variable MASTER_WALLET_MNEMONIC en Vercel.");
+  if (!mnemonic) throw new Error("Falta la variable MASTER_WALLET_MNEMONIC.");
 
   const tonPrice = await getTonPrice();
-  // Se calcula la cantidad exacta en TON con máximo 9 decimales
   const tonAmount = (usdtAmount / tonPrice).toFixed(9); 
 
   const mnemonics = mnemonic.split(" ");
@@ -159,8 +152,7 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
   const seqno = await contract.getSeqno();
 
   await contract.sendTransfer({
-      seqno: seqno || 0,
-      secretKey: keyPair.secretKey,
+      seqno: seqno || 0, secretKey: keyPair.secretKey,
       messages: [internal({ to: destinationAddress, value: tonAmount.toString(), bounce: false, body: "Retiro TeleGem" })],
       sendMode: 3 
   });
@@ -186,6 +178,11 @@ async function notifyAdmin(message) {
   try { await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { chat_id: MAIN_ADMIN_ID, text: message, parse_mode: 'HTML' }); } catch (e) {}
 }
 
+// 🛠️ NUEVA FUNCIÓN: Notificar directamente al usuario por mensaje privado (DM)
+async function notifyUser(userId, message) {
+  try { await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { chat_id: userId, text: message, parse_mode: 'HTML' }); } catch (e) { console.log(`No se pudo enviar DM a ${userId}. (Posiblemente bloqueó el bot)`); }
+}
+
 async function checkMembership(userId, chatId) {
   try {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${userId}`;
@@ -193,16 +190,6 @@ async function checkMembership(userId, chatId) {
     const resData = await response.json();
     if (!resData.ok) return false;
     return ['member', 'administrator', 'creator'].includes(resData.result.status);
-  } catch (error) { return false; }
-}
-
-async function checkAdminStatus(chatId) {
-  try {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${BOT_ID}`;
-    const response = await fetchWithTimeout(url);
-    const resData = await response.json();
-    if (!resData.ok) return false;
-    return ['administrator', 'creator'].includes(resData.result.status);
   } catch (error) { return false; }
 }
 
@@ -218,6 +205,62 @@ async function checkAdminStatusDetailed(chatId) {
   } catch (error) { return { isAdmin: false, error: error.message }; }
 }
 
+async function checkAdminStatus(chatId) {
+  const res = await checkAdminStatusDetailed(chatId);
+  return res.isAdmin;
+}
+
+// 🛠️ NUEVA FUNCIÓN: Auditoría Silenciosa en Segundo Plano (El Cron Job Invisible)
+async function runRetentionAudit(userId) {
+  try {
+    // Buscamos tareas completadas en las últimas 24 horas
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentTasks } = await supabase
+      .from('user_completed_tasks')
+      .select('task_id, created_at, tasks!inner(type, url, reward, title)')
+      .eq('user_id', userId)
+      .gte('created_at', yesterday);
+
+    if (!recentTasks || recentTasks.length === 0) return;
+
+    for (const item of recentTasks) {
+      const t = item.tasks;
+      if (t && (t.type === 'group' || t.type === 'channel')) {
+        const chatId = extractTelegramUsername(t.url);
+        if (chatId) {
+          const isStillMember = await checkMembership(userId, chatId);
+          if (!isStillMember) {
+            const penaltyAmount = Number(t.reward || 0);
+            
+            // Restar saldo
+            const { data: rpcPenalty } = await supabase.rpc('deduct_user_balance', { p_user_id: userId, p_amount: penaltyAmount });
+            if (rpcPenalty && rpcPenalty.success) {
+              
+              // Eliminar el registro para que pueda volver a hacerla (y no castigarlo dos veces)
+              await supabase.from('user_completed_tasks').delete().eq('task_id', item.task_id).eq('user_id', userId);
+              const { data: currentTask } = await supabase.from('tasks').select('completions_done').eq('id', item.task_id).single();
+              if (currentTask) await supabase.from('tasks').update({ completions_done: Math.max(0, currentTask.completions_done - 1) }).eq('id', item.task_id);
+
+              // Registrar historial
+              const gemasPenalidad = (penaltyAmount * 1000).toFixed(2);
+              await supabase.from('history_logs').insert([{ 
+                user_id: userId, 
+                title: '⚠️ Penalidad de Permanencia', 
+                description: `Saliste de la comunidad antes de 24h. Sanción: -${gemasPenalidad} Gemas.`, 
+                amount: -penaltyAmount 
+              }]);
+
+              // 🛠️ NOTIFICACIÓN PRIVADA AL USUARIO
+              const penaltyMsg = `⚠️ <b>PENALIZACIÓN DE RED</b>\n\nHemos detectado que has abandonado la comunidad <b>${t.title}</b> antes de completar el ciclo mínimo de 24 horas.\n\n🔻 Se han deducido <b>${gemasPenalidad} Gemas</b> de tu balance de retiro.\n\n<i>El sistema audita continuamente la permanencia para garantizar tráfico de calidad.</i>`;
+              await notifyUser(userId, penaltyMsg);
+            }
+          }
+        }
+      }
+    }
+  } catch (error) { console.error("Error en auditoría silenciosa:", error); }
+}
+
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -229,7 +272,6 @@ export default async function handler(req, res) {
   try {
     const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
 
-    // Mitigación DDoS
     if (!checkRateLimit(clientIp)) {
       return res.status(429).json({ success: false, error: 'Demasiadas solicitudes. Intente más tarde.' });
     }
@@ -252,70 +294,46 @@ export default async function handler(req, res) {
 
       if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
 
+      // 🛠️ Ejecutamos la auditoría silenciosa en segundo plano sin detener la carga de la app
+      runRetentionAudit(targetId).catch(err => console.error("Fallo asíncrono auditoría:", err));
+
       let { data: dbUser, error: dbError } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
       if (dbError) throw new Error("Error en Supabase (select user): " + dbError.message);
 
       if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
-      // Control Multicuentas
       let isMultiAccount = false;
       let existingOwner = null;
 
       if (deviceId !== 'unknown_device') {
-        const { data: existingDeviceUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('device_id', deviceId)
-          .neq('id', targetId)
-          .maybeSingle();
-
-        if (existingDeviceUser) {
-          isMultiAccount = true;
-          existingOwner = existingDeviceUser.id;
-        }
+        const { data: existingDeviceUser } = await supabase.from('users').select('id').eq('device_id', deviceId).neq('id', targetId).maybeSingle();
+        if (existingDeviceUser) { isMultiAccount = true; existingOwner = existingDeviceUser.id; }
       }
 
       if (!dbUser) {
         if (isMultiAccount) {
-          notifyAdmin(`⚠️ <b>Alerta Multicuenta Detectada</b>\nEl dispositivo <code>${deviceId}</code> intentó registrar la cuenta <code>${targetId}</code> pero ya pertenecía a <code>${existingOwner}</code>.`);
+          notifyAdmin(`⚠️ <b>Alerta Multicuenta Detectada</b>\nDispositivo <code>${deviceId}</code> intentó registrar cuenta <code>${targetId}</code> pero pertenece a <code>${existingOwner}</code>.`);
         }
-
         const newUserObj = { 
-          id: targetId, 
-          username: targetUser.username || 'Usuario', 
-          balance: 0, 
-          deposit_balance: 0, 
-          total_earnings: 0, 
-          referral_earnings: 0, 
-          is_human: !isMultiAccount, 
-          device_id: deviceId,
-          last_ip: clientIp,
-          referral_reward_granted: !isMultiAccount 
+          id: targetId, username: targetUser.username || 'Usuario', balance: 0, deposit_balance: 0, 
+          total_earnings: 0, referral_earnings: 0, is_human: !isMultiAccount, device_id: deviceId,
+          last_ip: clientIp, referral_reward_granted: !isMultiAccount 
         };
 
         if (start_param && String(start_param) !== targetId && !isMultiAccount) {
           const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
-          if (inviter) {
-            newUserObj.referred_by = String(start_param);
-          }
-        } else if (start_param && isMultiAccount) {
-          notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico.`);
+          if (inviter) newUserObj.referred_by = String(start_param);
         }
 
         const { data: newUser, error: insertError } = await supabase.from('users').insert([newUserObj]).select().single();
-        if (insertError) throw new Error("Error en Supabase (insert user): " + insertError.message);
+        if (insertError) throw new Error("Error Supabase: " + insertError.message);
         dbUser = newUser;
       } else {
         await supabase.from('users').update({ device_id: deviceId, last_ip: clientIp }).eq('id', targetId);
       }
 
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
-
-      return res.status(200).json({ 
-        success: true, 
-        user: dbUser, 
-        stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } 
-      });
+      return res.status(200).json({ success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } });
     }
 
     if (action === 'admin-get-config') {
@@ -328,8 +346,7 @@ export default async function handler(req, res) {
     if (action === 'admin-update-config') {
       const { adminId, config } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-      const { error } = await supabase.from('system_settings').upsert({ id: 1, master_wallet_gram: config.master_wallet_gram, master_wallet_usdt_bep20: config.master_wallet_usdt_bep20 });
-      if (error) return res.status(400).json({ success: false, error: error.message });
+      await supabase.from('system_settings').upsert({ id: 1, master_wallet_gram: config.master_wallet_gram, master_wallet_usdt_bep20: config.master_wallet_usdt_bep20 });
       return res.status(200).json({ success: true });
     }
 
@@ -356,58 +373,24 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-        // 🔥 INICIO FUNCIÓN PARA OBTENER RETIROS PENDIENTES 🔥
     if (action === 'admin-get-withdrawals') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-
-      const { data: withdrawals } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
+      const { data: withdrawals } = await supabase.from('withdrawals').select('*').eq('status', 'pending').order('created_at', { ascending: false });
       return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
     }
-    // 🔥 FIN FUNCIÓN PARA OBTENER RETIROS PENDIENTES 🔥
 
-      // 🔥 INICIO FUNCIONES DE APROBACIÓN DE RETIROS 🔥
-
-    // 🛠️ NUEVA FUNCIÓN: Notificadora del Canal de Pagos 🛠️
     async function notifyPaymentChannel(userId, usdtAmount, walletAddress) {
       try {
         const { data: user } = await supabase.from('users').select('username').eq('id', userId).single();
         const usernameDisplay = user?.username && user.username !== 'Usuario' ? `@${user.username}` : `ID: ${userId}`;
-        
         const tonPrice = await getTonPrice();
-        const tonAmount = (usdtAmount / tonPrice).toFixed(4); // Calculamos el TON en vivo
-        
-        // Generamos un hash TXID estético y rastreable para el comprobante inmediato
+        const tonAmount = (usdtAmount / tonPrice).toFixed(4); 
         const txid = crypto.createHash('sha256').update(walletAddress + Date.now().toString()).digest('hex');
 
-        const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n` +
-                        `👤 <b>Beneficiario:</b> ${usernameDisplay}\n` +
-                        `💸 <b>Monto Total:</b> ${tonAmount} TON\n` +
-                        `🛡️ <b>Red:</b> Toncoin (Ton)\n` +
-                        `⚡ <b>Estado:</b> Finalizado / 100%\n\n` +
-                        `🔹 <b>TXID:</b>\n<code>${txid}</code>\n\n` +
-                        `🔥 ¡Retiros procesados con total transparencia!`;
-
-        const keyboard = {
-          inline_keyboard: [
-            [{ text: "💰 ¡QUIERO GANAR TON AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]
-          ]
-        };
-
-        await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          chat_id: '-1002352835078', // 🛠️ Tu canal de pagos oficial
-          text: message,
-          parse_mode: 'HTML',
-          reply_markup: keyboard
-        });
-      } catch (error) {
-        console.error("Error enviando notificación al canal de pagos:", error);
-      }
+        const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${tonAmount} TON\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<code>${txid}</code>\n\n🔥 ¡Retiros procesados con total transparencia!`;
+        await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { chat_id: '-1002352835078', text: message, parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR TON AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]] }});
+      } catch (error) {}
     }
 
 
@@ -420,37 +403,22 @@ export default async function handler(req, res) {
       if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue pagado.' });
 
       try {
-        // 1. Ejecutar la transacción real en la blockchain (Red TON)
         await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
-
-        // 2. Si el dinero se envió con éxito, actualizamos la base de datos
         await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
-
-        // 🛠️ 3. Disparamos la notificación automática al canal de pagos
         await notifyPaymentChannel(withdrawal.user_id, withdrawal.amount, withdrawal.wallet_address);
 
-        // 4. Buscar el recibo original de "Procesando" y actualizarlo a "Completado"
-        const { data: lastLog } = await supabase.from('history_logs')
-          .select('id')
-          .eq('user_id', withdrawal.user_id)
-          .eq('title', '📤 Retiro Procesando')
-          .eq('amount', -Number(withdrawal.amount))
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        // 🛠️ NOTIFICACIÓN AL USUARIO DE PAGO APROBADO
+        const gemasRetiradas = (Number(withdrawal.amount) * 1000).toFixed(2);
+        const userMsg = `✅ <b>¡TU RETIRO HA SIDO ENVIADO!</b>\n\nHemos procesado tu retiro de <b>${gemasRetiradas} Gemas</b> exitosamente.\n\nRevisa tu billetera TON para confirmar la recepción de los fondos.`;
+        await notifyUser(withdrawal.user_id, userMsg);
 
+        const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).eq('title', '📤 Retiro Procesando').eq('amount', -Number(withdrawal.amount)).order('created_at', { ascending: false }).limit(1).maybeSingle();
         if (lastLog) {
-          const gemasRetiradas = (Number(withdrawal.amount) * 1000).toFixed(2);
-          await supabase.from('history_logs').update({
-            title: '✅ Retiro Completado',
-            description: `TX Confirmada a ${withdrawal.wallet_address.substring(0,8)}... | -${gemasRetiradas} Gemas`
-          }).eq('id', lastLog.id);
+          await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `TX Confirmada a ${withdrawal.wallet_address.substring(0,8)}... | -${gemasRetiradas} Gemas` }).eq('id', lastLog.id);
         }
-
         return res.status(200).json({ success: true });
       } catch (error) {
-        console.error("Fallo al enviar cripto:", error);
-        return res.status(400).json({ success: false, error: 'Fallo en blockchain. Revisa el saldo de tu Master Wallet.' });
+        return res.status(400).json({ success: false, error: 'Fallo en blockchain.' });
       }
     }
 
@@ -459,43 +427,27 @@ export default async function handler(req, res) {
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
       const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
-      if (!withdrawal) return res.status(400).json({ success: false, error: 'Retiro no encontrado.' });
-      if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue procesado y no puede rechazarse.' });
+      if (!withdrawal || withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Inválido.' });
 
-      // Devolver los fondos al balance del usuario
       const { data: userToRefund } = await supabase.from('users').select('balance').eq('id', withdrawal.user_id).single();
       if (userToRefund) {
         const refundedBalance = Number((Number(userToRefund.balance) + Number(withdrawal.amount)).toFixed(4));
         await supabase.from('users').update({ balance: refundedBalance }).eq('id', withdrawal.user_id);
       }
-
-      // Marcar como rechazado en la base de datos
       await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
 
-      // Buscar el recibo original y cambiarlo a Rechazado (poniendo el monto en 0 para anular el gasto visual)
-      const { data: lastLog } = await supabase.from('history_logs')
-        .select('id')
-        .eq('user_id', withdrawal.user_id)
-        .eq('title', '📤 Retiro Procesando')
-        .eq('amount', -Number(withdrawal.amount))
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const gemasReembolso = (Number(withdrawal.amount) * 1000).toFixed(2);
+      
+      // 🛠️ NOTIFICACIÓN AL USUARIO DE PAGO RECHAZADO
+      const userMsg = `❌ <b>RETIRO RECHAZADO</b>\n\nTu solicitud de retiro por <b>${gemasReembolso} Gemas</b> fue rechazada.\nMotivo: <i>${reason || 'Revisión de seguridad'}</i>\n\nLos fondos han sido devueltos a tu cuenta.`;
+      await notifyUser(withdrawal.user_id, userMsg);
 
+      const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).eq('title', '📤 Retiro Procesando').eq('amount', -Number(withdrawal.amount)).order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (lastLog) {
-        const gemasReembolso = (Number(withdrawal.amount) * 1000).toFixed(2);
-        await supabase.from('history_logs').update({
-          title: '❌ Retiro Rechazado',
-          description: reason ? `Reembolso: +${gemasReembolso} Gemas. Motivo: ${reason}` : `Fondos devueltos por seguridad: +${gemasReembolso} Gemas.`,
-          amount: 0
-        }).eq('id', lastLog.id);
+        await supabase.from('history_logs').update({ title: '❌ Retiro Rechazado', description: reason ? `Reembolso: +${gemasReembolso} Gemas. Motivo: ${reason}` : `Fondos devueltos por seguridad: +${gemasReembolso} Gemas.`, amount: 0 }).eq('id', lastLog.id);
       }
-
       return res.status(200).json({ success: true });
     }
-    // 🔥 FIN FUNCIONES DE APROBACIÓN DE RETIROS 🔥
-
-
 
     if (action === 'request-withdrawal') {
       const targetId = String(userId || user?.id);
@@ -504,60 +456,15 @@ export default async function handler(req, res) {
 
       if (!address || withdrawAmount < 0.05) return res.status(400).json({ success: false, error: 'Mínimo: 0.05 USDT.' });
 
-      // 🛡️ 4. PENALIZACIÓN "HIT & RUN" ANTES DE RETIRAR
-      const { data: recentTasks } = await supabase.from('user_completed_tasks')
-        .select('task_id, tasks(type, url, reward)')
-        .eq('user_id', targetId)
-        .order('created_at', { ascending: false })
-        .limit(5); 
+      // Ejecutar auditoría instantánea antes del retiro para evitar escapes (La trampa final)
+      await runRetentionAudit(targetId).catch(e => console.error("Error audit pre-retiro", e));
 
-      let penaltyAmount = 0;
-      if (recentTasks) {
-        for (const item of recentTasks) {
-          const t = item.tasks;
-          if (t && (t.type === 'group' || t.type === 'channel')) {
-            const chatId = extractTelegramUsername(t.url);
-            if (chatId) {
-              const isStillMember = await checkMembership(targetId, chatId);
-              if (!isStillMember) {
-                penaltyAmount += Number(t.reward || 0);
-                await supabase.from('user_completed_tasks').delete().eq('task_id', item.task_id).eq('user_id', targetId);
-                const { data: currentTask } = await supabase.from('tasks').select('completions_done').eq('id', item.task_id).single();
-                if (currentTask) await supabase.from('tasks').update({ completions_done: Math.max(0, currentTask.completions_done - 1) }).eq('id', item.task_id);
-              }
-            }
-          }
-        }
-      }
-
-      if (penaltyAmount > 0) {
-        const { data: rpcPenalty } = await supabase.rpc('deduct_user_balance', { p_user_id: targetId, p_amount: penaltyAmount });
-        if (rpcPenalty && rpcPenalty.success) {
-          notifyAdmin(`⚖️ <b>Penalidad Hit&Run Aplicada</b>\nUsuario <code>${targetId}</code> se salió de canales.\nPenalidad: -${penaltyAmount.toFixed(4)} USDT.`);
-
-          // Registro de penalidad en el historial
-          await supabase.from('history_logs').insert([{ 
-            user_id: targetId, 
-            title: '⚠️ Penalidad de Red', 
-            description: `Abandono de canales. Sanción: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, 
-            amount: -penaltyAmount 
-          }]);
-
-          withdrawAmount = withdrawAmount - penaltyAmount;
-          if (withdrawAmount < 0.05) return res.status(400).json({ success: false, error: `Se dedujeron ${penaltyAmount.toFixed(4)} USDT por abandonar canales. Saldo insuficiente para retirar.` });
-        }
-      }
-
-      const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_user_balance', {
-        p_user_id: targetId,
-        p_amount: withdrawAmount
-      });
-
+      const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_user_balance', { p_user_id: targetId, p_amount: withdrawAmount });
       if (rpcError || !rpcData.success) {
-        return res.status(400).json({ success: false, error: 'Saldo insuficiente o transacción bloqueada por seguridad.' });
+        return res.status(400).json({ success: false, error: 'Saldo insuficiente o transacción bloqueada por seguridad. Revisa si tuviste una penalización.' });
       }
+      
       const newBalance = Number(rpcData.new_balance.toFixed(4));
-
       const { data: withdrawal, error: withdrawError } = await supabase.from('withdrawals').insert([{
         user_id: targetId, wallet_address: address, amount: withdrawAmount,
         status: withdrawAmount <= 0.9 ? 'processing' : 'pending'
@@ -569,40 +476,20 @@ export default async function handler(req, res) {
       }
 
       const withdrawGemasStr = (withdrawAmount * 1000).toFixed(2);
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '📤 Retiro Procesando', 
-        description: `Destino: ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas`, 
-        amount: -withdrawAmount 
-      }]);
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Destino: ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas`, amount: -withdrawAmount }]);
 
       if (withdrawAmount <= 0.9) {
           try {
-              // 1. Envía el pago a la blockchain
               await sendTonAutomated(address, withdrawAmount);
-
-              // 2. Marca el retiro como completado
               await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawal.id);
-
-              // 🛠️ 3. Disparamos la notificación automática (Para retiros instantáneos)
               await notifyPaymentChannel(targetId, withdrawAmount, address);
+              
+              // 🛠️ NOTIFICAR AL USUARIO EL PAGO AUTOMÁTICO
+              const userMsg = `✅ <b>¡TU RETIRO HA SIDO ENVIADO!</b>\n\nHemos procesado tu retiro automático de <b>${withdrawGemasStr} Gemas</b> exitosamente a la blockchain TON.`;
+              await notifyUser(targetId, userMsg);
 
-              // 4. 🔥 Actualiza el mensaje en el historial a "Completado" 🔥
-              const { data: lastLog } = await supabase.from('history_logs')
-                .select('id')
-                .eq('user_id', targetId)
-                .eq('title', '📤 Retiro Procesando')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-              if (lastLog) {
-                await supabase.from('history_logs').update({
-                  title: '✅ Retiro Completado',
-                  description: `TX Automática a ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas`
-                }).eq('id', lastLog.id);
-              }
-
+              const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).eq('title', '📤 Retiro Procesando').order('created_at', { ascending: false }).limit(1).maybeSingle();
+              if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `TX Automática a ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas` }).eq('id', lastLog.id);
               return res.status(200).json({ success: true, balance: newBalance, message: 'Pago enviado a la blockchain.' });
           } catch (err) {
               await supabase.from('withdrawals').update({ status: 'pending' }).eq('id', withdrawal.id);
@@ -616,34 +503,21 @@ export default async function handler(req, res) {
     if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
       const targetId = String(userId);
-
       let masterUsdtWallet = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce"; 
       try {
         const { data: cfg } = await supabase.from('system_settings').select('master_wallet_usdt_bep20').eq('id', 1).maybeSingle();
-        if (cfg && cfg.master_wallet_usdt_bep20) {
-          masterUsdtWallet = cfg.master_wallet_usdt_bep20;
-        }
+        if (cfg && cfg.master_wallet_usdt_bep20) masterUsdtWallet = cfg.master_wallet_usdt_bep20;
       } catch (e) {}
 
       const { ethers } = await import('ethers');
       const randomWallet = ethers.Wallet.createRandom();
-      const publicAddress = randomWallet.address;
-      const privateKey = randomWallet.privateKey;
-
-      // Encriptación AES-256
-      const encryptedKey = encryptText(privateKey);
+      const encryptedKey = encryptText(randomWallet.privateKey);
 
       const { data: newIntent, error: intentErr } = await supabase.from('payment_intents').insert([{ 
-        user_id: targetId, 
-        expected_amount: Number(price), 
-        public_wallet: publicAddress, 
-        encrypted_private_key: encryptedKey, 
-        status: 'pending' 
+        user_id: targetId, expected_amount: Number(price), public_wallet: randomWallet.address, encrypted_private_key: encryptedKey, status: 'pending' 
       }]).select().single();
-
       if (intentErr) return res.status(400).json({ success: false, error: intentErr.message });
-
-      return res.status(200).json({ success: true, wallet: publicAddress, intentId: newIntent.id });
+      return res.status(200).json({ success: true, wallet: randomWallet.address, intentId: newIntent.id });
     }
 
     if (action === 'verify-usdt-payment') {
@@ -653,9 +527,7 @@ export default async function handler(req, res) {
       if (!intent) return res.status(400).json({ success: false, error: 'Intento no procesado o completado.' });
 
       const provider = new ethers.JsonRpcProvider(BSC_RPC);
-      const usdtAbi = ["function balanceOf(address owner) view returns (uint256)"];
-      const usdtContract = new ethers.Contract(USDT_BEP20_ADDRESS, usdtAbi, provider);
-
+      const usdtContract = new ethers.Contract(USDT_BEP20_ADDRESS, ["function balanceOf(address owner) view returns (uint256)"], provider);
       const balanceWei = await usdtContract.balanceOf(intent.public_wallet);
       const balanceUsdt = Number(ethers.formatUnits(balanceWei, 18));
 
@@ -666,14 +538,7 @@ export default async function handler(req, res) {
       await supabase.from('users').update({ deposit_balance: newDepositBalance }).eq('id', targetId);
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
 
-      // Registro de recarga exitosa
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '📥 Recarga de Bóveda', 
-        description: `Depósito BSC (BEP20): $${Number(clicks).toFixed(2)} USDT acreditados.`, 
-        amount: 0 
-      }]);
-
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📥 Recarga de Bóveda', description: `Depósito BSC (BEP20): $${Number(clicks).toFixed(2)} USDT acreditados.`, amount: 0 }]);
       const derivedWallet = getDerivedUsdtWallet(targetId);
       sweepUsdtAutomated(derivedWallet, balanceWei).catch(e => console.error("Fallo barrido:", e));
 
@@ -686,17 +551,11 @@ export default async function handler(req, res) {
       const mnemonics = await mnemonicNew(); 
       const keyPair = await mnemonicToPrivateKey(mnemonics);
       const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
-
-      // Encriptación AES-256
-      const secretWords = mnemonics.join(" ");
-      const encryptedKey = encryptText(secretWords);
+      const encryptedKey = encryptText(mnemonics.join(" "));
 
       const { data: newIntent } = await supabase.from('payment_intents').insert([{ 
-        user_id: targetId, expected_amount: price, 
-        public_wallet: wallet.address.toString({ urlSafe: true, bounceable: false }), 
-        encrypted_private_key: encryptedKey, status: 'pending' 
+        user_id: targetId, expected_amount: price, public_wallet: wallet.address.toString({ urlSafe: true, bounceable: false }), encrypted_private_key: encryptedKey, status: 'pending' 
       }]).select().single();
-
       return res.status(200).json({ success: true, wallet: newIntent.public_wallet, intentId: newIntent.id });
     }
 
@@ -715,27 +574,16 @@ export default async function handler(req, res) {
       await supabase.from('users').update({ deposit_balance: newDepositBalance }).eq('id', targetId);
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
 
-      // Registro de recarga exitosa
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '📥 Recarga de Bóveda', 
-        description: `Depósito TON (GRAM): $${Number(clicks).toFixed(2)} USDT acreditados.`, 
-        amount: 0 
-      }]);
-
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📥 Recarga de Bóveda', description: `Depósito TON (GRAM): $${Number(clicks).toFixed(2)} USDT acreditados.`, amount: 0 }]);
       try {
         let sweepWallet = FALLBACK_MASTER_WALLET_GRAM;
         const { data: cfg } = await supabase.from('system_settings').select('master_wallet_gram').eq('id', 1).maybeSingle();
         if (cfg && cfg.master_wallet_gram) sweepWallet = cfg.master_wallet_gram;
-
-        // Desencriptar Mnemonic
-        const secretWords = decryptText(intent.encrypted_private_key);
-        const mnemonics = secretWords.split(" "); 
+        const mnemonics = decryptText(intent.encrypted_private_key).split(" "); 
         const keyPair = await mnemonicToPrivateKey(mnemonics);
         const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
         const contract = tonClient.open(wallet); 
         const seqno = await contract.getSeqno();
-
         await contract.sendTransfer({ seqno: seqno || 0, secretKey: keyPair.secretKey, messages: [ internal({ to: sweepWallet, value: 0n, bounce: false, body: "Barrido" }) ], sendMode: 128 });
       } catch (sweepError) {}
       return res.status(200).json({ success: true, deposit_balance: newDepositBalance });
@@ -744,39 +592,26 @@ export default async function handler(req, res) {
     if (action === 'verify-admin') {
       const { url } = req.body;
       if (!url) return res.status(400).json({ success: false, error: 'Enlace no proporcionado.' });
-
       const chatId = extractTelegramUsername(url);
       if (!chatId) return res.status(400).json({ success: false, error: 'Formato de enlace inválido. Usa @usuario o t.me/usuario.' });
-
       const adminCheck = await checkAdminStatusDetailed(chatId);
-
-      if (adminCheck.isAdmin) {
-        return res.status(200).json({ success: true });
-      } else {
-        return res.status(400).json({ success: false, error: adminCheck.error || 'El bot no tiene permisos de administrador en esa comunidad.' });
-      }
+      if (adminCheck.isAdmin) return res.status(200).json({ success: true });
+      else return res.status(400).json({ success: false, error: adminCheck.error || 'El bot no tiene permisos de administrador en esa comunidad.' });
     }
 
     if (action === 'create-task') {
       const { creator_id, type, title, url, bot_token, completions_total, reward, validation_code } = req.body;
       const targetId = String(creator_id || userId);
-
       const count = Number(completions_total || 100); 
       const rew = Number(reward || 0.001); 
       const totalCost = Number((count * rew * 1.30).toFixed(4));
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_vault_balance', {
-        p_user_id: targetId,
-        p_amount: totalCost
-      });
-
-      if (rpcError || !rpcData.success) {
-        return res.status(400).json({ success: false, error: 'Capital de Bóveda insuficiente o transacción en curso.' });
-      }
+      const { data: rpcData, error: rpcError } = await supabase.rpc('deduct_vault_balance', { p_user_id: targetId, p_amount: totalCost });
+      if (rpcError || !rpcData.success) return res.status(400).json({ success: false, error: 'Capital de Bóveda insuficiente o transacción en curso.' });
+      
       const newVaultBalance = Number(rpcData.new_balance.toFixed(4));
-
       const { data: newTask, error: taskError } = await supabase.from('tasks').insert([{ 
-        creator_id: targetId, type, title, url, bot_token: bot_token || null, 
+        creator_id: targetId, type, title, url: url || '#', bot_token: bot_token || null, 
         completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, 
         status: 'active', validation_code: validation_code || null 
       }]).select().single();
@@ -786,12 +621,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: `Fallo BD. Saldo devuelto.` });
       }
 
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '🚀 Campaña Activada', 
-        description: `Despliegue de "${title}" (${count} cupos) | -$${totalCost.toFixed(2)} USDT de Bóveda.`, 
-        amount: -totalCost 
-      }]);
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '🚀 Campaña Activada', description: `Despliegue de "${title}" (${count} cupos) | -$${totalCost.toFixed(2)} USDT de Bóveda.`, amount: -totalCost }]);
       return res.status(200).json({ success: true, task: newTask, deposit_balance: newVaultBalance });
     }
 
@@ -824,20 +654,10 @@ export default async function handler(req, res) {
       const { taskId, validation_code_input } = req.body; 
       const targetId = String(userId);
 
-      // 🛡️ COOLDOWN TEMPORAL ANTI-SPAM (5 segundos)
-      const { data: lastLog } = await supabase
-        .from('history_logs')
-        .select('created_at')
-        .eq('user_id', targetId)
-        .eq('title', '✅ Tarea Completada')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
+      const { data: lastLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).eq('title', '✅ Tarea Completada').order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (lastLog) {
         const lastTime = new Date(lastLog.created_at).getTime();
-        const now = Date.now();
-        if (now - lastTime < 5000) { 
+        if (Date.now() - lastTime < 5000) { 
           notifyAdmin(`🤖 <b>Alerta Anti-Spam / Bot</b>\nEl usuario <code>${targetId}</code> intentó completar tareas demasiado rápido.`);
           return res.status(400).json({ success: false, error: 'Por favor, espera unos segundos entre cada tarea.' });
         }
@@ -846,7 +666,6 @@ export default async function handler(req, res) {
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Tarea no disponible.' });
 
-      // 🛡️ 5. PRUEBA DE TRABAJO (Promo con Código)
       if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) {
         return res.status(400).json({ success: false, error: 'Código de validación incorrecto.' });
       }
@@ -884,7 +703,6 @@ export default async function handler(req, res) {
       if (!isDaily) await supabase.from('user_completed_tasks').insert([{ task_id: taskId, user_id: targetId }]);
 
       const rewardAmount = Number(task.reward || 1);
-
       const { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).single();
       const newBalance = Number((Number(dbUser.balance || 0) + rewardAmount).toFixed(4));
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardAmount).toFixed(4));
@@ -894,7 +712,7 @@ export default async function handler(req, res) {
       const logDesc = isDaily ? `Check-in: "${task.title}" [Daily:${taskId}] | +${gemasGanadas} Gemas` : `Campaña: "${task.title}" | Ganancia: +${gemasGanadas} Gemas`;
       await supabase.from('history_logs').insert([{ user_id: targetId, title: `✅ Tarea Completada`, description: logDesc, amount: rewardAmount }]);
 
-            if (dbUser.referred_by) {
+      if (dbUser.referred_by) {
         const commissionAmount = Number((rewardAmount * 0.20).toFixed(4));
         const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
         if (referrer) {
@@ -904,25 +722,21 @@ export default async function handler(req, res) {
             total_earnings: Number((Number(referrer.total_earnings || 0) + commissionAmount).toFixed(4)) 
           }).eq('id', referrer.id);
 
-          // LÍNEA NUEVA PARA EL HISTORIAL CON 2 DECIMALES
           const comisionGemas = (commissionAmount * 1000).toFixed(2);
-          await supabase.from('history_logs').insert([{ 
-            user_id: referrer.id, 
-            title: '👥 Comisión de Afiliado', 
-            description: `Afiliado ID: ${targetId} | +${comisionGemas} Gemas`, 
-            amount: commissionAmount 
-          }]);
+          await supabase.from('history_logs').insert([{ user_id: referrer.id, title: '👥 Comisión de Afiliado', description: `Afiliado ID: ${targetId} | +${comisionGemas} Gemas`, amount: commissionAmount }]);
         }
       }
-
 
       const newDoneCount = Number(task.completions_done || 0) + 1;
       await supabase.from('tasks').update({ completions_done: newDoneCount, status: (newDoneCount >= Number(task.completions_total)) ? 'completed' : 'active' }).eq('id', taskId);
 
+      // 🛠️ NOTIFICACIÓN PRIVADA (NUEVAS TAREAS / MENSAJE OPCIONAL)
+      // Si quieres que le avise de que su tarea generó ganancia extra, aquí lo podrías activar. Por ahora lo dejamos silencioso para no spamearlo con cada clic.
+
       return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
     }
 
-        if (action === 'toggle-task-status') {
+    if (action === 'toggle-task-status') {
       const { taskId, requestingUserId } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).eq('creator_id', String(requestingUserId)).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada o sin permisos.' });
@@ -941,21 +755,13 @@ export default async function handler(req, res) {
          return res.status(403).json({ success: false, error: 'Sin permisos para eliminar.' });
       }
 
-      // Sistema de reembolso automático por interacciones no consumidas
       const remainingCompletions = task.completions_total - (task.completions_done || 0);
       if (remainingCompletions > 0) {
-        // Se devuelve el costo base + 30% de comisiones por cada usuario faltante
         const refundAmount = Number((remainingCompletions * task.reward * 1.30).toFixed(4));
         const { data: user } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
         if (user) {
           await supabase.from('users').update({ deposit_balance: Number((Number(user.deposit_balance) + refundAmount).toFixed(4)) }).eq('id', task.creator_id);
-          
-          await supabase.from('history_logs').insert([{ 
-            user_id: task.creator_id, 
-            title: '💰 Reembolso de Campaña', 
-            description: `Cancelación de campaña. Reembolso: +$${refundAmount.toFixed(2)} USDT a Bóveda.`, 
-            amount: 0 
-          }]);
+          await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: '💰 Reembolso de Campaña', description: `Cancelación de campaña. Reembolso: +$${refundAmount.toFixed(2)} USDT a Bóveda.`, amount: 0 }]);
         }
       }
       await supabase.from('tasks').delete().eq('id', taskId);
@@ -970,7 +776,6 @@ export default async function handler(req, res) {
       if (task.creator_id !== String(requestingUserId) && !isAdminAction) {
          return res.status(403).json({ success: false, error: 'Sin permisos para editar.' });
       }
-
       await supabase.from('tasks').update({ title: newTitle, url: newUrl }).eq('id', taskId);
       return res.status(200).json({ success: true });
     }
