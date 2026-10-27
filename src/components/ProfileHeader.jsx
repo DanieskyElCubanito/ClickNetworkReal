@@ -54,6 +54,33 @@ export default function ProfileHeader({ userData, t, lang, setLang }) {
     fetchHistory();
   };
 
+  // 🛠️ NUEVO: Función para detectar hashes/direcciones TON y volverlas enlaces a TonViewer
+  const renderDescription = (desc) => {
+    if (!desc) return desc;
+    const parts = desc.split(/([UuEe][Qq][a-zA-Z0-9_-]{6,}(?:\.\.\.)?)/g);
+    
+    if (parts.length > 1) {
+      return (
+        <>
+          {parts.map((part, index) => {
+            if (part && part.match(/^[UuEe][Qq]/)) {
+              return (
+                <span key={index} onClick={(e) => {
+                  e.stopPropagation();
+                  WebApp.openLink('https://tonviewer.com');
+                }} style={{ color: '#00f0ff', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}>
+                  {part}
+                </span>
+              );
+            }
+            return part;
+          })}
+        </>
+      );
+    }
+    return desc;
+  };
+
   const modalStyles = {
     overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100000, backdropFilter: 'blur(5px)' },
     card: { background: 'linear-gradient(145deg, rgba(46, 16, 77, 0.95), rgba(20, 8, 38, 0.95))', border: '1px solid #00f0ff', borderRadius: '24px', padding: '20px', width: '100%', maxWidth: '360px', boxShadow: '0 8px 30px rgba(0, 240, 255, 0.2)', color: '#fff', maxHeight: '85vh', display: 'flex', flexDirection: 'column' },
@@ -126,20 +153,26 @@ export default function ProfileHeader({ userData, t, lang, setLang }) {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {historyLogs.map((log) => {
-                    // Convertimos la base de datos (USDT) a Gemas visuales (*1000)
-                    const gemAmount = Math.floor(log.amount * 1000);
-                    const isPositive = gemAmount >= 0;
+                    // 🛠️ EDICIÓN: Formato financiero profesional a 2 decimales y detección de color
+                    const usdtAmount = Number(log.amount);
+                    const gemAmount = Math.abs(usdtAmount * 1000).toFixed(2);
+                    const isPositive = usdtAmount >= 0;
 
                     return (
-                      <div key={log.id} style={{...modalStyles.historyItem, borderColor: isPositive ? 'rgba(0, 255, 170, 0.2)' : 'rgba(255, 20, 147, 0.2)'}}>
+                      <div key={log.id} style={{...modalStyles.historyItem, borderColor: isPositive ? 'rgba(0, 255, 170, 0.3)' : 'rgba(255, 75, 75, 0.3)'}}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                           <strong style={{ fontSize: '13px', color: '#fff', flex: 1, paddingRight: '8px' }}>{log.title}</strong>
-                          <span style={{ fontSize: '13px', fontWeight: '900', color: isPositive ? '#00ffaa' : '#ff4b4b', whiteSpace: 'nowrap' }}>
-                            {isPositive ? '+' : ''}{gemAmount} 💎
+                          <span style={{ fontSize: '14px', fontWeight: '900', color: isPositive ? '#00ffaa' : '#ff4b4b', whiteSpace: 'nowrap' }}>
+                            {isPositive ? '+' : '-'}{gemAmount} 💎
                           </span>
                         </div>
-                        <div style={{ fontSize: '11px', color: '#aaa' }}>{log.description}</div>
-                        <div style={{ fontSize: '9px', color: '#666', marginTop: '6px', textAlign: 'right' }}>
+                        
+                        <div style={{ fontSize: '11px', color: '#aaa', lineHeight: '1.4' }}>
+                           {/* 🛠️ EDICIÓN: Renderizado de direcciones clickeables a TonViewer */}
+                           {renderDescription(log.description)}
+                        </div>
+                        
+                        <div style={{ fontSize: '9px', color: '#666', marginTop: '6px', textAlign: 'right', fontWeight: 'bold' }}>
                           {new Date(log.created_at).toLocaleString()}
                         </div>
                       </div>
