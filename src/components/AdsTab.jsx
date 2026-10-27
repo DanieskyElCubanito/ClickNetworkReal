@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
+// 🛠️ CONFIGURACIÓN DE ADSGRAM
+const ADSGRAM_BLOCK_ID = "56255"; 
+
 const neon = {
   card: { background: 'linear-gradient(145deg, rgba(46, 16, 77, 0.85), rgba(20, 8, 38, 0.95))', border: '2px solid #00f0ff', borderRadius: '24px', padding: '20px', marginBottom: '16px', boxShadow: '0 8px 24px rgba(0, 240, 255, 0.15)' },
   cardInteractive: { background: 'linear-gradient(135deg, rgba(38, 14, 66, 0.9), rgba(18, 7, 36, 0.9))', border: '2px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(138, 43, 226, 0.3)', transition: 'all 0.2s ease' },
@@ -23,6 +26,7 @@ const neon = {
   inputCalc: { flex: 1, background: 'rgba(15, 5, 28, 0.8)', border: '2px solid #8a2be2', borderRadius: '12px', padding: '10px', fontSize: '18px', fontWeight: '900', color: '#fff', outline: 'none', boxSizing: 'border-box', textAlign: 'center' },
   summaryBox: { background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(138, 43, 226, 0.1))', border: '1px dashed #00f0ff', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', boxShadow: 'inset 0 0 10px rgba(0, 240, 255, 0.1)' },
   actionBtn: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00f0ff 0%, #0099ff 100%)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' },
+  actionBtnDisabled: { width: '100%', padding: '16px', background: 'rgba(255,255,255,0.05)', color: '#666', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', cursor: 'not-allowed', textTransform: 'uppercase' },
   actionBtnDanger: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #ff1493 0%, #d80073 100%)', color: '#fff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }
 };
 
@@ -31,6 +35,7 @@ const TaskIcons = {
   channel: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
   bot: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg>,
   promo: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>,
+  daily: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
   play: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
   pause: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>,
   edit: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
@@ -54,6 +59,9 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [botToken, setBotToken] = useState('');
   const [validationCode, setValidationCode] = useState(''); 
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const [adsgramReady, setAdsgramReady] = useState(false);
+  const [playingAd, setPlayingAd] = useState(false);
 
   const [completions, setCompletions] = useState(100);
   const [rewardPerGema, setRewardPerGema] = useState(2.5);
@@ -79,6 +87,14 @@ export default function AdsTab({ userData, setUserData, t }) {
   ];
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://sad.adsgram.ai/js/sad.min.js";
+    script.async = true;
+    script.onload = () => setAdsgramReady(true);
+    document.body.appendChild(script);
+  }, []);
 
   useEffect(() => {
     const fetchLivePrice = async () => {
@@ -148,7 +164,7 @@ export default function AdsTab({ userData, setUserData, t }) {
           Object.keys(next).forEach(id => {
             if (next[id] === 'away') {
               const timeAway = Date.now() - (taskStartTimes[id] || 0);
-              
+
               if (timeAway >= 5000) { 
                 next[id] = 'ready_to_claim';
               } else {
@@ -252,7 +268,7 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (!data.success) throw new Error(data.error);
       if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
       toast.success("La campaña publicitaria se ha activado exitosamente.", { id: tid });
-      
+
       setTaskType(null); setTargetUrl(''); setBotToken(''); setValidationCode(''); 
       setCompletions(100); setCurrentStepIndex(0); setRecharging(false); setView('activity');
     } catch (err) { toast.error(err.message || "Se ha producido un error durante el procesamiento.", { id: tid }); } finally { setIsGenerating(false); }
@@ -310,9 +326,43 @@ export default function AdsTab({ userData, setUserData, t }) {
       else if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`;
       if (finalUrl.includes('t.me') || finalUrl.includes('telegram.me')) WebApp.openTelegramLink(finalUrl);
       else WebApp.openLink(finalUrl, { try_instant_view: true });
-      
+
       setTaskStatus(prev => ({ ...prev, [task.id]: 'clicked_link' }));
     } catch (e) { toast.error("Error al procesar la redirección del enlace."); }
+  };
+
+  const handlePlayAdsgram = () => {
+    if (!window.Adsgram) {
+      toast.error("El servidor de anuncios no está disponible. Desactiva tu bloqueador de anuncios.");
+      return;
+    }
+    setPlayingAd(true);
+    const AdController = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID });
+    
+    AdController.show().then(async () => {
+      const tid = toast.loading("Validando recompensa de Adsgram...");
+      try {
+        const res = await fetch('/api', {
+          method: 'POST', headers: apiHeaders,
+          body: JSON.stringify({ action: 'claim-adsgram-daily', userId: userData.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success(`+${data.earned_gemas} 💎 Recompensa Diaria Obtenida`, { id: tid });
+          if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+          setTaskStatus(prev => ({ ...prev, 'adsgram_daily': 'completed' }));
+        } else {
+          toast.error(data.error || "Error al reclamar", { id: tid });
+        }
+      } catch (e) {
+        toast.error("Error de conexión", { id: tid });
+      } finally {
+        setPlayingAd(false);
+      }
+    }).catch(() => {
+      toast.error("Debes ver el anuncio completo para recibir la recompensa.");
+      setPlayingAd(false);
+    });
   };
 
   const handleCheckTask = async (task) => {
@@ -418,7 +468,7 @@ export default function AdsTab({ userData, setUserData, t }) {
 
     if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
     if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{t('ads_completed')}</button>;
-    
+
     if (status === 'clicked_link') return <button disabled style={neon.taskButtonDisabled}>⏳ ESPERANDO VISITA {countdown[task.id] ? `(${countdown[task.id]}s)` : ''}</button>;
     if (status === 'away') return <button disabled style={neon.taskButtonDisabled}>⏳ VERIFICANDO...</button>;
     if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
@@ -468,6 +518,27 @@ export default function AdsTab({ userData, setUserData, t }) {
             <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update')}</button>
           </div>
 
+          <div style={{ ...neon.taskCard, borderColor: '#00ffaa', background: 'linear-gradient(145deg, rgba(0, 255, 170, 0.1), rgba(26, 11, 51, 0.9))' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ ...neon.taskIconBox, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.1)' }}>
+                  {TaskIcons.daily('#00ffaa')}
+                </div>
+                <div>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>🎁 Bono Diario (Check-in)</div>
+                  <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>Patrocinado por AdsGram</div>
+                </div>
+              </div>
+              {taskStatus['adsgram_daily'] === 'completed' ? (
+                 <button disabled style={neon.taskButtonDisabled}>VUELVE MAÑANA</button>
+              ) : (
+                 <button onClick={handlePlayAdsgram} disabled={!adsgramReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
+                   {playingAd ? 'CARGANDO...' : '+5.00 💎'}
+                 </button>
+              )}
+            </div>
+          </div>
+
           {loadingTasks ? (
             <div style={{ textAlign: 'center', padding: '20px 0', color: '#00f0ff', fontSize: '14px', fontWeight: 'bold' }}>Sincronizando información...</div>
           ) : communityTasks.length === 0 ? (
@@ -489,7 +560,6 @@ export default function AdsTab({ userData, setUserData, t }) {
                         <div style={{ color: '#00f0ff', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>
                           {getTaskLabel(task.type)} {task.type !== 'publish_group' && `• ${task.completions_done} / ${task.completions_total}`}
                         </div>
-                        {/* 🛠️ EDICIÓN: Advertencia visual de permanencia de 24 horas en canales */}
                         {isChannelOrGroup && (
                           <div style={{ color: '#ffe600', fontSize: '9px', fontWeight: '900', marginTop: '4px', textTransform: 'uppercase' }}>
                             🛡️ Permanencia requerida: 24h (Anti Hit&Run)
@@ -538,7 +608,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                 return (
                   <div key={task.id} style={{...neon.taskCard, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4', opacity: (isPaused || isCompleted) ? 0.7 : 1}}>
                     <div style={{ width: '100%' }}>
-                      
+
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
                         <div style={{...neon.taskIconBox, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493', background: isCompleted ? 'rgba(0, 255, 170, 0.1)' : isPaused ? 'rgba(255, 170, 0, 0.1)' : 'rgba(255, 20, 147, 0.1)'}}>
                           {TaskIcons[iconType] ? TaskIcons[iconType](isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493') : TaskIcons.promo(isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493')}
@@ -567,11 +637,11 @@ export default function AdsTab({ userData, setUserData, t }) {
                             {isPaused ? TaskIcons.play : TaskIcons.pause} {isPaused ? t('ads_btn_resume') : t('ads_btn_pause')}
                           </button>
                         )}
-                        
+
                         <button onClick={() => handleOpenEdit(task)} style={{ background: '#00f0ff', color: '#050214', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           {TaskIcons.edit} {t('ads_btn_edit')}
                         </button>
-                        
+
                         {!isCompleted && (
                           <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#ff1493', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {TaskIcons.trash} {t('ads_btn_delete')}
@@ -719,7 +789,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                   {taskType === 'promo' && t('ads_url_desc_promo')}
                 </p>
                 <input style={neon.input} placeholder="https://t.me/..." value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
-                
+
                 {taskType === 'promo' && (
                   <div style={{ marginTop: '16px', borderTop: '1px dashed #8a2be2', paddingTop: '16px' }}>
                     <label style={neon.label}>Código de Validación (Opcional)</label>
