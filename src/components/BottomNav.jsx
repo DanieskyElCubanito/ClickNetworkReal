@@ -16,6 +16,11 @@ const TabIcons = {
       <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
     </svg>
   ),
+  leaderboard: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffaa00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(255,170,0,0.5))' }}>
+      <path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10" /><path d="M17 4v8a5 5 0 0 1-10 0V4" /><path d="M7 4H4v3a2 2 0 0 0 2 2h1" /><path d="M17 4h3v3a2 2 0 0 1-2 2h-1" />
+    </svg>
+  ),
   referrals: (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8a2be2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(138,43,226,0.5))' }}>
       <circle cx="9" cy="7" r="3.5" /><path d="M2 19a7 7 0 0 1 14 0v1H2v-1z" /><circle cx="17" cy="8" r="2.5" /><path d="M16 14.5a5.5 5.5 0 0 1 6 4.5v1h-3" />
@@ -41,6 +46,7 @@ export default function BottomNav({ activeTab, setActiveTab, userData, t }) {
     { id: 'home', label: getLabel('nav_home', 'INICIO'), icon: TabIcons.home, color: '#ff41b4' },
     { id: 'tasks', label: getLabel('nav_tasks', 'TAREAS'), icon: TabIcons.tasks, color: '#00f0ff' },
     { id: 'wallet', label: getLabel('nav_wallet', 'BANCO'), icon: TabIcons.wallet, color: '#00ffaa' },
+    { id: 'leaderboard', label: getLabel('nav_leaderboard', 'TOP'), icon: TabIcons.leaderboard, color: '#ffaa00' },
     { id: 'referrals', label: getLabel('nav_referrals', 'AMIGOS'), icon: TabIcons.referrals, color: '#8a2be2' }
   ];
 
