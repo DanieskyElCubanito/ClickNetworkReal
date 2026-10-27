@@ -48,12 +48,15 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const [taskStatus, setTaskStatus] = useState({}); 
   const [countdown, setCountdown] = useState({});
-  const [verifyInputs, setVerifyInputs] = useState({}); // Nuevo estado para los códigos ingresados
+  const [verifyInputs, setVerifyInputs] = useState({}); 
+
+  // 🛠️ NUEVO ESTADO: Registra la hora exacta en la que el usuario hizo clic en la tarea
+  const [taskStartTimes, setTaskStartTimes] = useState({});
 
   const [taskType, setTaskType] = useState(null);
   const [targetUrl, setTargetUrl] = useState('');
   const [botToken, setBotToken] = useState('');
-  const [validationCode, setValidationCode] = useState(''); // Nuevo estado para creadores
+  const [validationCode, setValidationCode] = useState(''); 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isDailyTask, setIsDailyTask] = useState(false);
 
@@ -108,15 +111,20 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
+  // 🛠️ EDICIÓN: Temporizador de respaldo (Fallback) para usuarios de PC o en caso de que no salgan de la app
   useEffect(() => {
-    const activeTasks = Object.keys(taskStatus).filter(id => taskStatus[id] === 'waiting');
+    const activeTasks = Object.keys(taskStatus).filter(id => taskStatus[id] === 'waiting_return');
     if (activeTasks.length > 0) {
       const timer = setInterval(() => {
         setCountdown(prev => {
           const next = { ...prev };
           activeTasks.forEach(id => {
+            if (next[id] === undefined) next[id] = 15; // 15s de espera requerida
             if (next[id] > 1) next[id] -= 1;
-            else { setTaskStatus(ts => ({ ...ts, [id]: 'ready' })); delete next[id]; }
+            else { 
+              setTaskStatus(ts => ({ ...ts, [id]: 'ready' })); 
+              delete next[id]; 
+            }
           });
           return next;
         });
@@ -124,6 +132,44 @@ export default function AdsTab({ userData, setUserData, t }) {
       return () => clearInterval(timer);
     }
   }, [taskStatus]);
+
+  // 🛠️ NUEVO: Sistema de Focus Tracking - Verifica que el usuario abandonó y regresó
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        setTaskStatus(prevStatus => {
+          const newStatus = { ...prevStatus };
+          let changed = false;
+          
+          Object.keys(newStatus).forEach(taskId => {
+            if (newStatus[taskId] === 'waiting_return') {
+              const startTime = taskStartTimes[taskId] || 0;
+              const timeAway = Date.now() - startTime;
+              
+              // Si regresó en menos de 3.5 segundos, es trampa (tocó "Cancelar" o cerró rápido)
+              if (timeAway < 3500) {
+                toast.error("Interacción demasiado rápida. Por favor, entra y permanece en el destino.");
+                delete newStatus[taskId]; // Resetea la tarea
+              } else {
+                newStatus[taskId] = 'ready'; // Validado, activa el botón
+              }
+              changed = true;
+            }
+          });
+          return changed ? newStatus : prevStatus;
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [taskStartTimes]);
+
 
   const fetchTasks = async () => {
     setLoadingTasks(true);
@@ -255,6 +301,7 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const cancelCheckout = () => { setCheckoutView(false); setRecharging(false); setIntentId(null); setTempWallet(''); };
 
+  // 🛠️ EDICIÓN: Activamos el estado "waiting_return" al abrir el enlace
   const handleStartTask = (task) => {
     try {
       let finalUrl = task.url.trim();
@@ -262,8 +309,10 @@ export default function AdsTab({ userData, setUserData, t }) {
       else if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`;
       if (finalUrl.includes('t.me') || finalUrl.includes('telegram.me')) WebApp.openTelegramLink(finalUrl);
       else WebApp.openLink(finalUrl, { try_instant_view: true });
-      setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting' }));
-      setCountdown(prev => ({ ...prev, [task.id]: 5 }));
+      
+      setTaskStartTimes(prev => ({ ...prev, [task.id]: Date.now() }));
+      setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting_return' }));
+      setCountdown(prev => ({ ...prev, [task.id]: 15 }));
     } catch (e) { toast.error("Error al procesar la redirección del enlace."); }
   };
 
@@ -374,7 +423,10 @@ export default function AdsTab({ userData, setUserData, t }) {
 
     if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
     if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{isDaily ? t('ads_btn_wait_tomorrow') : t('ads_completed')}</button>;
-    if (status === 'waiting') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_waiting')} ({countdown[task.id] || 0}s)</button>;
+    
+    // 🛠️ EDICIÓN: Mensaje de temporizador modificado para tracking de enfoque
+    if (status === 'waiting_return') return <button disabled style={neon.taskButtonDisabled}>⏳ ESPERANDO... {countdown[task.id] ? `(${countdown[task.id]}s)` : ''}</button>;
+    
     if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
 
     if (status === 'ready') {
@@ -389,7 +441,8 @@ export default function AdsTab({ userData, setUserData, t }) {
             />
           )}
           <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '130px' : 'auto'}}>
-            {TaskIcons.check} {t('ads_btn_check')}
+            {/* 🛠️ EDICIÓN: Cambio dinámico de texto para confirmar la acción de doble paso */}
+            {TaskIcons.check} {(task.type === 'bot' || task.type === 'promo') ? '✅ YA LO HICE (RECLAMAR)' : t('ads_btn_check')}
           </button>
         </div>
       );
