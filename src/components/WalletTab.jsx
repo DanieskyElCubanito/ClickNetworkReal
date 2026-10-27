@@ -22,6 +22,10 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
+  // 🛠️ NUEVO ESTADO: Requisitos de retiro y AdsGram
+  const [reqs, setReqs] = useState({ referrals: 0, ads: 0 });
+  const [playingAd, setPlayingAd] = useState(false);
+
   const [rechargeAmount, setRechargeAmount] = useState(10);
   const [rechargeMethod, setRechargeMethod] = useState('gram');
   const [checkoutView, setCheckoutView] = useState(false);
@@ -29,6 +33,40 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [tempWallet, setTempWallet] = useState('');
   const [intentId, setIntentId] = useState(null);
   const [liveGramUsd, setLiveGramUsd] = useState(5.00);
+
+  const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
+
+  // 🛠️ CARGA DE SCRIPT DE ADSGRAM
+  useEffect(() => {
+    if (!window.Adsgram) {
+      const script = document.createElement("script");
+      script.src = "https://sad.adsgram.ai/js/sad.min.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // 🛠️ OBTENER PROGRESO DE RETIRO DESDE EL BACKEND
+  useEffect(() => {
+    const fetchReqs = async () => {
+      if (userData?.id) {
+        try {
+          const res = await fetch('/api', { 
+            method: 'POST', 
+            headers: apiHeaders, 
+            body: JSON.stringify({ action: 'get-withdrawal-reqs', userId: userData.id }) 
+          });
+          const data = await res.json();
+          if (data.success) setReqs({ referrals: data.referrals, ads: data.ads });
+        } catch (e) {
+          console.error("Error cargando requisitos", e);
+        }
+      }
+    };
+    if (activeTab === 'withdraw') {
+      fetchReqs();
+    }
+  }, [userData?.id, activeTab]);
 
   useEffect(() => {
     const fetchTonPrice = async () => {
@@ -52,7 +90,34 @@ export default function WalletTab({ userData, setUserData, t }) {
   const numericRecharge = Number(rechargeAmount) || 0;
   const gramRechargePrice = (numericRecharge / liveGramUsd).toFixed(2);
 
-  const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
+  // 🛠️ FUNCIÓN PARA VER ANUNCIOS DE PROGRESO
+  const handleWatchProgressAd = () => {
+    if (!window.Adsgram) return toast.error("Servidor de anuncios inactivo. Desactiva tu bloqueador de anuncios.");
+    setPlayingAd(true);
+    const AdController = window.Adsgram.init({ blockId: "56255" }); 
+    AdController.show().then(async () => {
+      try {
+        const res = await fetch('/api', { 
+          method: 'POST', 
+          headers: apiHeaders, 
+          body: JSON.stringify({ action: 'watch-ad-progress', userId: userData.id }) 
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success("¡Anuncio contabilizado!");
+          setReqs(prev => ({ ...prev, ads: prev.ads + 1 }));
+          if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+        }
+      } catch (err) {
+        toast.error("Error guardando el progreso.");
+      } finally {
+        setPlayingAd(false);
+      }
+    }).catch(() => {
+      toast.error("Anuncio cancelado o cerrado antes de tiempo.");
+      setPlayingAd(false);
+    });
+  };
 
   const handleWithdraw = async () => {
     if (!withdrawAddress.trim()) return toast.error(t('bank_err_wallet_empty') || "Ingresa tu billetera TON.");
@@ -61,6 +126,11 @@ export default function WalletTab({ userData, setUserData, t }) {
     const gemasAmount = Number(withdrawAmount);
     if (!gemasAmount || gemasAmount < 50) return toast.error(t('bank_err_min_withdraw') || "El retiro mínimo es de 50 Gemas.");
     if (gemasAmount > gemBalance) return toast.error(t('bank_err_insufficient') || "No tienes suficientes Gemas.");
+
+    // 🛠️ VALIDACIÓN LOCAL DE REQUISITOS ANTES DE ENVIAR AL BACKEND
+    if (reqs.referrals < 3 && reqs.ads < 15) {
+      return toast.error("Debes cumplir uno de los requisitos para retirar (3 Referidos o 15 Anuncios hoy).");
+    }
 
     setIsWithdrawing(true);
     const tid = toast.loading(t('bank_msg_processing') || "Procesando retiro...");
@@ -204,7 +274,41 @@ export default function WalletTab({ userData, setUserData, t }) {
             </button>
           </div>
 
-          <button onClick={handleWithdraw} disabled={isWithdrawing} style={{...neonStyles.btnPink, background: 'linear-gradient(90deg, #ff1414, #8b0000)'}}>
+          {/* 🛠️ BLOQUE VISUAL DE REQUISITOS DE RETIRO */}
+          <div style={{ background: 'linear-gradient(145deg, #10061e, #1a0b33)', border: '1.5px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '20px' }}>
+            <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>🛡️ Requisitos de Retiro (Elige uno)</h4>
+            
+            {/* Opción 1: Referidos */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
+                <span>Opción 1: Referidos Activos</span>
+                <span style={{ color: reqs.referrals >= 3 ? '#00ffaa' : '#ff99dd' }}>{reqs.referrals} / 3</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>
+                <div style={{ width: `${Math.min((reqs.referrals / 3) * 100, 100)}%`, height: '100%', background: reqs.referrals >= 3 ? '#00ffaa' : '#ff1493', borderRadius: '4px', transition: 'width 0.3s' }}></div>
+              </div>
+            </div>
+
+            {/* Opción 2: Anuncios */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
+                <span>Opción 2: Anuncios de Hoy</span>
+                <span style={{ color: reqs.ads >= 15 ? '#00ffaa' : '#ff99dd' }}>{reqs.ads} / 15</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '12px' }}>
+                <div style={{ width: `${Math.min((reqs.ads / 15) * 100, 100)}%`, height: '100%', background: reqs.ads >= 15 ? '#00ffaa' : '#00f0ff', borderRadius: '4px', transition: 'width 0.3s' }}></div>
+              </div>
+              <button 
+                onClick={handleWatchProgressAd} 
+                disabled={playingAd || reqs.ads >= 15 || reqs.referrals >= 3}
+                style={{ width: '100%', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', padding: '10px', fontWeight: '900', fontSize: '13px', cursor: (reqs.ads >= 15 || reqs.referrals >= 3) ? 'not-allowed' : 'pointer', opacity: (reqs.ads >= 15 || reqs.referrals >= 3) ? 0.5 : 1 }}
+              >
+                {playingAd ? 'CARGANDO VIDEO...' : '▶ VER ANUNCIO PARA DESBLOQUEAR'}
+              </button>
+            </div>
+          </div>
+
+          <button onClick={handleWithdraw} disabled={isWithdrawing} style={{...neonStyles.btnPink, background: 'linear-gradient(90deg, #ff1414, #8b0000)', opacity: (reqs.referrals < 3 && reqs.ads < 15) ? 0.5 : 1 }}>
             {isWithdrawing ? (t('bank_btn_processing') || 'PROCESANDO...') : (t('bank_btn_withdraw') || 'SOLICITAR RETIRO ➔')}
           </button>
         </div>
