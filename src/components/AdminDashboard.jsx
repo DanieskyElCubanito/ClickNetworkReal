@@ -11,10 +11,9 @@ const Icons = {
   refresh: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
   wallet: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff99dd" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>,
   lock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-  // 🔥 NUEVOS ICONOS PARA RETIROS 🔥
   check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
-  cross: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-  // 🔥 FIN NUEVOS ICONOS 🔥
+  cross: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+  trophy: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffe600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10"/><path d="M17 4v8a5 5 0 0 1-10 0V4"/><path d="M7 4H4v3a2 2 0 0 0 2 2h1"/><path d="M17 4h3v3a2 2 0 0 1-2 2h-1"/></svg>
 };
 
 const neon = {
@@ -29,21 +28,28 @@ export default function AdminDashboard({ userData }) {
   const [stats, setStats] = useState({ users: 0, tasks: 0 });
   const [searchId, setSearchId] = useState('');
   const [foundUser, setFoundUser] = useState(null);
-  
-  // Saldos separados: Gemas (balance) y Bóveda USDT (deposit_balance)
+
   const [newBalance, setNewBalance] = useState('');
   const [newDepositBalance, setNewDepositBalance] = useState('');
-  
+
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
   const [sysConfig, setSysConfig] = useState({ master_wallet_gram: '', master_wallet_usdt_bep20: '' });
   const [savingConfig, setSavingConfig] = useState(false);
 
-  // 🔥 NUEVOS ESTADOS PARA RETIROS 🔥
   const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(false);
-  // 🔥 FIN NUEVOS ESTADOS 🔥
+
+  // 🔥 NUEVOS ESTADOS PARA GESTIÓN DE TORNEOS 🔥
+  const [activeEvent, setActiveEvent] = useState(null);
+  const [loadingEvent, setLoadingEvent] = useState(false);
+  const [eventTitle, setEventTitle] = useState('Torneo Semanal VIP');
+  const [eventType, setEventType] = useState('referral');
+  const [eventDays, setEventDays] = useState(7);
+  const [prize1, setPrize1] = useState('15 TON');
+  const [prize2, setPrize2] = useState('10 TON');
+  const [prize3, setPrize3] = useState('5 TON');
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
@@ -51,8 +57,8 @@ export default function AdminDashboard({ userData }) {
     loadStats();
     loadAllTasks();
     loadSysConfig();
-    // 🔥 LLAMAR A LA NUEVA FUNCIÓN 🔥
     loadPendingWithdrawals();
+    loadActiveEvent(); // Cargar torneo al iniciar
   }, []);
 
   const loadStats = async () => {
@@ -80,15 +86,9 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { console.error(e); }
   };
 
-  // 🔥 NUEVAS FUNCIONES DE RETIRO 🔥
   const loadPendingWithdrawals = async () => {
     setLoadingWithdrawals(true);
     try {
-      // Usamos una llamada directa a Supabase si tienes el cliente aquí, o llamamos a una nueva ruta api (si no la creamos en api/index.js, la simulamos desde las tareas o un custom endpoint).
-      // Como agregamos los endpoints en el backend en el paso anterior, los usamos aquí:
-      // NOTA: Para no alterar tu backend más de lo necesario, asumiré que harás una consulta directa usando supabase-js si lo tienes en el frontend. Si no lo tienes, deberás agregar la ruta en el backend (action === 'admin-get-withdrawals'). 
-      // Por practicidad y seguridad, crearemos una ruta ficticia aquí o asumiremos que el backend la tiene. Si falla, el catch lo captura.
-      
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-withdrawals', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setPendingWithdrawals(data.withdrawals || []);
@@ -108,7 +108,7 @@ export default function AdminDashboard({ userData }) {
 
   const handleRejectWithdrawal = async (withdrawalId) => {
     const reason = window.prompt("Motivo del rechazo (se mostrará al usuario):");
-    if (reason === null) return; // Cancelado por el admin
+    if (reason === null) return; 
     const tid = toast.loading("Rechazando...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-reject-withdrawal', adminId: userData.id, withdrawalId, reason }) });
@@ -117,7 +117,6 @@ export default function AdminDashboard({ userData }) {
       else throw new Error(data.error);
     } catch (err) { toast.error(err.message || "Error al rechazar.", { id: tid }); }
   };
-  // 🔥 FIN NUEVAS FUNCIONES DE RETIRO 🔥
 
   const handleSaveConfig = async () => {
     const tid = toast.loading("Guardando configuración...");
@@ -195,6 +194,72 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error("Error en la operación", { id: tid }); }
   };
 
+  // 🔥 FUNCIONES DE GESTIÓN DE TORNEOS 🔥
+  const loadActiveEvent = async () => {
+    setLoadingEvent(true);
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'get-active-event' }) });
+      const data = await res.json();
+      if (data.success && data.activeEvent) {
+        setActiveEvent(data.activeEvent);
+      } else {
+        setActiveEvent(null);
+      }
+    } catch (e) { console.error("Error cargando evento", e); } finally { setLoadingEvent(false); }
+  };
+
+  const handleCreateEvent = async () => {
+    if (!eventTitle.trim()) return toast.error("Ponle un título al torneo.");
+    const tid = toast.loading("Lanzando torneo en vivo...");
+    try {
+      const startDate = new Date().toISOString();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + Number(eventDays));
+
+      const res = await fetch('/api', {
+        method: 'POST', headers: apiHeaders,
+        body: JSON.stringify({
+          action: 'admin-create-event',
+          adminId: userData.id,
+          title: eventTitle,
+          event_type: eventType,
+          start_date: startDate,
+          end_date: endDate.toISOString(),
+          prizes: [prize1, prize2, prize3]
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("¡Torneo activado con éxito!", { id: tid });
+        loadActiveEvent();
+      } else throw new Error(data.error);
+    } catch (e) { toast.error(e.message || "Error al crear", { id: tid }); }
+  };
+
+  const handleManageEvent = async (newStatus) => {
+    if (!activeEvent) return;
+    const confirmMsg = newStatus === 'deleted' ? "¿Estás seguro de ELIMINAR todo el torneo actual?" : "¿Quieres FINALIZAR el torneo ahora mismo?";
+    if (!window.confirm(confirmMsg)) return;
+    
+    const tid = toast.loading("Procesando...");
+    try {
+      const res = await fetch('/api', {
+        method: 'POST', headers: apiHeaders,
+        body: JSON.stringify({
+          action: 'admin-manage-event',
+          adminId: userData.id,
+          eventId: activeEvent.id,
+          newStatus: newStatus
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Torneo actualizado", { id: tid });
+        loadActiveEvent();
+      } else throw new Error(data.error);
+    } catch (e) { toast.error(e.message || "Error en la gestión", { id: tid }); }
+  };
+
   return (
     <div style={{ color: '#fff', paddingBottom: '20px' }}>
       <Toaster containerStyle={{ zIndex: 9999999 }} />
@@ -212,6 +277,73 @@ export default function AdminDashboard({ userData }) {
           <div style={{ fontSize: '24px', fontWeight: '900', color: '#00ffaa' }}>{stats.tasks}</div>
           <div style={{ fontSize: '10px', color: '#ff99dd', fontWeight: '900' }}>CAMPAÑAS CREADAS</div>
         </div>
+      </div>
+
+      {/* 🔥 NUEVA SECCIÓN: GESTIÓN DE TORNEOS 🔥 */}
+      <div style={{ ...neon.card, borderColor: '#00f0ff', background: 'linear-gradient(145deg, #0d1225, #050b14)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', color: '#00f0ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {Icons.trophy} Gestión de Torneos
+          </h3>
+          <button onClick={loadActiveEvent} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>{Icons.refresh}</button>
+        </div>
+
+        {loadingEvent ? (
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#00f0ff' }}>Comprobando eventos activos...</div>
+        ) : activeEvent ? (
+          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '16px', borderRadius: '12px', border: '1px dashed #00f0ff', textAlign: 'center' }}>
+            <div style={{ color: '#00ffaa', fontSize: '10px', fontWeight: '900', letterSpacing: '1px', marginBottom: '6px' }}>TORNEO EN CURSO</div>
+            <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>{activeEvent.title}</div>
+            <div style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '16px' }}>
+              Modalidad: <b>{activeEvent.event_type === 'referral' ? 'Invitar Amigos' : 'Completar Tareas'}</b>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '12px' }}>
+              <div><div style={{fontSize:'16px'}}>🥇</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{activeEvent.prizes[0]}</div></div>
+              <div><div style={{fontSize:'16px'}}>🥈</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{activeEvent.prizes[1]}</div></div>
+              <div><div style={{fontSize:'16px'}}>🥉</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{activeEvent.prizes[2]}</div></div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => handleManageEvent('completed')} style={{ ...neon.btn, background: 'linear-gradient(90deg, #00f0ff, #0088ff)', flex: 1, color: '#fff' }}>FINALIZAR AHORA</button>
+              <button onClick={() => handleManageEvent('deleted')} style={{ ...neon.btnDanger, flex: 1 }}>{Icons.trash} ELIMINAR</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ fontSize: '11px', color: '#aaa', textAlign: 'center', marginBottom: '8px' }}>Crea un evento dinámico para que los usuarios compitan en el Salón de la Fama.</div>
+            
+            <div>
+              <span style={neon.label}>Título del Evento</span>
+              <input type="text" style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0}} value={eventTitle} onChange={e => setEventTitle(e.target.value)} placeholder="Ej. Torneo de Fin de Semana" />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ flex: 2 }}>
+                <span style={neon.label}>Modo de Competencia</span>
+                <select style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0, padding: '11px'}} value={eventType} onChange={e => setEventType(e.target.value)}>
+                  <option value="referral">👥 Referidos (Invitar Amigos)</option>
+                  <option value="task_completion">🔥 Actividad (Hacer Tareas)</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <span style={neon.label}>Días de duración</span>
+                <input type="number" style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0, textAlign: 'center'}} value={eventDays} onChange={e => setEventDays(e.target.value)} />
+              </div>
+            </div>
+
+            <span style={{...neon.label, marginTop: '8px'}}>Premios para el TOP 3 (Pesos Específicos)</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input type="text" style={{...neon.input, borderColor: '#ffe600', marginBottom: 0, textAlign: 'center'}} value={prize1} onChange={e => setPrize1(e.target.value)} placeholder="🥇 1er Lugar" />
+              <input type="text" style={{...neon.input, borderColor: '#C0C0C0', marginBottom: 0, textAlign: 'center'}} value={prize2} onChange={e => setPrize2(e.target.value)} placeholder="🥈 2do Lugar" />
+              <input type="text" style={{...neon.input, borderColor: '#cd7f32', marginBottom: 0, textAlign: 'center'}} value={prize3} onChange={e => setPrize3(e.target.value)} placeholder="🥉 3er Lugar" />
+            </div>
+
+            <button onClick={handleCreateEvent} style={{ ...neon.btn, background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#fff', marginTop: '10px' }}>
+              🚀 LANZAR TORNEO EN VIVO
+            </button>
+          </div>
+        )}
       </div>
 
       {/* CONFIGURACIÓN DE BILLETERAS */}
@@ -343,12 +475,11 @@ export default function AdminDashboard({ userData }) {
           </div>
         )}
       </div>
-      {/* 🔥 FIN PANEL DE RETIROS PENDIENTES 🔥 */}
 
       {/* AUDITORÍA DE CAMPAÑAS */}
       <div style={neon.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', color: '#00ffaa' }}>Auditoría de Campañas</h3>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#00ffaa' }}>Auditoría de Campañas</h3>
           <button onClick={loadAllTasks} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>{Icons.refresh}</button>
         </div>
 
