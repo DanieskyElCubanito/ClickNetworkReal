@@ -377,6 +377,43 @@ export default async function handler(req, res) {
       });
     }
 
+        // 🔥 NUEVO: Obtener los Tops (Completores y Referidos)
+    if (action === 'get-leaderboard') {
+      // Top completores de tareas
+      const { data: topTasks } = await supabase
+        .from('user_completed_tasks')
+        .select('user_id, count(*)')
+        .group('user_id')
+        .order('count', { ascending: false })
+        .limit(10);
+
+      // Enriquecer con nombres de usuario
+      const completedRanking = [];
+      if (topTasks) {
+        for (const item of topTasks) {
+          const { data: usr } = await supabase.from('users').select('username').eq('id', item.user_id).single();
+          completedRanking.push({
+            id: item.user_id,
+            username: usr?.username || 'Usuario',
+            score: item.count
+          });
+        }
+      }
+
+      // Top referidos
+      const { data: topReferrers } = await supabase
+        .from('users')
+        .select('id, username, referral_earnings')
+        .order('referral_earnings', { ascending: false })
+        .limit(10);
+
+      return res.status(200).json({ 
+        success: true, 
+        topTasks: completedRanking, 
+        topReferrals: topReferrers || [] 
+      });
+    }
+
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
