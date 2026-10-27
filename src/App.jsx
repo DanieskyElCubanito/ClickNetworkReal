@@ -26,7 +26,10 @@ function App() {
   const [status, setStatus] = useState('loading'); 
   const [activeTab, setActiveTab] = useState('home'); 
   const [userData, setUserData] = useState(null);
-  const [stats, setStats] = useState({ n1: 0, c1: "0.000" });
+  
+  // 🛠️ EDICIÓN: Ajustado a 2 decimales profesionales ("0.00" en lugar de "0.000")
+  const [stats, setStats] = useState({ n1: 0, c1: "0.00" });
+  
   const [errorMessage, setErrorMessage] = useState('');
 
   const [lang, setLang] = useState(localStorage.getItem('click_lang') || 'es');
@@ -86,7 +89,10 @@ function App() {
 
       if (data && data.success && data.user) {
         setUserData(data.user);
-        setStats(data.stats || { n1: 0, c1: "0.000" });
+        
+        // 🛠️ EDICIÓN: Ajustado a 2 decimales para cuando la API devuelve datos vacíos
+        setStats(data.stats || { n1: 0, c1: "0.00" });
+        
         setStatus('member');
       } else {
         setErrorMessage(safeErrorMessage(data, "Error al sincronizar con el servidor."));
