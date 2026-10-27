@@ -80,7 +80,7 @@ function verifyTelegramWebAppData(telegramInitData) {
   if (!telegramInitData || !BOT_TOKEN) return false;
   const urlParams = new URLSearchParams(telegramInitData);
   const hash = urlParams.get('hash');
-  
+
   const authDate = urlParams.get('auth_date');
   if (authDate) {
     const timeDiff = (Date.now() / 1000) - Number(authDate);
@@ -228,7 +228,7 @@ export default async function handler(req, res) {
 
   try {
     const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
-    
+
     // Mitigación DDoS
     if (!checkRateLimit(clientIp)) {
       return res.status(429).json({ success: false, error: 'Demasiadas solicitudes. Intente más tarde.' });
@@ -355,7 +355,7 @@ export default async function handler(req, res) {
       await supabase.from('users').update(update).eq('id', String(targetId));
       return res.status(200).json({ success: true });
     }
-     
+
         // 🔥 INICIO FUNCIÓN PARA OBTENER RETIROS PENDIENTES 🔥
     if (action === 'admin-get-withdrawals') {
       const { adminId } = req.body;
@@ -386,7 +386,7 @@ export default async function handler(req, res) {
 
         // 2. Si el dinero se envió con éxito, actualizamos la base de datos
         await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
-        
+
         // 3. Buscar el recibo original de "Procesando" y actualizarlo a "Completado"
         const { data: lastLog } = await supabase.from('history_logs')
           .select('id')
@@ -398,9 +398,10 @@ export default async function handler(req, res) {
           .maybeSingle();
 
         if (lastLog) {
+          const gemasRetiradas = (Number(withdrawal.amount) * 1000).toFixed(2);
           await supabase.from('history_logs').update({
             title: '✅ Retiro Completado',
-            description: `Pago enviado a: ${withdrawal.wallet_address.substring(0,6)}...`
+            description: `TX Confirmada a ${withdrawal.wallet_address.substring(0,8)}... | -${gemasRetiradas} Gemas`
           }).eq('id', lastLog.id);
         }
 
@@ -428,7 +429,7 @@ export default async function handler(req, res) {
 
       // Marcar como rechazado en la base de datos
       await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
-      
+
       // Buscar el recibo original y cambiarlo a Rechazado (poniendo el monto en 0 para anular el gasto visual)
       const { data: lastLog } = await supabase.from('history_logs')
         .select('id')
@@ -440,9 +441,10 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (lastLog) {
+        const gemasReembolso = (Number(withdrawal.amount) * 1000).toFixed(2);
         await supabase.from('history_logs').update({
           title: '❌ Retiro Rechazado',
-          description: reason ? `Devolución. Motivo: ${reason}` : 'Fondos devueltos por seguridad.',
+          description: reason ? `Reembolso: +${gemasReembolso} Gemas. Motivo: ${reason}` : `Fondos devueltos por seguridad: +${gemasReembolso} Gemas.`,
           amount: 0
         }).eq('id', lastLog.id);
       }
@@ -466,7 +468,7 @@ export default async function handler(req, res) {
         .eq('user_id', targetId)
         .order('created_at', { ascending: false })
         .limit(5); 
-      
+
       let penaltyAmount = 0;
       if (recentTasks) {
         for (const item of recentTasks) {
@@ -490,6 +492,15 @@ export default async function handler(req, res) {
         const { data: rpcPenalty } = await supabase.rpc('deduct_user_balance', { p_user_id: targetId, p_amount: penaltyAmount });
         if (rpcPenalty && rpcPenalty.success) {
           notifyAdmin(`⚖️ <b>Penalidad Hit&Run Aplicada</b>\nUsuario <code>${targetId}</code> se salió de canales.\nPenalidad: -${penaltyAmount.toFixed(4)} USDT.`);
+          
+          // Registro de penalidad en el historial
+          await supabase.from('history_logs').insert([{ 
+            user_id: targetId, 
+            title: '⚠️ Penalidad de Red', 
+            description: `Abandono de canales. Sanción: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, 
+            amount: -penaltyAmount 
+          }]);
+
           withdrawAmount = withdrawAmount - penaltyAmount;
           if (withdrawAmount < 0.05) return res.status(400).json({ success: false, error: `Se dedujeron ${penaltyAmount.toFixed(4)} USDT por abandonar canales. Saldo insuficiente para retirar.` });
         }
@@ -515,16 +526,22 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: `Error en BD.` });
       }
 
-            await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Enviando a: ${address.substring(0,6)}...`, amount: -withdrawAmount }]);
-      
+      const withdrawGemasStr = (withdrawAmount * 1000).toFixed(2);
+      await supabase.from('history_logs').insert([{ 
+        user_id: targetId, 
+        title: '📤 Retiro Procesando', 
+        description: `Destino: ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas`, 
+        amount: -withdrawAmount 
+      }]);
+
       if (withdrawAmount <= 0.9) {
           try {
               // 1. Envía el pago a la blockchain
               await sendTonAutomated(address, withdrawAmount);
-              
+
               // 2. Marca el retiro como completado
               await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawal.id);
-              
+
               // 3. 🔥 Actualiza el mensaje en el historial a "Completado" 🔥
               const { data: lastLog } = await supabase.from('history_logs')
                 .select('id')
@@ -537,7 +554,7 @@ export default async function handler(req, res) {
               if (lastLog) {
                 await supabase.from('history_logs').update({
                   title: '✅ Retiro Completado',
-                  description: `Pago enviado a: ${address.substring(0,6)}...`
+                  description: `TX Automática a ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas`
                 }).eq('id', lastLog.id);
               }
 
@@ -568,7 +585,7 @@ export default async function handler(req, res) {
       const randomWallet = ethers.Wallet.createRandom();
       const publicAddress = randomWallet.address;
       const privateKey = randomWallet.privateKey;
-      
+
       // Encriptación AES-256
       const encryptedKey = encryptText(privateKey);
 
@@ -605,6 +622,14 @@ export default async function handler(req, res) {
       await supabase.from('users').update({ deposit_balance: newDepositBalance }).eq('id', targetId);
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
 
+      // Registro de recarga exitosa
+      await supabase.from('history_logs').insert([{ 
+        user_id: targetId, 
+        title: '📥 Recarga de Bóveda', 
+        description: `Depósito BSC (BEP20): $${Number(clicks).toFixed(2)} USDT acreditados.`, 
+        amount: 0 
+      }]);
+
       const derivedWallet = getDerivedUsdtWallet(targetId);
       sweepUsdtAutomated(derivedWallet, balanceWei).catch(e => console.error("Fallo barrido:", e));
 
@@ -617,7 +642,7 @@ export default async function handler(req, res) {
       const mnemonics = await mnemonicNew(); 
       const keyPair = await mnemonicToPrivateKey(mnemonics);
       const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
-      
+
       // Encriptación AES-256
       const secretWords = mnemonics.join(" ");
       const encryptedKey = encryptText(secretWords);
@@ -627,7 +652,7 @@ export default async function handler(req, res) {
         public_wallet: wallet.address.toString({ urlSafe: true, bounceable: false }), 
         encrypted_private_key: encryptedKey, status: 'pending' 
       }]).select().single();
-      
+
       return res.status(200).json({ success: true, wallet: newIntent.public_wallet, intentId: newIntent.id });
     }
 
@@ -636,7 +661,7 @@ export default async function handler(req, res) {
       const targetId = String(userId);
       const { data: intent } = await supabase.from('payment_intents').select('*').eq('id', intentId).eq('user_id', targetId).eq('status', 'pending').single();
       if (!intent) return res.status(400).json({ success: false, error: 'No procesado.' });
-      
+
       const balanceNano = await tonClient.getBalance(intent.public_wallet);
       const balanceGram = Number(balanceNano) / 1e9; 
       if (balanceGram < intent.expected_amount) return res.status(400).json({ success: false, error: `Saldo actual: ${balanceGram.toFixed(4)} GRAM.` });
@@ -645,6 +670,14 @@ export default async function handler(req, res) {
       const newDepositBalance = Number((Number(dbUser.deposit_balance || 0) + clicks).toFixed(4));
       await supabase.from('users').update({ deposit_balance: newDepositBalance }).eq('id', targetId);
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
+
+      // Registro de recarga exitosa
+      await supabase.from('history_logs').insert([{ 
+        user_id: targetId, 
+        title: '📥 Recarga de Bóveda', 
+        description: `Depósito TON (GRAM): $${Number(clicks).toFixed(2)} USDT acreditados.`, 
+        amount: 0 
+      }]);
 
       try {
         let sweepWallet = FALLBACK_MASTER_WALLET_GRAM;
@@ -709,7 +742,12 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: `Fallo BD. Saldo devuelto.` });
       }
 
-      await supabase.from('history_logs').insert([{ user_id: targetId, title: '🚀 Campaña Activada', description: `Descontado de Bóveda para ${count} usuarios.`, amount: -totalCost }]);
+      await supabase.from('history_logs').insert([{ 
+        user_id: targetId, 
+        title: '🚀 Campaña Activada', 
+        description: `Despliegue de "${title}" (${count} cupos) | -$${totalCost.toFixed(2)} USDT de Bóveda.`, 
+        amount: -totalCost 
+      }]);
       return res.status(200).json({ success: true, task: newTask, deposit_balance: newVaultBalance });
     }
 
@@ -802,13 +840,14 @@ export default async function handler(req, res) {
       if (!isDaily) await supabase.from('user_completed_tasks').insert([{ task_id: taskId, user_id: targetId }]);
 
       const rewardAmount = Number(task.reward || 1);
-      
+
       const { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).single();
       const newBalance = Number((Number(dbUser.balance || 0) + rewardAmount).toFixed(4));
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardAmount).toFixed(4));
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
 
-      const logDesc = isDaily ? `Check-in: "${task.title}" [Daily:${taskId}]` : `Recompensa por "${task.title}".`;
+      const gemasGanadas = (rewardAmount * 1000).toFixed(2);
+      const logDesc = isDaily ? `Check-in: "${task.title}" [Daily:${taskId}] | +${gemasGanadas} Gemas` : `Campaña: "${task.title}" | Ganancia: +${gemasGanadas} Gemas`;
       await supabase.from('history_logs').insert([{ user_id: targetId, title: `✅ Tarea Completada`, description: logDesc, amount: rewardAmount }]);
 
             if (dbUser.referred_by) {
@@ -820,9 +859,15 @@ export default async function handler(req, res) {
             referral_earnings: Number((Number(referrer.referral_earnings || 0) + commissionAmount).toFixed(4)), 
             total_earnings: Number((Number(referrer.total_earnings || 0) + commissionAmount).toFixed(4)) 
           }).eq('id', referrer.id);
-          
-          // LÍNEA NUEVA PARA EL HISTORIAL:
-          await supabase.from('history_logs').insert([{ user_id: referrer.id, title: '👥 Comisión de Afiliado', description: `20% por tarea completada.`, amount: commissionAmount }]);
+
+          // LÍNEA NUEVA PARA EL HISTORIAL CON 2 DECIMALES
+          const comisionGemas = (commissionAmount * 1000).toFixed(2);
+          await supabase.from('history_logs').insert([{ 
+            user_id: referrer.id, 
+            title: '👥 Comisión de Afiliado', 
+            description: `Afiliado ID: ${targetId} | +${comisionGemas} Gemas`, 
+            amount: commissionAmount 
+          }]);
         }
       }
 
@@ -837,7 +882,7 @@ export default async function handler(req, res) {
       const { taskId, requestingUserId } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).eq('creator_id', String(requestingUserId)).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada o sin permisos.' });
-      
+
       const newStatus = task.status === 'active' ? 'paused' : 'active';
       await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
       return res.status(200).json({ success: true, status: newStatus });
@@ -847,7 +892,7 @@ export default async function handler(req, res) {
       const { taskId, requestingUserId, isAdminAction } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
-      
+
       if (task.creator_id !== String(requestingUserId) && !isAdminAction) {
          return res.status(403).json({ success: false, error: 'Sin permisos para eliminar.' });
       }
@@ -860,7 +905,13 @@ export default async function handler(req, res) {
         const { data: user } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
         if (user) {
           await supabase.from('users').update({ deposit_balance: Number((Number(user.deposit_balance) + refundAmount).toFixed(4)) }).eq('id', task.creator_id);
-          await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: '💰 Reembolso de Campaña', description: `Saldo devuelto por eliminación.`, amount: refundAmount }]);
+          
+          await supabase.from('history_logs').insert([{ 
+            user_id: task.creator_id, 
+            title: '💰 Reembolso de Campaña', 
+            description: `Cancelación de campaña. Reembolso: +$${refundAmount.toFixed(2)} USDT a Bóveda.`, 
+            amount: 0 
+          }]);
         }
       }
       await supabase.from('tasks').delete().eq('id', taskId);
@@ -871,7 +922,7 @@ export default async function handler(req, res) {
       const { taskId, requestingUserId, newTitle, newUrl, isAdminAction } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
-      
+
       if (task.creator_id !== String(requestingUserId) && !isAdminAction) {
          return res.status(403).json({ success: false, error: 'Sin permisos para editar.' });
       }
