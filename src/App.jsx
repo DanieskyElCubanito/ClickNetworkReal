@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import WebApp from '@twa-dev/sdk';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import toast, { Toaster } from 'react-hot-toast';  
-import { translations } from './translations'; 
+import { translations } from './translations';
 
 import ProfileHeader from './components/ProfileHeader';
 import HomeTab from './components/HomeTab';
