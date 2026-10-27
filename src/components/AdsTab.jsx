@@ -49,8 +49,6 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [taskStatus, setTaskStatus] = useState({}); 
   const [countdown, setCountdown] = useState({});
   const [verifyInputs, setVerifyInputs] = useState({}); 
-
-  // 🛠️ NUEVO ESTADO: Registra la hora exacta en la que el usuario hizo clic en la tarea
   const [taskStartTimes, setTaskStartTimes] = useState({});
 
   const [taskType, setTaskType] = useState(null);
@@ -104,26 +102,26 @@ export default function AdsTab({ userData, setUserData, t }) {
   const totalGemasCost = baseCostGemas + referralFeeGemas + adminFeeGemas; 
 
   const campaignCostUsdt = totalGemasCost / 1000; 
-
   const gramRechargePrice = (rechargeAmount / liveGramUsd).toFixed(2);
 
   useEffect(() => {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
-  // 🛠️ EDICIÓN: Temporizador de respaldo (Fallback) para usuarios de PC o en caso de que no salgan de la app
+  // 🛠️ EDICIÓN 1: Temporizador de Castigo/Respaldo (Si tocan "Cancelar" o usan PC)
   useEffect(() => {
-    const activeTasks = Object.keys(taskStatus).filter(id => taskStatus[id] === 'waiting_return');
+    const activeTasks = Object.keys(taskStatus).filter(id => taskStatus[id] === 'clicked_link');
     if (activeTasks.length > 0) {
       const timer = setInterval(() => {
         setCountdown(prev => {
           const next = { ...prev };
           activeTasks.forEach(id => {
-            if (next[id] === undefined) next[id] = 15; // 15s de espera requerida
-            if (next[id] > 1) next[id] -= 1;
-            else { 
-              setTaskStatus(ts => ({ ...ts, [id]: 'ready' })); 
-              delete next[id]; 
+            if (next[id] === undefined) next[id] = 15; // 15s lentos de castigo si no cambian de app
+            if (next[id] > 1) {
+              next[id] -= 1;
+            } else {
+              setTaskStatus(ts => ({ ...ts, [id]: 'ready_to_claim' }));
+              delete next[id];
             }
           });
           return next;
@@ -133,30 +131,45 @@ export default function AdsTab({ userData, setUserData, t }) {
     }
   }, [taskStatus]);
 
-  // 🛠️ NUEVO: Sistema de Focus Tracking - Verifica que el usuario abandonó y regresó
+  // 🛠️ EDICIÓN 2: Sistema Anti-Fraude de Enfoque (Focus Tracking)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        setTaskStatus(prevStatus => {
-          const newStatus = { ...prevStatus };
-          let changed = false;
-          
-          Object.keys(newStatus).forEach(taskId => {
-            if (newStatus[taskId] === 'waiting_return') {
-              const startTime = taskStartTimes[taskId] || 0;
-              const timeAway = Date.now() - startTime;
-              
-              // Si regresó en menos de 3.5 segundos, es trampa (tocó "Cancelar" o cerró rápido)
-              if (timeAway < 3500) {
-                toast.error("Interacción demasiado rápida. Por favor, entra y permanece en el destino.");
-                delete newStatus[taskId]; // Resetea la tarea
-              } else {
-                newStatus[taskId] = 'ready'; // Validado, activa el botón
-              }
-              changed = true;
+      if (document.hidden) {
+        // El usuario salió hacia el Bot/App (hizo lo correcto)
+        setTaskStatus(prev => {
+          const next = { ...prev };
+          Object.keys(next).forEach(id => {
+            if (next[id] === 'clicked_link' || next[id] === 'ready_to_claim') {
+              next[id] = 'away';
+              setTaskStartTimes(times => ({ ...times, [id]: Date.now() }));
             }
           });
-          return changed ? newStatus : prevStatus;
+          return next;
+        });
+      } else {
+        // El usuario regresó a la Mini App
+        setTaskStatus(prev => {
+          const next = { ...prev };
+          let showedError = false;
+
+          Object.keys(next).forEach(id => {
+            if (next[id] === 'away') {
+              const timeAway = Date.now() - (taskStartTimes[id] || 0);
+              
+              if (timeAway >= 5000) { 
+                // Estuvo más de 5 segundos fuera: Aprobado
+                next[id] = 'ready_to_claim';
+              } else {
+                // Estuvo menos de 5 segundos: Trampa detectada
+                next[id] = 'ready'; // Reseteamos la tarea
+                if (!showedError) {
+                  toast.error("Interacción rechazada. Debes abrir el enlace y permanecer al menos 5 segundos.", { duration: 4000 });
+                  showedError = true;
+                }
+              }
+            }
+          });
+          return next;
         });
       }
     };
@@ -250,7 +263,6 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
       toast.success("La campaña publicitaria se ha activado exitosamente.", { id: tid });
       
-      // Limpiar estados
       setTaskType(null); setTargetUrl(''); setBotToken(''); setValidationCode(''); setIsDailyTask(false); 
       setCompletions(100); setCurrentStepIndex(0); setRecharging(false); setView('activity');
     } catch (err) { toast.error(err.message || "Se ha producido un error durante el procesamiento.", { id: tid }); } finally { setIsGenerating(false); }
@@ -301,7 +313,7 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const cancelCheckout = () => { setCheckoutView(false); setRecharging(false); setIntentId(null); setTempWallet(''); };
 
-  // 🛠️ EDICIÓN: Activamos el estado "waiting_return" al abrir el enlace
+  // 🛠️ EDICIÓN 3: Función StartTask lanza el estado `clicked_link`
   const handleStartTask = (task) => {
     try {
       let finalUrl = task.url.trim();
@@ -310,9 +322,7 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (finalUrl.includes('t.me') || finalUrl.includes('telegram.me')) WebApp.openTelegramLink(finalUrl);
       else WebApp.openLink(finalUrl, { try_instant_view: true });
       
-      setTaskStartTimes(prev => ({ ...prev, [task.id]: Date.now() }));
-      setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting_return' }));
-      setCountdown(prev => ({ ...prev, [task.id]: 15 }));
+      setTaskStatus(prev => ({ ...prev, [task.id]: 'clicked_link' }));
     } catch (e) { toast.error("Error al procesar la redirección del enlace."); }
   };
 
@@ -420,16 +430,15 @@ export default function AdsTab({ userData, setUserData, t }) {
     const isDaily = task.type.startsWith('daily_');
     const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
 
-
     if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
     if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{isDaily ? t('ads_btn_wait_tomorrow') : t('ads_completed')}</button>;
     
-    // 🛠️ EDICIÓN: Mensaje de temporizador modificado para tracking de enfoque
-    if (status === 'waiting_return') return <button disabled style={neon.taskButtonDisabled}>⏳ ESPERANDO... {countdown[task.id] ? `(${countdown[task.id]}s)` : ''}</button>;
-    
+    // 🛠️ EDICIÓN 4: Estados visuales según el Tracking
+    if (status === 'clicked_link') return <button disabled style={neon.taskButtonDisabled}>⏳ ESPERANDO VISITA {countdown[task.id] ? `(${countdown[task.id]}s)` : ''}</button>;
+    if (status === 'away') return <button disabled style={neon.taskButtonDisabled}>⏳ VERIFICANDO...</button>;
     if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
 
-    if (status === 'ready') {
+    if (status === 'ready_to_claim') {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
           {task.validation_code && (
@@ -441,8 +450,7 @@ export default function AdsTab({ userData, setUserData, t }) {
             />
           )}
           <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '130px' : 'auto'}}>
-            {/* 🛠️ EDICIÓN: Cambio dinámico de texto para confirmar la acción de doble paso */}
-            {TaskIcons.check} {(task.type === 'bot' || task.type === 'promo') ? '✅ YA LO HICE (RECLAMAR)' : t('ads_btn_check')}
+            {TaskIcons.check} ✅ YA LO HICE (RECLAMAR)
           </button>
         </div>
       );
