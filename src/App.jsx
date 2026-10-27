@@ -12,6 +12,8 @@ import BottomNav from './components/BottomNav';
 import AdminDashboard from './components/AdminDashboard';
 import WalletTab from './components/WalletTab'; 
 import MarketTab from './components/MarketTab';
+// 🛠️ NUEVO: Importamos la nueva pestaña del Salón de la Fama
+import LeaderboardTab from './components/LeaderboardTab';
 
 const neonTheme = {
   container: { backgroundColor: '#0a0314', backgroundImage: 'radial-gradient(circle at 50% 10%, #2b0b47 0%, #0a0314 80%)', minHeight: '100vh', height: 'var(--tg-viewport-height, 100vh)', color: '#ffffff', fontFamily: "'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif", display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
@@ -26,10 +28,10 @@ function App() {
   const [status, setStatus] = useState('loading'); 
   const [activeTab, setActiveTab] = useState('home'); 
   const [userData, setUserData] = useState(null);
-  
+
   // 🛠️ EDICIÓN: Ajustado a 2 decimales profesionales ("0.00" en lugar de "0.000")
   const [stats, setStats] = useState({ n1: 0, c1: "0.00" });
-  
+
   const [errorMessage, setErrorMessage] = useState('');
 
   const [lang, setLang] = useState(localStorage.getItem('click_lang') || 'es');
@@ -89,10 +91,10 @@ function App() {
 
       if (data && data.success && data.user) {
         setUserData(data.user);
-        
+
         // 🛠️ EDICIÓN: Ajustado a 2 decimales para cuando la API devuelve datos vacíos
         setStats(data.stats || { n1: 0, c1: "0.00" });
-        
+
         setStatus('member');
       } else {
         setErrorMessage(safeErrorMessage(data, "Error al sincronizar con el servidor."));
@@ -185,6 +187,8 @@ function App() {
         {activeTab === 'referrals' && <div className="fade-in"><ShareTab stats={stats} handleShare={handleShare} userId={userData?.id} totalReferralEarnings={userData?.referral_earnings} t={t} /></div>}
         {activeTab === 'wallet' && <div className="fade-in"><WalletTab userData={userData} setUserData={setUserData} t={t} /></div>}
         {activeTab === 'admin' && <div className="fade-in"><AdminDashboard userData={userData} t={t} /></div>}
+        {/* 🛠️ NUEVO: Añadimos la renderización del Top de Usuarios */}
+        {activeTab === 'leaderboard' && <div className="fade-in"><LeaderboardTab userData={userData} t={t} /></div>}
       </div>
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} userData={userData} t={t} />
     </div>
