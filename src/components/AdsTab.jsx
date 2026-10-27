@@ -50,7 +50,6 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [loadingTasks, setLoadingTasks] = useState(false);
 
   const [taskStatus, setTaskStatus] = useState({}); 
-  const [countdown, setCountdown] = useState({});
   const [verifyInputs, setVerifyInputs] = useState({}); 
   const [taskStartTimes, setTaskStartTimes] = useState({});
 
@@ -121,72 +120,67 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
+  // 🛡️ LÓGICA ANTI-TRAMPAS MEJORADA (Sin reloj interno)
   useEffect(() => {
-    const activeTasks = Object.keys(taskStatus).filter(id => taskStatus[id] === 'clicked_link');
-    if (activeTasks.length > 0) {
-      const timer = setInterval(() => {
-        setCountdown(prev => {
-          const next = { ...prev };
-          activeTasks.forEach(id => {
-            if (next[id] === undefined) next[id] = 15;
-            if (next[id] > 1) {
-              next[id] -= 1;
-            } else {
-              setTaskStatus(ts => ({ ...ts, [id]: 'ready_to_claim' }));
-              delete next[id];
-            }
-          });
-          return next;
+    const handleHide = () => {
+      setTaskStatus(prevStatus => {
+        const nextStatus = { ...prevStatus };
+        let changed = false;
+        const newStartTimes = {};
+        
+        Object.keys(nextStatus).forEach(id => {
+          if (nextStatus[id] === 'waiting_for_redirect' || nextStatus[id] === 'ready_to_claim') {
+            nextStatus[id] = 'away';
+            newStartTimes[id] = Date.now();
+            changed = true;
+          }
         });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [taskStatus]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setTaskStatus(prev => {
-          const next = { ...prev };
-          Object.keys(next).forEach(id => {
-            if (next[id] === 'clicked_link' || next[id] === 'ready_to_claim') {
-              next[id] = 'away';
-              setTaskStartTimes(times => ({ ...times, [id]: Date.now() }));
-            }
-          });
-          return next;
-        });
-      } else {
-        setTaskStatus(prev => {
-          const next = { ...prev };
-          let showedError = false;
-
-          Object.keys(next).forEach(id => {
-            if (next[id] === 'away') {
-              const timeAway = Date.now() - (taskStartTimes[id] || 0);
-
-              if (timeAway >= 5000) { 
-                next[id] = 'ready_to_claim';
-              } else {
-                next[id] = 'ready';
-                if (!showedError) {
-                  toast.error("Interacción rechazada. Debes abrir el enlace y permanecer al menos 5 segundos.", { duration: 4000 });
-                  showedError = true;
-                }
-              }
-            }
-          });
-          return next;
-        });
-      }
+        
+        if (changed) {
+          setTaskStartTimes(prevTimes => ({ ...prevTimes, ...newStartTimes }));
+        }
+        return nextStatus;
+      });
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleVisibilityChange);
+    const handleShow = () => {
+      setTaskStatus(prev => {
+        const next = { ...prev };
+        let showedError = false;
+
+        Object.keys(next).forEach(id => {
+          if (next[id] === 'away') {
+            const timeAway = Date.now() - (taskStartTimes[id] || 0);
+
+            if (timeAway >= 8000) { 
+              next[id] = 'ready_to_claim';
+            } else {
+              next[id] = 'ready'; // Se reinicia el botón por hacer trampa
+              if (!showedError) {
+                toast.error("Trampa detectada 🚫. Debes ir al enlace externo y permanecer fuera al menos 8 segundos.", { duration: 5000 });
+                showedError = true;
+              }
+            }
+          }
+        });
+        return next;
+      });
+    };
+
+    const visibilityHandler = () => {
+      if (document.hidden) handleHide();
+      else handleShow();
+    };
+
+    // Detectamos todas las formas posibles en las que el usuario puede intentar engañar a la app
+    document.addEventListener('visibilitychange', visibilityHandler);
+    window.addEventListener('blur', handleHide);
+    window.addEventListener('focus', handleShow);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      window.removeEventListener('blur', handleHide);
+      window.removeEventListener('focus', handleShow);
     };
   }, [taskStartTimes]);
 
@@ -327,7 +321,8 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (finalUrl.includes('t.me') || finalUrl.includes('telegram.me')) WebApp.openTelegramLink(finalUrl);
       else WebApp.openLink(finalUrl, { try_instant_view: true });
 
-      setTaskStatus(prev => ({ ...prev, [task.id]: 'clicked_link' }));
+      // 🛡️ REQUISITO: Cambiamos a waiting_for_redirect en lugar de clicked_link
+      setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting_for_redirect' }));
     } catch (e) { toast.error("Error al procesar la redirección del enlace."); }
   };
 
@@ -469,7 +464,8 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
     if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{t('ads_completed')}</button>;
 
-    if (status === 'clicked_link') return <button disabled style={neon.taskButtonDisabled}>⏳ ESPERANDO VISITA {countdown[task.id] ? `(${countdown[task.id]}s)` : ''}</button>;
+    // 🛡️ REQUISITOS VISUALES BLOQUEADOS MIENTRAS NO SALGAN DE LA APP
+    if (status === 'waiting_for_redirect') return <button disabled style={neon.taskButtonDisabled}>⏳ SAL DE LA APP 8 SEG</button>;
     if (status === 'away') return <button disabled style={neon.taskButtonDisabled}>⏳ VERIFICANDO...</button>;
     if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
 
