@@ -611,7 +611,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
     }
 
-        async function notifyPaymentChannel(userId, usdtAmount, walletAddress) {
+async function notifyPaymentChannel(userId, usdtAmount, walletAddress, realTxid) {
       try {
         const { data: user } = await supabase.from('users').select('username').eq('id', userId).single();
         const usernameDisplay = user?.username && user.username !== 'Usuario' ? `@${user.username}` : `ID: ${userId}`;
@@ -632,8 +632,9 @@ export default async function handler(req, res) {
                         `💸 <b>Enviado:</b> ${tonAmount} GRAM\n` +
                         `🛡️ <b>Red:</b> TON Blockchain\n` +
                         `⚡ <b>Estado:</b> Finalizado / 100%\n\n` +
-                        `🔹 <b>TXID:</b>\n` +
-                        `<a href="https://tonviewer.com/transaction/${txid}">${txid}</a>\n\n` +
+                        🔹 <b>Ver Transacción en Blockchain:</b>\n +
+<a href="[https://tonscan.org/tx/$](https://tonscan.org/tx/$){realTxid}">${realTxid.substring(0, 12)}...</a>\n\n
+
                         `🔥 ¡Retiros procesados con total transparencia!`;
 
         const keyboard = {
