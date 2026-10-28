@@ -50,6 +50,8 @@ export default function AdminDashboard({ userData }) {
   const [prize1, setPrize1] = useState('15 TON');
   const [prize2, setPrize2] = useState('10 TON');
   const [prize3, setPrize3] = useState('5 TON');
+  const [pastEvents, setPastEvents] = useState([]);
+  const [loadingPast, setLoadingPast] = useState(false);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
