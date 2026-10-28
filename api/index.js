@@ -1104,10 +1104,15 @@ export default async function handler(req, res) {
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: historyLogs } = await supabase.from('history_logs').select('description').eq('user_id', targetId).gte('created_at', yesterday);
       const completedDailyIds = new Set();
+      
+      let gigaPubClaimed = false; // 🔥 NUEVO: Variable para el botón visual
+      
       if (historyLogs) {
          historyLogs.forEach(log => {
            const match = log.description?.match(/\[Daily:(.+?)\]/);
            if (match) completedDailyIds.add(match[1]);
+           // 🔥 NUEVO: Buscamos si ya reclamó GigaPub hoy
+           if (log.description?.includes('[GigaPubDaily]')) gigaPubClaimed = true; 
          });
       }
 
@@ -1116,8 +1121,10 @@ export default async function handler(req, res) {
         return { ...t, reward: (t.reward || 1), is_completed: isDaily ? completedDailyIds.has(String(t.id)) : completedIds.has(String(t.id)) };
       });
 
-      return res.status(200).json({ success: true, tasks: mappedTasks });
+      // 🔥 NUEVO: Agregamos gigaPubClaimed a la respuesta
+      return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed });
     }
+
 
         // 🔥 NUEVO: Recompensa diaria ahora usando Giga Pub
     if (action === 'claim-gigapub-daily') {
