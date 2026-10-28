@@ -619,7 +619,7 @@ async function notifyPaymentChannel(userId, usdtAmount, walletAddress, realTxid)
         const tonPrice = await getTonPrice();
         const tonAmount = (usdtAmount / tonPrice).toFixed(4);
 
-        const txid = crypto.createHash('sha256').update(walletAddress + Date.now().toString()).digest('hex');
+       
         
         // 🔥 CAMBIO EXACTO: Reemplazamos 'withdrawal.amount' por 'usdtAmount'
         const usdtDisplay = Number(usdtAmount).toFixed(2);
