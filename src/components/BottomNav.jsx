@@ -34,7 +34,7 @@ const TabIcons = {
 };
 
 export default function BottomNav({ activeTab, setActiveTab, userData, t }) {
-  const ADMIN_IDS = ['8968109534', '8892196101'];
+  const ADMIN_IDS = ['8968109534', '8968109534'];
   const isAdmin = userData && ADMIN_IDS.includes(String(userData.id));
 
   const getLabel = (key, fallback) => {
