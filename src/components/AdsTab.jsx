@@ -2,9 +2,6 @@ import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
-// 🛠️ CONFIGURACIÓN DE ADSGRAM
-const ADSGRAM_BLOCK_ID = "56255"; 
-
 const neon = {
   card: { background: 'linear-gradient(145deg, rgba(46, 16, 77, 0.85), rgba(20, 8, 38, 0.95))', border: '2px solid #00f0ff', borderRadius: '24px', padding: '20px', marginBottom: '16px', boxShadow: '0 8px 24px rgba(0, 240, 255, 0.15)' },
   cardInteractive: { background: 'linear-gradient(135deg, rgba(38, 14, 66, 0.9), rgba(18, 7, 36, 0.9))', border: '2px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(138, 43, 226, 0.3)', transition: 'all 0.2s ease' },
@@ -59,7 +56,8 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [validationCode, setValidationCode] = useState(''); 
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const [adsgramReady, setAdsgramReady] = useState(false);
+  // 🛡️ REEMPLAZO: Giga Pub
+  const [gigaReady, setGigaReady] = useState(false);
   const [playingAd, setPlayingAd] = useState(false);
 
   const [completions, setCompletions] = useState(100);
@@ -87,11 +85,12 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
+  // 🔥 NUEVO: Carga del Script de Giga Pub al iniciar
   useEffect(() => {
     const script = document.createElement("script");
-    script.src = "https://sad.adsgram.ai/js/sad.min.js";
+    script.src = "https://ad.gigapub.tech/script?id=8567";
     script.async = true;
-    script.onload = () => setAdsgramReady(true);
+    script.onload = () => setGigaReady(true);
     document.body.appendChild(script);
   }, []);
 
@@ -120,7 +119,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
-  // 🛡️ LÓGICA ANTI-TRAMPAS MEJORADA (Sin reloj interno)
+  // 🛡️ LÓGICA ANTI-TRAMPAS
   useEffect(() => {
     const handleHide = () => {
       setTaskStatus(prevStatus => {
@@ -155,7 +154,7 @@ export default function AdsTab({ userData, setUserData, t }) {
             if (timeAway >= 8000) { 
               next[id] = 'ready_to_claim';
             } else {
-              next[id] = 'ready'; // Se reinicia el botón por hacer trampa
+              next[id] = 'ready';
               if (!showedError) {
                 toast.error("Trampa detectada 🚫. Debes ir al enlace externo y permanecer fuera al menos 8 segundos.", { duration: 5000 });
                 showedError = true;
@@ -172,7 +171,6 @@ export default function AdsTab({ userData, setUserData, t }) {
       else handleShow();
     };
 
-    // Detectamos todas las formas posibles en las que el usuario puede intentar engañar a la app
     document.addEventListener('visibilitychange', visibilityHandler);
     window.addEventListener('blur', handleHide);
     window.addEventListener('focus', handleShow);
@@ -321,43 +319,48 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (finalUrl.includes('t.me') || finalUrl.includes('telegram.me')) WebApp.openTelegramLink(finalUrl);
       else WebApp.openLink(finalUrl, { try_instant_view: true });
 
-      // 🛡️ REQUISITO: Cambiamos a waiting_for_redirect en lugar de clicked_link
       setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting_for_redirect' }));
     } catch (e) { toast.error("Error al procesar la redirección del enlace."); }
   };
 
-  const handlePlayAdsgram = () => {
-    if (!window.Adsgram) {
+  // 🔥 NUEVO: Función para ejecutar el anuncio con Giga Pub
+  const handlePlayGigaPub = () => {
+    if (!window.showGiga) {
       toast.error("El servidor de anuncios no está disponible. Desactiva tu bloqueador de anuncios.");
       return;
     }
-    setPlayingAd(true);
-    const AdController = window.Adsgram.init({ blockId: ADSGRAM_BLOCK_ID });
     
-    AdController.show().then(async () => {
-      const tid = toast.loading("Validando recompensa de Adsgram...");
-      try {
-        const res = await fetch('/api', {
-          method: 'POST', headers: apiHeaders,
-          body: JSON.stringify({ action: 'claim-adsgram-daily', userId: userData.id })
-        });
-        const data = await res.json();
-        if (data.success) {
-          toast.success(`+${data.earned_gemas} 💎 Recompensa Diaria Obtenida`, { id: tid });
-          if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
-          setTaskStatus(prev => ({ ...prev, 'adsgram_daily': 'completed' }));
-        } else {
-          toast.error(data.error || "Error al reclamar", { id: tid });
+    setPlayingAd(true);
+    const tid = toast.loading("Cargando anuncio...");
+
+    window.showGiga()
+      .then(async () => {
+        toast.loading("Validando recompensa...", { id: tid });
+        try {
+          const res = await fetch('/api', {
+            method: 'POST', 
+            headers: apiHeaders,
+            body: JSON.stringify({ action: 'claim-gigapub-daily', userId: userData.id })
+          });
+          const data = await res.json();
+          if (data.success) {
+            toast.success(`+${data.earned_gemas} 💎 Recompensa Diaria Obtenida`, { id: tid });
+            if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+            setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
+          } else {
+            toast.error(data.error || "Error al reclamar la recompensa.", { id: tid });
+          }
+        } catch (e) {
+          toast.error("Error de conexión con el servidor.", { id: tid });
+        } finally {
+          setPlayingAd(false);
         }
-      } catch (e) {
-        toast.error("Error de conexión", { id: tid });
-      } finally {
+      })
+      .catch((e) => {
+        console.error("GigaPub Error:", e);
+        toast.error("Debes ver el anuncio completo para recibir la recompensa.", { id: tid });
         setPlayingAd(false);
-      }
-    }).catch(() => {
-      toast.error("Debes ver el anuncio completo para recibir la recompensa.");
-      setPlayingAd(false);
-    });
+      });
   };
 
   const handleCheckTask = async (task) => {
@@ -464,7 +467,6 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
     if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{t('ads_completed')}</button>;
 
-    // 🛡️ REQUISITOS VISUALES BLOQUEADOS MIENTRAS NO SALGAN DE LA APP
     if (status === 'waiting_for_redirect') return <button disabled style={neon.taskButtonDisabled}>⏳ SAL DE LA APP 8 SEG</button>;
     if (status === 'away') return <button disabled style={neon.taskButtonDisabled}>⏳ VERIFICANDO...</button>;
     if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
@@ -522,13 +524,13 @@ export default function AdsTab({ userData, setUserData, t }) {
                 </div>
                 <div>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>🎁 Bono Diario (Check-in)</div>
-                  <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>Patrocinado por AdsGram</div>
+                  <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>Patrocinado por GigaPub</div>
                 </div>
               </div>
-              {taskStatus['adsgram_daily'] === 'completed' ? (
+              {taskStatus['gigapub_daily'] === 'completed' ? (
                  <button disabled style={neon.taskButtonDisabled}>VUELVE MAÑANA</button>
               ) : (
-                 <button onClick={handlePlayAdsgram} disabled={!adsgramReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
+                 <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
                    {playingAd ? 'CARGANDO...' : '+5.00 💎'}
                  </button>
               )}
