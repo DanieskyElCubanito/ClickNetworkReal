@@ -1204,21 +1204,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, history: history || [] });
     }
 
-    if (action === 'get-referrals') {
+        if (action === 'get-referrals') {
       const targetId = String(userId);
       let { data: lv1 } = await supabase.from('users').select('*').eq('referred_by', targetId);
       const { data: dbUser } = await supabase.from('users').select('referral_earnings').eq('id', targetId).maybeSingle();
-
-      const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
-      if (activeEv && activeEv.event_type === 'referral' && lv1) {
-        const refCountTotal = lv1.length;
-        const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', targetId).maybeSingle();
-        if (part) {
-          await supabase.from('event_participants').update({ score: refCountTotal }).eq('event_id', activeEv.id).eq('user_id', targetId);
-        } else {
-          await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: targetId, score: refCountTotal }]);
-        }
-      }
 
       return res.status(200).json({ success: true, referrals: lv1 || [], earnings: dbUser?.referral_earnings || 0 });
     }
