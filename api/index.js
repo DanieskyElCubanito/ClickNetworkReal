@@ -170,9 +170,9 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
       sendMode: 3 
   });
 
-  // 🔥 NUEVO: Esperamos 15 segundos a que la blockchain confirme el bloque
-  console.log("Pago enviado. Esperando 15 segundos a la blockchain...");
-  await sleep(15000); 
+  // 🔥 NUEVO: Esperamos 8 segundos a que la blockchain confirme el bloque
+  console.log("Pago enviado. Esperando 8 segundos a la blockchain...");
+  await sleep(8000); 
 
   try {
     // Consultamos la API pública para atrapar el TXID de esta transacción específica
