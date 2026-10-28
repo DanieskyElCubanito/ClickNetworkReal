@@ -906,6 +906,7 @@ export default async function handler(req, res) {
       } else {
           return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en revisión administrativa.' });
       }
+     }
 
 
     if (action === 'generate-usdt-wallet') {
