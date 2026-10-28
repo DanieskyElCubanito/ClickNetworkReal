@@ -143,6 +143,9 @@ async function sweepUsdtAutomated(derivedWallet, usdtAmountWei) {
   }
 }
 
+// 🔥 NUEVO: Función para hacer que el sistema espere
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function sendTonAutomated(destinationAddress, usdtAmount) {
   const mnemonic = process.env.MASTER_WALLET_MNEMONIC; 
   if (!mnemonic) throw new Error("Falta la variable MASTER_WALLET_MNEMONIC en Vercel.");
@@ -151,7 +154,7 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
   // Nos aseguramos de que sean números reales
   const tonAmount = Number(usdtAmount) / Number(tonPrice); 
 
-  // 🔥 NUEVO: Convertimos matemáticamente a NanoTONs (entero perfecto). Usamos BigInt porque la blockchain de TON lo exige para números tan grandes.
+  // Mantenemos la conversión perfecta a NanoTONs
   const amountInNano = BigInt(Math.floor(tonAmount * 1000000000));
 
   const mnemonics = mnemonic.split(" ");
@@ -166,7 +169,29 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
       messages: [internal({ to: destinationAddress, value: amountInNano, bounce: false, body: "Retiro TeleGem" })],
       sendMode: 3 
   });
+
+  // 🔥 NUEVO: Esperamos 15 segundos a que la blockchain confirme el bloque
+  console.log("Pago enviado. Esperando 15 segundos a la blockchain...");
+  await sleep(15000); 
+
+  try {
+    // Consultamos la API pública para atrapar el TXID de esta transacción específica
+    const res = await fetch(`https://toncenter.com/api/v2/getTransactions?address=${destinationAddress}&limit=1`);
+    const data = await res.json();
+    
+    if (data.ok && data.result.length > 0) {
+      const base64Hash = data.result[0].transaction_id.hash;
+      // Convertimos el Hash a Hexadecimal para que el enlace a Tonscan funcione perfecto
+      return Buffer.from(base64Hash, 'base64').toString('hex'); 
+    }
+  } catch (error) {
+    console.error("Fallo al buscar el TXID:", error);
+  }
+  
+  // Respaldo por si la red de GRAM tarda más de 15 segundos en procesar
+  return "Transaccion_En_Proceso"; 
 }
+
 
 function extractTelegramUsername(url) {
   let val = url.trim();
