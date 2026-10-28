@@ -1119,12 +1119,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tasks: mappedTasks });
     }
 
-    if (action === 'claim-adsgram-daily') {
+        // 🔥 NUEVO: Recompensa diaria ahora usando Giga Pub
+    if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
       const earnedGemas = 5.00; 
       const rewardForDb = earnedGemas / 1000;
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: recentLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).like('description', '%[AdsGramDaily]%').gte('created_at', yesterday).maybeSingle();
+      
+      const { data: recentLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).like('description', '%[GigaPubDaily]%').gte('created_at', yesterday).maybeSingle();
       if (recentLog) return res.status(400).json({ success: false, error: 'Ya reclamaste tu bono hoy. Vuelve mañana.' });
 
       const { data: dbUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
@@ -1132,9 +1134,17 @@ export default async function handler(req, res) {
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardForDb).toFixed(4));
       
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
-      await supabase.from('history_logs').insert([{ user_id: targetId, title: '🎁 Bono Diario (Check-in)', description: `Anuncio completado [AdsGramDaily] | +${earnedGemas.toFixed(2)} Gemas`, amount: rewardForDb }]);
+      
+      await supabase.from('history_logs').insert([{ 
+        user_id: targetId, 
+        title: '🎁 Bono Diario (Check-in)', 
+        description: `Anuncio completado [GigaPubDaily] | +${earnedGemas.toFixed(2)} Gemas`, 
+        amount: rewardForDb 
+      }]);
+      
       return res.status(200).json({ success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance });
     }
+
 
     if (action === 'complete-task') {
       const { taskId, validation_code_input } = req.body; 
