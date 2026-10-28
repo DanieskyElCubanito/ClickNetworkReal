@@ -764,13 +764,17 @@ export default async function handler(req, res) {
         .limit(1)
         .maybeSingle();
 
-      if (lastLog) {
+            if (lastLog) {
         await supabase.from('history_logs').update({
           title: '❌ Retiro Rechazado',
           description: reason ? `Reembolso: +${gemasReembolso} Gemas. Motivo: ${reason}` : `Fondos devueltos por seguridad: +${gemasReembolso} Gemas.`,
-          amount: 0
+          
+          // 🔥 CAMBIO EXACTO: Antes decía 0, ahora devuelve la cantidad en positivo
+          amount: Number(withdrawal.amount) 
+          
         }).eq('id', lastLog.id);
       }
+
 
       return res.status(200).json({ success: true });
     }
