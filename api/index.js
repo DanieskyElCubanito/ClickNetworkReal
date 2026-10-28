@@ -611,7 +611,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
     }
 
-async function notifyPaymentChannel(userId, usdtAmount, walletAddress, realTxid) {
+    async function notifyPaymentChannel(userId, usdtAmount, walletAddress, realTxid) {
       try {
         const { data: user } = await supabase.from('users').select('username').eq('id', userId).single();
         const usernameDisplay = user?.username && user.username !== 'Usuario' ? `@${user.username}` : `ID: ${userId}`;
@@ -619,9 +619,6 @@ async function notifyPaymentChannel(userId, usdtAmount, walletAddress, realTxid)
         const tonPrice = await getTonPrice();
         const tonAmount = (usdtAmount / tonPrice).toFixed(4);
 
-       
-        
-        // 🔥 CAMBIO EXACTO: Reemplazamos 'withdrawal.amount' por 'usdtAmount'
         const usdtDisplay = Number(usdtAmount).toFixed(2);
         const gemasDisplay = (Number(usdtAmount) * 1000).toFixed(0); 
 
@@ -632,9 +629,8 @@ async function notifyPaymentChannel(userId, usdtAmount, walletAddress, realTxid)
                         `💸 <b>Enviado:</b> ${tonAmount} GRAM\n` +
                         `🛡️ <b>Red:</b> TON Blockchain\n` +
                         `⚡ <b>Estado:</b> Finalizado / 100%\n\n` +
-                        🔹 <b>Ver Transacción en Blockchain:</b>\n +
-<a href="[https://tonscan.org/tx/$](https://tonscan.org/tx/$){realTxid}">${realTxid.substring(0, 12)}...</a>\n\n
-
+                        `🔹 <b>Ver Transacción en Blockchain:</b>\n` +
+                        `<a href="https://tonscan.org/tx/${realTxid}">${realTxid.substring(0, 12)}...</a>\n\n` +
                         `🔥 ¡Retiros procesados con total transparencia!`;
 
         const keyboard = {
@@ -660,6 +656,7 @@ async function notifyPaymentChannel(userId, usdtAmount, walletAddress, realTxid)
         console.error("Error enviando notificación al canal de pagos:", error);
       }
     }
+
 
     if (action === 'admin-approve-withdrawal') {
       const { adminId, withdrawalId } = req.body;
