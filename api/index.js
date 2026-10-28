@@ -148,7 +148,11 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
   if (!mnemonic) throw new Error("Falta la variable MASTER_WALLET_MNEMONIC en Vercel.");
 
   const tonPrice = await getTonPrice();
-  const tonAmount = (usdtAmount / tonPrice).toFixed(9); 
+  // Nos aseguramos de que sean números reales
+  const tonAmount = Number(usdtAmount) / Number(tonPrice); 
+
+  // 🔥 NUEVO: Convertimos matemáticamente a NanoTONs (entero perfecto). Usamos BigInt porque la blockchain de TON lo exige para números tan grandes.
+  const amountInNano = BigInt(Math.floor(tonAmount * 1000000000));
 
   const mnemonics = mnemonic.split(" ");
   const keyPair = await mnemonicToPrivateKey(mnemonics);
@@ -159,7 +163,7 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
   await contract.sendTransfer({
       seqno: seqno || 0,
       secretKey: keyPair.secretKey,
-      messages: [internal({ to: destinationAddress, value: tonAmount.toString(), bounce: false, body: "Retiro TeleGem" })],
+      messages: [internal({ to: destinationAddress, value: amountInNano, bounce: false, body: "Retiro TeleGem" })],
       sendMode: 3 
   });
 }
