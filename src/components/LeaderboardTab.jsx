@@ -22,11 +22,11 @@ const neon = {
 export default function LeaderboardTab({ userData, t }) {
   const [tab, setTab] = useState('event'); 
   const [loading, setLoading] = useState(true);
-  
+
   // Datos Globales
   const [topTasks, setTopTasks] = useState([]);
   const [topReferrals, setTopReferrals] = useState([]);
-  
+
   // Datos del Evento Dinámico
   const [activeEvent, setActiveEvent] = useState(null);
   const [eventLeaderboard, setEventLeaderboard] = useState([]);
@@ -40,7 +40,7 @@ export default function LeaderboardTab({ userData, t }) {
         // 1. Cargar Evento Activo (El Torneo)
         const resEvent = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'get-active-event' }) });
         const dataEvent = await resEvent.json();
-        
+
         if (dataEvent.success && dataEvent.activeEvent) {
           setActiveEvent(dataEvent.activeEvent);
           setEventLeaderboard(dataEvent.leaderboard || []);
@@ -87,7 +87,7 @@ export default function LeaderboardTab({ userData, t }) {
   const handleCopyRefLink = () => {
     const refLink = `https://t.me/TeleGemAds_bot/app?startapp=${userData?.id}`;
     navigator.clipboard.writeText(refLink);
-    toast.success("¡Enlace copiado! Empieza a sumar puntos.");
+    toast.success(t('ref_toast_copy_ok') || "¡Enlace copiado! Empieza a sumar puntos.");
   };
 
   const getMedal = (index) => {
@@ -104,23 +104,23 @@ export default function LeaderboardTab({ userData, t }) {
   return (
     <div style={neon.container} className="fade-in">
       <Toaster position="top-center" />
-      <h2 style={neon.title}>🏆 Salón de la Fama</h2>
+      <h2 style={neon.title}>🏆 {t('lb_title')}</h2>
 
       {/* 🚀 TORNEO DINÁMICO ACTIVO */}
       {activeEvent && (
         <div style={neon.eventCard} className="fade-in">
           <div style={{ background: 'rgba(0, 0, 0, 0.4)', color: '#ffe600', padding: '6px 14px', borderRadius: '12px', fontSize: '11px', fontWeight: '900', display: 'inline-block', marginBottom: '12px', textTransform: 'uppercase', border: '1px solid #ffe600' }}>
-            ⏳ Termina en: {timeLeft}
+            ⏳ {t('lb_tourney_ends')} {timeLeft}
           </div>
-          
+
           <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '8px', lineHeight: '1.2', textShadow: '0 2px 10px rgba(255,230,0,0.5)' }}>
-            {activeEvent.title || 'Torneo Relámpago'}
+            {activeEvent.title || t('lb_tourney_default_title')}
           </div>
-          
+
           <div style={{ fontSize: '12px', color: '#ffcc00', marginBottom: '16px', lineHeight: '1.4', fontWeight: 'bold' }}>
             {activeEvent.event_type === 'referral' 
-              ? 'Invita amigos reales con tu enlace. Cada usuario activo te suma 1 Punto al torneo.' 
-              : 'Completa tareas y campañas. Cada interacción verificada suma 1 Punto a tu marcador.'}
+              ? t('lb_tourney_desc_ref') 
+              : t('lb_tourney_desc_task')}
           </div>
 
           {/* 💰 PESOS / PREMIOS ESPECÍFICOS */}
@@ -141,7 +141,7 @@ export default function LeaderboardTab({ userData, t }) {
 
           {activeEvent.event_type === 'referral' && (
             <button onClick={handleCopyRefLink} style={{ width: '100%', marginTop: '16px', background: 'linear-gradient(180deg, #ffe600, #ffaa00)', color: '#050214', border: 'none', borderRadius: '14px', padding: '14px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(255, 170, 0, 0.4)', textTransform: 'uppercase' }}>
-              🔗 COPIAR ENLACE Y SUMAR PUNTOS
+              {t('lb_btn_copy')}
             </button>
           )}
         </div>
@@ -151,21 +151,21 @@ export default function LeaderboardTab({ userData, t }) {
       <div style={neon.tabContainer}>
         {activeEvent && (
           <button onClick={() => setTab('event')} style={neon.tabBtn(tab === 'event')}>
-            🏆 Torneo
+            {t('lb_tab_tourney')}
           </button>
         )}
         <button onClick={() => setTab('referrals')} style={neon.tabBtn(tab === 'referrals')}>
-          👥 Histórico Amigos
+          {t('lb_tab_ref')}
         </button>
         <button onClick={() => setTab('tasks')} style={neon.tabBtn(tab === 'tasks')}>
-          🔥 Histórico Tareas
+          {t('lb_tab_task')}
         </button>
       </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#00f0ff', fontWeight: '900', fontSize: '14px', letterSpacing: '1px' }}>
           <style>{`@keyframes pulseRank { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }`}</style>
-          <div style={{ animation: 'pulseRank 1.5s infinite' }}>CARGANDO RANKING...</div>
+          <div style={{ animation: 'pulseRank 1.5s infinite' }}>{t('lb_loading')}</div>
         </div>
       ) : (
         <div>
@@ -174,7 +174,7 @@ export default function LeaderboardTab({ userData, t }) {
             <div className="fade-in">
               {eventLeaderboard.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#aaa', padding: '20px', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', border: '1px dashed #ffe600' }}>
-                  El tablero está vacío. ¡Haz tu primer movimiento y asegura el 🥇 1er Lugar!
+                  {t('lb_empty_tourney')}
                 </div>
               ) : (
                 eventLeaderboard.map((item, index) => {
@@ -188,17 +188,17 @@ export default function LeaderboardTab({ userData, t }) {
                       <div>
                         <div style={{ fontWeight: '900', color: '#fff', fontSize: '15px' }}>
                           @{item.username !== 'Usuario' ? item.username : `ID: ${item.userId.substring(0, 5)}...`}
-                          {userData?.id === item.userId && <span style={{ color: '#00ffaa', fontSize: '10px', marginLeft: '6px' }}>(TÚ)</span>}
+                          {userData?.id === item.userId && <span style={{ color: '#00ffaa', fontSize: '10px', marginLeft: '6px' }}>{t('lb_you')}</span>}
                         </div>
                         {isTop3 && (
                           <div style={{ color: '#ffe600', fontSize: '10px', fontWeight: 'bold', marginTop: '2px', textTransform: 'uppercase' }}>
-                            Asegurando: {prizeList[index]}
+                            {t('lb_securing')} {prizeList[index]}
                           </div>
                         )}
                       </div>
                     </div>
                     <div style={{ color: isTop3 ? '#ffe600' : '#fff', fontWeight: '900', fontSize: '16px', textShadow: isTop3 ? '0 0 10px rgba(255,230,0,0.5)' : 'none' }}>
-                      {item.score} <span style={{fontSize:'10px', color: '#aaa'}}>PTS</span>
+                      {item.score} <span style={{fontSize:'10px', color: '#aaa'}}>{t('lb_pts')}</span>
                     </div>
                   </div>
                 )})
@@ -209,9 +209,9 @@ export default function LeaderboardTab({ userData, t }) {
           {/* TABLA HISTÓRICA DE REFERIDOS */}
           {tab === 'referrals' && (
             <div className="fade-in">
-              <div style={{ textAlign: 'center', marginBottom: '14px', fontSize: '11px', color: '#ff99dd', fontWeight: 'bold', textTransform: 'uppercase' }}>Top Vitalicio (Ganancias Totales)</div>
+              <div style={{ textAlign: 'center', marginBottom: '14px', fontSize: '11px', color: '#ff99dd', fontWeight: 'bold', textTransform: 'uppercase' }}>{t('lb_lifetime_ref')}</div>
               {topReferrals.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#aaa', padding: '20px' }}>Sin registros históricos.</div>
+                <div style={{ textAlign: 'center', color: '#aaa', padding: '20px' }}>{t('lb_empty_history')}</div>
               ) : (
                 topReferrals.map((item, index) => {
                   const isTop3 = index < 3;
@@ -237,9 +237,9 @@ export default function LeaderboardTab({ userData, t }) {
           {/* TABLA HISTÓRICA DE TAREAS */}
           {tab === 'tasks' && (
             <div className="fade-in">
-              <div style={{ textAlign: 'center', marginBottom: '14px', fontSize: '11px', color: '#ff99dd', fontWeight: 'bold', textTransform: 'uppercase' }}>Top Vitalicio (Ganancias por Tareas)</div>
+              <div style={{ textAlign: 'center', marginBottom: '14px', fontSize: '11px', color: '#ff99dd', fontWeight: 'bold', textTransform: 'uppercase' }}>{t('lb_lifetime_task')}</div>
               {topTasks.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#aaa', padding: '20px' }}>Sin registros históricos.</div>
+                <div style={{ textAlign: 'center', color: '#aaa', padding: '20px' }}>{t('lb_empty_history')}</div>
               ) : (
                 topTasks.map((item, index) => {
                   const isTop3 = index < 3;
