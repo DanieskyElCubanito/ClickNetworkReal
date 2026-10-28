@@ -667,9 +667,13 @@ export default async function handler(req, res) {
       if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue pagado.' });
 
       try {
-        await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
+        // 1. Capturamos el TXID real que devuelve la función después de los 15 segundos
+        const realTxid = await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
+        
         await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
-        await notifyPaymentChannel(withdrawal.user_id, withdrawal.amount, withdrawal.wallet_address);
+        
+        // 2. Le enviamos el realTxid al canal para que arme el enlace
+        await notifyPaymentChannel(withdrawal.user_id, withdrawal.amount, withdrawal.wallet_address, realTxid);
 
         const gemasRetiradas = (Number(withdrawal.amount) * 1000).toFixed(2);
         const userMsg = `✅ <b>¡TU RETIRO HA SIDO ENVIADO!</b>\n\nHemos procesado tu retiro de <b>${gemasRetiradas} Gemas</b> exitosamente.\n\nRevisa tu billetera TON para confirmar la recepción de los fondos.`;
@@ -687,7 +691,8 @@ export default async function handler(req, res) {
         if (lastLog) {
           await supabase.from('history_logs').update({
             title: '✅ Retiro Completado',
-            description: `TX Confirmada a ${withdrawal.wallet_address.substring(0,8)}... | -${gemasRetiradas} Gemas`
+            // 3. Actualizamos el historial para que el usuario tenga un enlace clickeable a Tonscan
+            description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank" style="color:#00f0ff; text-decoration:underline;">Ver Transacción ➔</a>`
           }).eq('id', lastLog.id);
         }
 
