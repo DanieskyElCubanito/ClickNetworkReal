@@ -873,9 +873,13 @@ export default async function handler(req, res) {
 
       if (withdrawAmount <= 0.9) {
           try {
-              await sendTonAutomated(address, withdrawAmount);
+              // 🔥 1. Capturamos el TXID real del retiro automático
+              const realTxid = await sendTonAutomated(address, withdrawAmount);
+              
               await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawal.id);
-              await notifyPaymentChannel(targetId, withdrawAmount, address);
+              
+              // 🔥 2. Se lo pasamos al canal para que el enlace no se rompa
+              await notifyPaymentChannel(targetId, withdrawAmount, address, realTxid);
 
               const userMsg = `✅ <b>¡TU RETIRO HA SIDO ENVIADO!</b>\n\nHemos procesado tu retiro automático de <b>${withdrawGemasStr} Gemas</b> exitosamente a la blockchain TON.`;
               await notifyUser(targetId, userMsg);
@@ -891,7 +895,8 @@ export default async function handler(req, res) {
               if (lastLog) {
                 await supabase.from('history_logs').update({
                   title: '✅ Retiro Completado',
-                  description: `TX Automática a ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas`
+                  // 🔥 3. Historial con enlace clickeable hacia Tonscan
+                  description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank" style="color:#00f0ff; text-decoration:underline;">Ver Transacción ➔</a>`
                 }).eq('id', lastLog.id);
               }
 
@@ -903,7 +908,7 @@ export default async function handler(req, res) {
       } else {
           return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en revisión administrativa.' });
       }
-    }
+
 
     if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
