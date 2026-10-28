@@ -306,7 +306,7 @@ export const translations = {
     support_idea_title: "Propose an Enhancement?",
     support_idea_desc: "We pursue operational excellence. Submit your corporate suggestions to",
     support_bug_title: "Bug Bounty Program",
-    support_bug_desc: "Report system vulnerabilities or flaws to receive a direct 0.50 USDT bounty to your vault:",
+    support_bug_desc: "Report system vulnerabilities or flaws to receive a direct 0.10 USDT bounty to your vault:",
     about_title: "About the Infrastructure",
     about_p1: "We are a native traffic exchange network and advertising platform built for the Telegram ecosystem.",
     about_p2: "Engineered to accelerate organic, qualified growth for channels, groups, and Mini Apps through real liquidity incentives.",
