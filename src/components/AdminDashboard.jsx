@@ -358,6 +358,49 @@ export default function AdminDashboard({ userData }) {
           </div>
         )}
       </div>
+      
+              {/* 🔥 HISTORIAL DE TORNEOS FINALIZADOS (PARA PAGOS) 🔥 */}
+        <div style={{ marginTop: '24px', borderTop: '1px dashed rgba(0, 240, 255, 0.3)', paddingTop: '20px' }}>
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            Torneos Finalizados (Top 3 Ganadores)
+          </h4>
+          
+          {loadingPast ? (
+            <div style={{ textAlign: 'center', fontSize: '11px', color: '#aaa' }}>Cargando registros...</div>
+          ) : pastEvents.length === 0 ? (
+            <div style={{ textAlign: 'center', fontSize: '11px', color: '#666', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '10px' }}>
+              Aún no hay torneos completados.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }}>
+              {pastEvents.map(ev => (
+                <div key={ev.id} style={{ background: 'rgba(0,0,0,0.5)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(0, 240, 255, 0.2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '900', color: '#fff' }}>{ev.title}</span>
+                    <span style={{ fontSize: '10px', color: '#aaa', fontWeight: 'bold' }}>
+                      Finalizó: {new Date(ev.end_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  
+                  {ev.winners && ev.winners.length > 0 ? (
+                    ev.winners.map((w, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: '6px' }}>
+                        <div style={{ color: '#ccc' }}>
+                          <span style={{ fontSize: '14px', marginRight: '6px' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
+                          <span style={{ fontWeight: 'bold', color: '#fff' }}>@{w.username}</span> 
+                          <span style={{ fontSize: '10px', marginLeft: '4px' }}>(ID: {w.userId})</span>
+                        </div>
+                        <div style={{ color: '#ffe600', fontWeight: '900' }}>{w.score} pts</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ fontSize: '11px', color: '#666', textAlign: 'center' }}>Nadie participó en este evento.</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
       {/* CONFIGURACIÓN DE BILLETERAS */}
       <div style={{ ...neon.card, borderColor: '#ff41b4' }}>
