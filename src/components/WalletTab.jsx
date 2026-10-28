@@ -22,7 +22,7 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  // 🛠️ NUEVO ESTADO: Requisitos de retiro y AdsGram
+  // 🛠️ ESTADO: Requisitos de retiro
   const [reqs, setReqs] = useState({ referrals: 0, ads: 0 });
   const [playingAd, setPlayingAd] = useState(false);
 
@@ -36,11 +36,11 @@ export default function WalletTab({ userData, setUserData, t }) {
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
-  // 🛠️ CARGA DE SCRIPT DE ADSGRAM
+  // 🔥 NUEVO: CARGA DE SCRIPT DE GIGA PUB (Reemplaza a Adsgram)
   useEffect(() => {
-    if (!window.Adsgram) {
+    if (!window.showGiga) {
       const script = document.createElement("script");
-      script.src = "https://sad.adsgram.ai/js/sad.min.js";
+      script.src = "https://ad.gigapub.tech/script?id=8567";
       script.async = true;
       document.body.appendChild(script);
     }
@@ -90,33 +90,35 @@ export default function WalletTab({ userData, setUserData, t }) {
   const numericRecharge = Number(rechargeAmount) || 0;
   const gramRechargePrice = (numericRecharge / liveGramUsd).toFixed(2);
 
-  // 🛠️ FUNCIÓN PARA VER ANUNCIOS DE PROGRESO
+  // 🔥 NUEVO: FUNCIÓN PARA VER ANUNCIOS DE PROGRESO CON GIGA PUB
   const handleWatchProgressAd = () => {
-    if (!window.Adsgram) return toast.error("Servidor de anuncios inactivo. Desactiva tu bloqueador de anuncios.");
+    if (!window.showGiga) return toast.error("Servidor de anuncios inactivo. Desactiva tu bloqueador de anuncios.");
     setPlayingAd(true);
-    const AdController = window.Adsgram.init({ blockId: "56255" }); 
-    AdController.show().then(async () => {
-      try {
-        const res = await fetch('/api', { 
-          method: 'POST', 
-          headers: apiHeaders, 
-          body: JSON.stringify({ action: 'watch-ad-progress', userId: userData.id }) 
-        });
-        const data = await res.json();
-        if (data.success) {
-          toast.success("¡Anuncio contabilizado!");
-          setReqs(prev => ({ ...prev, ads: prev.ads + 1 }));
-          if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+    
+    window.showGiga()
+      .then(async () => {
+        try {
+          const res = await fetch('/api', { 
+            method: 'POST', 
+            headers: apiHeaders, 
+            body: JSON.stringify({ action: 'watch-ad-progress', userId: userData.id }) 
+          });
+          const data = await res.json();
+          if (data.success) {
+            toast.success("¡Anuncio contabilizado!");
+            setReqs(prev => ({ ...prev, ads: prev.ads + 1 }));
+            if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+          }
+        } catch (err) {
+          toast.error("Error guardando el progreso.");
+        } finally {
+          setPlayingAd(false);
         }
-      } catch (err) {
-        toast.error("Error guardando el progreso.");
-      } finally {
+      })
+      .catch(() => {
+        toast.error("Anuncio cancelado o cerrado antes de tiempo.");
         setPlayingAd(false);
-      }
-    }).catch(() => {
-      toast.error("Anuncio cancelado o cerrado antes de tiempo.");
-      setPlayingAd(false);
-    });
+      });
   };
 
   const handleWithdraw = async () => {
@@ -277,7 +279,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           {/* 🛠️ BLOQUE VISUAL DE REQUISITOS DE RETIRO */}
           <div style={{ background: 'linear-gradient(145deg, #10061e, #1a0b33)', border: '1.5px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '20px' }}>
             <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>🛡️ Requisitos de Retiro (Elige uno)</h4>
-            
+
             {/* Opción 1: Referidos */}
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
