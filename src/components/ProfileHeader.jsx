@@ -229,7 +229,7 @@ export default function ProfileHeader({ userData, t, lang, setLang }) {
                           </span>
                         </div>
 
-// 🔥 CÓDIGO NUEVO (Arregla el enlace de Tonscan y el error visual)
+
 <div 
   style={{ fontSize: '11px', color: '#aaa', lineHeight: '1.4' }} 
   dangerouslySetInnerHTML={{ __html: log.description }} 
