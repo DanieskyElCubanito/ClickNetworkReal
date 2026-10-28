@@ -183,7 +183,7 @@ export default function AdsTab({ userData, setUserData, t }) {
   }, [taskStartTimes]);
 
 
-  const fetchTasks = async () => {
+    const fetchTasks = async () => {
     setLoadingTasks(true);
     try {
       const res = await fetch('/api', {
@@ -191,9 +191,17 @@ export default function AdsTab({ userData, setUserData, t }) {
         body: JSON.stringify({ action: 'get-tasks', userId: userData.id })
       });
       const data = await res.json();
-      if (data && data.success) setTasks(data.tasks || []);
+      if (data && data.success) {
+        setTasks(data.tasks || []);
+        
+        // 🔥 NUEVO: Bloqueamos el botón visualmente desde el inicio si ya lo reclamó
+        if (data.gigaPubClaimed) {
+          setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
+        }
+      }
     } catch (e) {} finally { setLoadingTasks(false); }
   };
+
 
   const stepsFlow = taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'];
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
