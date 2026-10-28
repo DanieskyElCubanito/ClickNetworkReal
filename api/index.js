@@ -638,7 +638,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
     }
 
-         // 🔥 NUEVO: Manejo de errores si Vercel corta antes de conseguir el TXID real
+    async function notifyPaymentChannel(userId, usdtAmount, walletAddress, realTxid) {
+      try {
+        const { data: user } = await supabase.from('users').select('username').eq('id', userId).single();
+        const usernameDisplay = user?.username && user.username !== 'Usuario' ? `@${user.username}` : `ID: ${userId}`;
+
+        const tonPrice = await getTonPrice();
+        const tonAmount = (usdtAmount / tonPrice).toFixed(4);
+
+        const usdtDisplay = Number(usdtAmount).toFixed(2);
+        const gemasDisplay = (Number(usdtAmount) * 1000).toFixed(0); 
+
+        // 🔥 NUEVO: Manejo de errores si Vercel corta antes de conseguir el TXID real
         const esHashValido = realTxid && realTxid.length > 20 && realTxid !== "Transaccion_En_Proceso";
         
         const enlaceBlockchain = esHashValido 
@@ -654,7 +665,6 @@ export default async function handler(req, res) {
                         `⚡ <b>Estado:</b> Finalizado / 100%\n\n` +
                         enlaceBlockchain +
                         `🔥 ¡Retiros procesados con total transparencia!`;
-
 
         const keyboard = {
           inline_keyboard: [
@@ -679,7 +689,6 @@ export default async function handler(req, res) {
         console.error("Error enviando notificación al canal de pagos:", error);
       }
     }
-
 
     if (action === 'admin-approve-withdrawal') {
       const { adminId, withdrawalId } = req.body;
