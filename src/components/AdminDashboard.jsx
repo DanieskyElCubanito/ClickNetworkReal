@@ -55,13 +55,15 @@ export default function AdminDashboard({ userData }) {
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
-  useEffect(() => {
+    useEffect(() => {
     loadStats();
     loadAllTasks();
     loadSysConfig();
     loadPendingWithdrawals();
-    loadActiveEvent(); // Cargar torneo al iniciar
+    loadActiveEvent(); 
+    loadPastEvents(); // 🔥 NUEVO
   }, []);
+
 
   const loadStats = async () => {
     try {
