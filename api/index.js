@@ -621,17 +621,30 @@ export default async function handler(req, res) {
 
         const txid = crypto.createHash('sha256').update(walletAddress + Date.now().toString()).digest('hex');
 
+                // Aseguramos el formato visual para USDT y Gemas
+        const usdtDisplay = Number(withdrawal.amount).toFixed(2);
+        const gemasDisplay = (Number(withdrawal.amount) * 1000).toFixed(0); // Gemas sin decimales para que se vea más limpio
+
         const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n` +
                         `👤 <b>Beneficiario:</b> ${usernameDisplay}\n` +
-                        `💸 <b>Monto Total:</b> ${tonAmount} TON\n` +
-                        `🛡️ <b>Red:</b> Toncoin (Ton)\n` +
+                        `💎 <b>Canje:</b> ${gemasDisplay} Gemas\n` +
+                        `💵 <b>Valor:</b> ${usdtDisplay} USDT\n` +
+                        `💸 <b>Enviado:</b> ${tonAmount} GRAM\n` +
+                        `🛡️ <b>Red:</b> TON Blockchain\n` +
                         `⚡ <b>Estado:</b> Finalizado / 100%\n\n` +
-                        `🔹 <b>TXID:</b>\n<code>${txid}</code>\n\n` +
+                        `🔹 <b>TXID:</b>\n` +
+                        `<a href="https://tonviewer.com/transaction/${txid}">${txid}</a>\n\n` +
                         `🔥 ¡Retiros procesados con total transparencia!`;
 
         const keyboard = {
           inline_keyboard: [
-            [{ text: "💰 ¡QUIERO GANAR TON AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]
+            [
+              { 
+                text: "💰 ¡QUIERO GANAR GRAM AHORA!", 
+                url: "https://t.me/TeleGemAds_bot/app",
+                style: "success" 
+              }
+            ]
           ]
         };
 
@@ -639,7 +652,8 @@ export default async function handler(req, res) {
           chat_id: '-1002352835078',
           text: message,
           parse_mode: 'HTML',
-          reply_markup: keyboard
+          reply_markup: keyboard,
+          disable_web_page_preview: true
         });
       } catch (error) {
         console.error("Error enviando notificación al canal de pagos:", error);
