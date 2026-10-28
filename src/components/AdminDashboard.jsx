@@ -249,11 +249,11 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error(e.message || "Error al crear", { id: tid }); }
   };
 
-  const handleManageEvent = async (newStatus) => {
+    const handleManageEvent = async (newStatus) => {
     if (!activeEvent) return;
     const confirmMsg = newStatus === 'deleted' ? "¿Estás seguro de ELIMINAR todo el torneo actual?" : "¿Quieres FINALIZAR el torneo ahora mismo?";
     if (!window.confirm(confirmMsg)) return;
-    
+
     const tid = toast.loading("Procesando...");
     try {
       const res = await fetch('/api', {
@@ -269,6 +269,7 @@ export default function AdminDashboard({ userData }) {
       if (data.success) {
         toast.success("Torneo actualizado", { id: tid });
         loadActiveEvent();
+        loadPastEvents(); // 🔥 NUEVO: Refresca el historial de inmediato
       } else throw new Error(data.error);
     } catch (e) { toast.error(e.message || "Error en la gestión", { id: tid }); }
   };
