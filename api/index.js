@@ -347,12 +347,25 @@ export default async function handler(req, res) {
           referral_reward_granted: !isMultiAccount 
         };
 
-        if (start_param && String(start_param) !== targetId && !isMultiAccount) {
+                if (start_param && String(start_param) !== targetId && !isMultiAccount) {
           const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
           if (inviter) {
             newUserObj.referred_by = String(start_param);
+            
+            // 🔥 NUEVO: Sumar +1 al torneo activo en vivo (Empezando desde 0)
+            const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
+            if (activeEv && activeEv.event_type === 'referral') {
+              const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', String(start_param)).maybeSingle();
+              if (part) {
+                await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', String(start_param));
+              } else {
+                await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: String(start_param), score: 1 }]);
+              }
+            }
+            // 🔥 FIN NUEVO
           }
         } else if (start_param && isMultiAccount) {
+
           notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico.`);
         }
 
