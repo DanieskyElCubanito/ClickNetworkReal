@@ -611,7 +611,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
     }
 
-    async function notifyPaymentChannel(userId, usdtAmount, walletAddress) {
+        async function notifyPaymentChannel(userId, usdtAmount, walletAddress) {
       try {
         const { data: user } = await supabase.from('users').select('username').eq('id', userId).single();
         const usernameDisplay = user?.username && user.username !== 'Usuario' ? `@${user.username}` : `ID: ${userId}`;
@@ -620,10 +620,10 @@ export default async function handler(req, res) {
         const tonAmount = (usdtAmount / tonPrice).toFixed(4);
 
         const txid = crypto.createHash('sha256').update(walletAddress + Date.now().toString()).digest('hex');
-
-                // Aseguramos el formato visual para USDT y Gemas
-        const usdtDisplay = Number(withdrawal.amount).toFixed(2);
-        const gemasDisplay = (Number(withdrawal.amount) * 1000).toFixed(0); // Gemas sin decimales para que se vea más limpio
+        
+        // 🔥 CAMBIO EXACTO: Reemplazamos 'withdrawal.amount' por 'usdtAmount'
+        const usdtDisplay = Number(usdtAmount).toFixed(2);
+        const gemasDisplay = (Number(usdtAmount) * 1000).toFixed(0); 
 
         const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n` +
                         `👤 <b>Beneficiario:</b> ${usernameDisplay}\n` +
