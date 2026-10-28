@@ -25,7 +25,7 @@ export const translations = {
     support_idea_title: "¿Propuestas de mejora?",
     support_idea_desc: "Buscamos la excelencia operativa. Envíe sus sugerencias o propuestas corporativas a",
     support_bug_title: "Programa de Recompensas (Bugs)",
-    support_bug_desc: "Si detecta vulnerabilidades o fallos en el sistema, repórtelos y reciba una bonificación directa de 0.50 USDT en su bóveda:",
+    support_bug_desc: "Si detecta vulnerabilidades o fallos en el sistema, repórtelos y reciba una bonificación directa de 0.10 USDT en su bóveda:",
     about_title: "Acerca de la Infraestructura",
     about_p1: "Somos una red de intercambio de tráfico y plataforma publicitaria nativa para el ecosistema de Telegram.",
     about_p2: "Diseñada para acelerar el crecimiento orgánico y cualificado de canales, grupos y Mini Apps mediante incentivos de liquidez real.",
