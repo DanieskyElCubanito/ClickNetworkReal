@@ -209,6 +209,15 @@ export default function AdminDashboard({ userData }) {
       }
     } catch (e) { console.error("Error cargando evento", e); } finally { setLoadingEvent(false); }
   };
+   
+    const loadPastEvents = async () => {
+    setLoadingPast(true);
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-past-events', adminId: userData.id }) });
+      const data = await res.json();
+      if (data.success) setPastEvents(data.pastEvents || []);
+    } catch (e) { console.error("Error cargando historial", e); } finally { setLoadingPast(false); }
+  };
 
   const handleCreateEvent = async () => {
     if (!eventTitle.trim()) return toast.error("Ponle un título al torneo.");
