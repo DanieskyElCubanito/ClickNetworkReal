@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import WebSocket from 'ws';
