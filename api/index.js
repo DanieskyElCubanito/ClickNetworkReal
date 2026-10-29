@@ -378,27 +378,31 @@ export default async function handler(req, res) {
           referral_reward_granted: !isMultiAccount 
         };
 
-                if (start_param && String(start_param) !== targetId && !isMultiAccount) {
+       // 🔥 CÓDIGO NUEVO (Registra Clones en el Muro de la Vergüenza)
+        if (start_param && String(start_param) !== targetId) {
           const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
           if (inviter) {
+            // 🔥 Siempre vinculamos la cuenta (Incluso si es clon) para que salga en su pestaña "Mi Red"
             newUserObj.referred_by = String(start_param);
             
-            // 🔥 NUEVO: Sumar +1 al torneo activo en vivo (Empezando desde 0)
-            const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
-            if (activeEv && activeEv.event_type === 'referral') {
-              const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', String(start_param)).maybeSingle();
-              if (part) {
-                await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', String(start_param));
-              } else {
-                await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: String(start_param), score: 1 }]);
+            if (!isMultiAccount) {
+              // 🏆 Solo si NO ES MULTICUENTA, suma puntos en torneos y le da beneficios reales
+              const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
+              if (activeEv && activeEv.event_type === 'referral') {
+                const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', String(start_param)).maybeSingle();
+                if (part) {
+                  await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', String(start_param));
+                } else {
+                  await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: String(start_param), score: 1 }]);
+                }
               }
+            } else {
+              // 🚫 Si es Multicuenta (Trampa), avisa al admin y lo registra sin darle ningún premio
+              notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico. \n\n<i>Se agregó a su Muro de la Vergüenza como BLOQUEADO.</i>`);
             }
-            // 🔥 FIN NUEVO
           }
-        } else if (start_param && isMultiAccount) {
-
-          notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico.`);
         }
+
 
         const { data: newUser, error: insertError } = await supabase.from('users').insert([newUserObj]).select().single();
         if (insertError) throw new Error("Error en Supabase (insert user): " + insertError.message);
