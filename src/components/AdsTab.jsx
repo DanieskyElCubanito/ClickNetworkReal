@@ -119,7 +119,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
-  // 🛡️ LÓGICA ANTI-TRAMPAS
+    // 🛡️ LÓGICA ANTI-TRAMPAS MEJORADA (8s para Promos, 1.5s para Telegram)
   useEffect(() => {
     const handleHide = () => {
       setTaskStatus(prevStatus => {
@@ -150,13 +150,24 @@ export default function AdsTab({ userData, setUserData, t }) {
         Object.keys(next).forEach(id => {
           if (next[id] === 'away') {
             const timeAway = Date.now() - (taskStartTimes[id] || 0);
+            
+            // 🔥 NUEVO: Detectamos qué tipo de campaña es
+            const task = tasks.find(t => String(t.id) === String(id));
+            const isPromo = task?.type === 'promo';
+            
+            // 8 segundos para web externa, solo 1.5 seg para Telegram
+            const requiredTime = isPromo ? 8000 : 1500;
 
-            if (timeAway >= 8000) { 
+            if (timeAway >= requiredTime) { 
               next[id] = 'ready_to_claim';
             } else {
-              next[id] = 'ready';
+              next[id] = 'ready'; // Se reinicia el botón por hacer trampa
               if (!showedError) {
-                toast.error("Trampa detectada 🚫. Debes ir al enlace externo y permanecer fuera al menos 8 segundos.", { duration: 5000 });
+                if (isPromo) {
+                  toast.error("Trampa detectada 🚫. Debes permanecer en la página web al menos 8 segundos.", { duration: 4000 });
+                } else {
+                  toast.error("Demasiado rápido 🚫. Tómate al menos un segundo para unirte a la comunidad.", { duration: 3000 });
+                }
                 showedError = true;
               }
             }
@@ -180,7 +191,8 @@ export default function AdsTab({ userData, setUserData, t }) {
       window.removeEventListener('blur', handleHide);
       window.removeEventListener('focus', handleShow);
     };
-  }, [taskStartTimes]);
+  }, [taskStartTimes, tasks]); // 🔥 IMPORTANTE: Ahora la función escucha las 'tasks'
+
 
 
     const fetchTasks = async () => {
