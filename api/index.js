@@ -1133,8 +1133,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed });
     }
 
-
-        // 🔥 NUEVO: Recompensa diaria ahora usando Giga Pub
+    // 🔥 NUEVO: Recompensa diaria ahora usando Giga Pub
     if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
       const earnedGemas = 5.00; 
@@ -1144,19 +1143,45 @@ export default async function handler(req, res) {
       const { data: recentLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).like('description', '%[GigaPubDaily]%').gte('created_at', yesterday).maybeSingle();
       if (recentLog) return res.status(400).json({ success: false, error: 'Ya reclamaste tu bono hoy. Vuelve mañana.' });
 
-      const { data: dbUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
+      // 🔥 Modificado para extraer referred_by y is_human
+      const { data: dbUser } = await supabase.from('users').select('balance, total_earnings, referred_by, is_human').eq('id', targetId).single();
+      
+      const wasPending = Number(dbUser.total_earnings || 0) < 0.005; // ¿Era pendiente?
+      
       const newBalance = Number((Number(dbUser.balance || 0) + rewardForDb).toFixed(4));
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardForDb).toFixed(4));
       
+      const isNowActive = newTotal >= 0.005; // ¿Ya superó la meta?
+
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
-      
+
       await supabase.from('history_logs').insert([{ 
         user_id: targetId, 
         title: '🎁 Bono Diario (Check-in)', 
         description: `Anuncio completado [GigaPubDaily] | +${earnedGemas.toFixed(2)} Gemas`, 
         amount: rewardForDb 
       }]);
-      
+
+      // 🏆 BONO ÚNICO DE VALIDACIÓN: Si el usuario era Pendiente y ahora es Activo
+      if (wasPending && isNowActive && dbUser.referred_by && dbUser.is_human) {
+         const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
+         if (referrer) {
+            const oneTimeBonus = 0.005; // 5 Gemas exactas
+            await supabase.from('users').update({ 
+              balance: Number((Number(referrer.balance || 0) + oneTimeBonus).toFixed(4)), 
+              referral_earnings: Number((Number(referrer.referral_earnings || 0) + oneTimeBonus).toFixed(4)), 
+              total_earnings: Number((Number(referrer.total_earnings || 0) + oneTimeBonus).toFixed(4)) 
+            }).eq('id', referrer.id);
+
+            await supabase.from('history_logs').insert([{ 
+              user_id: referrer.id, 
+              title: '🎯 Recluta Validado', 
+              description: `Tu recluta (ID: ${targetId}) se ha activado. Bono: +5.00 Gemas`, 
+              amount: oneTimeBonus 
+            }]);
+         }
+      }
+
       return res.status(200).json({ success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance });
     }
 
@@ -1234,23 +1259,33 @@ export default async function handler(req, res) {
       await supabase.from('history_logs').insert([{ user_id: targetId, title: `✅ Tarea Completada`, description: logDesc, amount: rewardAmount }]);
 
       if (dbUser.referred_by) {
-                // 🔥 NUEVO: 10% de la recompensa base + 5 Gemas fijas (0.005 USDT)
-        const commissionAmount = Number(((rewardAmount * 0.10) + 0.005).toFixed(4));
+        const wasPending = Number(dbUser.total_earnings || 0) < 0.005;
+        const isNowActive = newTotal >= 0.005;
+
+        // 🔥 1. COMISIÓN NORMAL (Solo 10% por la misión, se repite siempre)
+        const commissionAmount = Number((rewardAmount * 0.10).toFixed(4));
+        let totalToReferrer = commissionAmount;
+        let logDescription = `Misión de recluta (ID: ${targetId}) | +${(commissionAmount * 1000).toFixed(2)} Gemas`;
+        
+        // 🏆 2. BONO ÚNICO DE VALIDACIÓN (Se suma SOLO si esta tarea lo hace cruzar la meta)
+        if (wasPending && isNowActive && dbUser.is_human) {
+            totalToReferrer = Number((totalToReferrer + 0.005).toFixed(4)); // Suma las 5 gemas adicionales
+            logDescription = `Recluta Validado + Comisión (ID: ${targetId}) | +${(totalToReferrer * 1000).toFixed(2)} Gemas`;
+        }
 
         const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
         if (referrer) {
           await supabase.from('users').update({ 
-            balance: Number((Number(referrer.balance || 0) + commissionAmount).toFixed(4)), 
-            referral_earnings: Number((Number(referrer.referral_earnings || 0) + commissionAmount).toFixed(4)), 
-            total_earnings: Number((Number(referrer.total_earnings || 0) + commissionAmount).toFixed(4)) 
+            balance: Number((Number(referrer.balance || 0) + totalToReferrer).toFixed(4)), 
+            referral_earnings: Number((Number(referrer.referral_earnings || 0) + totalToReferrer).toFixed(4)), 
+            total_earnings: Number((Number(referrer.total_earnings || 0) + totalToReferrer).toFixed(4)) 
           }).eq('id', referrer.id);
 
-          const comisionGemas = (commissionAmount * 1000).toFixed(2);
           await supabase.from('history_logs').insert([{ 
             user_id: referrer.id, 
-            title: '👥 Comisión de Afiliado', 
-            description: `Afiliado ID: ${targetId} | +${comisionGemas} Gemas`, 
-            amount: commissionAmount 
+            title: '👥 Comisión de Escuadrón', 
+            description: logDescription, 
+            amount: totalToReferrer 
           }]);
         }
       }
