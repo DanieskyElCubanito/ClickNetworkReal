@@ -1230,7 +1230,9 @@ export default async function handler(req, res) {
       await supabase.from('history_logs').insert([{ user_id: targetId, title: `✅ Tarea Completada`, description: logDesc, amount: rewardAmount }]);
 
       if (dbUser.referred_by) {
-        const commissionAmount = Number((rewardAmount * 0.20).toFixed(4));
+                // 🔥 NUEVO: 10% de la recompensa base + 5 Gemas fijas (0.005 USDT)
+        const commissionAmount = Number(((rewardAmount * 0.10) + 0.005).toFixed(4));
+
         const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
         if (referrer) {
           await supabase.from('users').update({ 
