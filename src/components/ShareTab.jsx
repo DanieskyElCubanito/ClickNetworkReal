@@ -215,10 +215,11 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
             {referralsList.map((ref, idx) => {
               const avatarLetter = ref.username ? ref.username.charAt(0).toUpperCase() : 'U';
 
-              // Calculamos el valor generado por este afiliado (10% + 5 Gemas por tarea, visual aproximado)
+                            // 🔥 RESTAURADO: Mantenemos la fórmula original en la vista para no afectar los números pasados
               const childTotalUSDT = Number(ref.total_earnings || 0);
-              const generatedTotalUSDT = childTotalUSDT * 0.10; // Visualización aproximada base
-              const generatedGemas = Number((Number(generatedTotalUSDT) * 1000).toFixed(0));
+              const generatedTotalUSDT = childTotalUSDT * 0.20; 
+              const generatedGemas = Number((Number(generatedTotalUSDT) * 1000).toFixed(2));
+
 
               const isHuman = ref.is_human;
               const isActive = isHuman && childTotalUSDT >= 0.005;
