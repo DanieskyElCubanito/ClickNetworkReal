@@ -272,10 +272,11 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
           </div>
         )}
 
-        <div style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '16px', padding: '16px', marginTop: '20px', border: '1px dashed #00f0ff', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.8)' }}>
+                <div style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '16px', padding: '16px', marginTop: '20px', border: '1px dashed #00f0ff', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.8)' }}>
           <p style={{ textAlign: 'center', fontSize: '12px', color: '#ffffff', margin: 0, lineHeight: '1.6', fontWeight: '900', textTransform: 'uppercase' }}>
-            {t('ref_footer_p1') || "Recibes el"} <strong style={{color: '#00ffaa'}}>10% + 5 GEMAS</strong> {t('ref_footer_p2') || "de comisión automática"}<br/>
-            <span style={{ color: '#00f0ff' }}>{t('ref_footer_p3') || "por cada misión que tus reclutas activos completen."}</span>
+            RENDIMIENTO CONTRACTUAL:<br/>
+            <strong style={{color: '#00ffaa'}}>10% POR MISIÓN + 5 GEMAS (BONO ÚNICO)</strong><br/>
+            <span style={{ color: '#00f0ff' }}>AL VALIDAR CADA RECLUTA NUEVO EN TU ESCUADRÓN.</span>
           </p>
         </div>
       </div>
