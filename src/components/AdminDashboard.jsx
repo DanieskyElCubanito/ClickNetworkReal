@@ -44,7 +44,7 @@ export default function AdminDashboard({ userData }) {
   // 🔥 NUEVOS ESTADOS PARA GESTIÓN DE TORNEOS 🔥
   const [activeEvent, setActiveEvent] = useState(null);
   const [loadingEvent, setLoadingEvent] = useState(false);
-  const [eventTitle, setEventTitle] = useState('Torneo Semanal VIP');
+  const [eventTitle, setEventTitle] = useState('Temporada Clasificatoria VIP');
   const [eventType, setEventType] = useState('referral');
   const [eventDays, setEventDays] = useState(7);
   const [prize1, setPrize1] = useState('15 TON');
@@ -55,15 +55,14 @@ export default function AdminDashboard({ userData }) {
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
-    useEffect(() => {
+  useEffect(() => {
     loadStats();
     loadAllTasks();
     loadSysConfig();
     loadPendingWithdrawals();
     loadActiveEvent(); 
-    loadPastEvents(); // 🔥 NUEVO
+    loadPastEvents(); 
   }, []);
-
 
   const loadStats = async () => {
     try {
@@ -73,13 +72,14 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { console.error(e); }
   };
 
+  // 🔥 CORREGIDO: Ahora apunta a admin-get-all-tasks para saltar los filtros de creador
   const loadAllTasks = async () => {
     setLoadingTasks(true);
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-tasks', adminId: userData.id }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-all-tasks', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setAllTasks(data.tasks || []);
-    } catch (e) { console.error("Error cargando campañas", e); } finally { setLoadingTasks(false); }
+    } catch (e) { console.error("Error cargando misiones globales", e); } finally { setLoadingTasks(false); }
   };
 
   const loadSysConfig = async () => {
@@ -96,58 +96,58 @@ export default function AdminDashboard({ userData }) {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-withdrawals', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setPendingWithdrawals(data.withdrawals || []);
-    } catch (e) { console.error("Error cargando retiros pendientes", e); } finally { setLoadingWithdrawals(false); }
+    } catch (e) { console.error("Error cargando extracciones", e); } finally { setLoadingWithdrawals(false); }
   };
 
   const handleApproveWithdrawal = async (withdrawalId) => {
-    if (!window.confirm("¿Seguro que ya enviaste los fondos a este usuario? Esto completará la orden.")) return;
-    const tid = toast.loading("Aprobando...");
+    if (!window.confirm("¿Confirmas la liquidación de estos activos hacia la billetera del usuario?")) return;
+    const tid = toast.loading("Autorizando extracción...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-approve-withdrawal', adminId: userData.id, withdrawalId }) });
       const data = await res.json();
-      if (data.success) { toast.success("Retiro aprobado", { id: tid }); loadPendingWithdrawals(); } 
+      if (data.success) { toast.success("Extracción autorizada y procesada", { id: tid }); loadPendingWithdrawals(); } 
       else throw new Error(data.error);
-    } catch (err) { toast.error(err.message || "Error al aprobar.", { id: tid }); }
+    } catch (err) { toast.error(err.message || "Error al procesar la extracción.", { id: tid }); }
   };
 
   const handleRejectWithdrawal = async (withdrawalId) => {
-    const reason = window.prompt("Motivo del rechazo (se mostrará al usuario):");
+    const reason = window.prompt("Motivo de la retención (visible para el jugador):");
     if (reason === null) return; 
-    const tid = toast.loading("Rechazando...");
+    const tid = toast.loading("Aplicando retención...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-reject-withdrawal', adminId: userData.id, withdrawalId, reason }) });
       const data = await res.json();
-      if (data.success) { toast.success("Retiro rechazado", { id: tid }); loadPendingWithdrawals(); } 
+      if (data.success) { toast.success("Extracción denegada. Fondos reembolsados.", { id: tid }); loadPendingWithdrawals(); } 
       else throw new Error(data.error);
-    } catch (err) { toast.error(err.message || "Error al rechazar.", { id: tid }); }
+    } catch (err) { toast.error(err.message || "Error al denegar.", { id: tid }); }
   };
 
   const handleSaveConfig = async () => {
-    const tid = toast.loading("Guardando configuración...");
+    const tid = toast.loading("Asegurando coordenadas maestras...");
     setSavingConfig(true);
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-config', adminId: userData.id, config: sysConfig }) });
       const data = await res.json();
-      if (data.success) toast.success("Billeteras actualizadas", { id: tid });
+      if (data.success) toast.success("Billeteras maestras actualizadas", { id: tid });
       else throw new Error(data.error);
-    } catch (e) { toast.error("Error al guardar", { id: tid }); }
+    } catch (e) { toast.error("Error de sincronización", { id: tid }); }
     setSavingConfig(false);
   };
 
   const handleDeleteTask = async (taskId) => {
-    if (!window.confirm("¿Seguro que quieres eliminar esta campaña por violar las normas? Se reembolsará el saldo al creador.")) return;
-    const tid = toast.loading("Eliminando campaña...");
+    if (!window.confirm("¿Seguro que deseas purgar esta misión del radar? El capital restante volverá a la bóveda del creador.")) return;
+    const tid = toast.loading("Ejecutando eliminación táctica...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'delete-task', taskId: taskId, requestingUserId: userData.id, isAdminAction: true }) });
       const data = await res.json();
-      if (data.success) { toast.success("Campaña eliminada", { id: tid }); loadAllTasks(); loadStats(); } 
+      if (data.success) { toast.success("Misión eliminada permanentemente", { id: tid }); loadAllTasks(); loadStats(); } 
       else throw new Error(data.error);
-    } catch (err) { toast.error(err.message || "Error al eliminar.", { id: tid }); }
+    } catch (err) { toast.error(err.message || "Error al purgar misión.", { id: tid }); }
   };
 
   const handleSearchUser = async () => {
-    if (!searchId) return toast.error("Ingresa un ID");
-    const tid = toast.loading("Buscando...");
+    if (!searchId) return toast.error("Introduce un ID de jugador");
+    const tid = toast.loading("Rastreando jugador...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-search-user', adminId: userData.id, targetId: searchId }) });
       const data = await res.json();
@@ -155,27 +155,27 @@ export default function AdminDashboard({ userData }) {
         setFoundUser(data.user);
         setNewBalance(data.user.balance ?? 0);
         setNewDepositBalance(data.user.deposit_balance ?? 0);
-        toast.success("Usuario encontrado", { id: tid });
-      } else { toast.error("Usuario no existe", { id: tid }); setFoundUser(null); }
-    } catch (e) { toast.error("Error al buscar", { id: tid }); }
+        toast.success("Jugador localizado en la base de datos", { id: tid });
+      } else { toast.error("Jugador no encontrado", { id: tid }); setFoundUser(null); }
+    } catch (e) { toast.error("Error en la red de búsqueda", { id: tid }); }
   };
 
   const handleUpdateBalance = async () => {
     if (!foundUser) return;
-    const tid = toast.loading("Actualizando saldo de retiro...");
+    const tid = toast.loading("Alterando inventario de gemas...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { balance: Number(newBalance) } }) });
       const data = await res.json();
       if (data.success) { 
-        toast.success("Saldo de Gemas actualizado", { id: tid }); 
+        toast.success("Inventario de Gemas actualizado", { id: tid }); 
         setFoundUser(prev => ({ ...prev, balance: Number(newBalance) })); 
       } else throw new Error();
-    } catch (e) { toast.error("Error al actualizar", { id: tid }); }
+    } catch (e) { toast.error("Error en la alteración", { id: tid }); }
   };
 
   const handleUpdateDepositBalance = async () => {
     if (!foundUser) return;
-    const tid = toast.loading("Actualizando Bóveda USDT...");
+    const tid = toast.loading("Actualizando Bóveda Táctica...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { deposit_balance: Number(newDepositBalance) } }) });
       const data = await res.json();
@@ -183,19 +183,19 @@ export default function AdminDashboard({ userData }) {
         toast.success("Bóveda USDT actualizada", { id: tid }); 
         setFoundUser(prev => ({ ...prev, deposit_balance: Number(newDepositBalance) })); 
       } else throw new Error();
-    } catch (e) { toast.error("Error al actualizar Bóveda", { id: tid }); }
+    } catch (e) { toast.error("Error al inyectar fondos", { id: tid }); }
   };
 
   const handleToggleBan = async () => {
     if (!foundUser) return;
     const isBanning = !foundUser.is_banned;
-    const tid = toast.loading(isBanning ? "Baneando..." : "Desbaneando...");
+    const tid = toast.loading(isBanning ? "Aplicando sanción disciplinaria..." : "Levantando sanción...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { is_banned: isBanning } }) });
       const data = await res.json();
-      if (data.success) { toast.success(isBanning ? "Usuario baneado" : "Usuario restaurado", { id: tid }); setFoundUser(prev => ({ ...prev, is_banned: isBanning })); } 
+      if (data.success) { toast.success(isBanning ? "Jugador expulsado de la red" : "Jugador restaurado en el sistema", { id: tid }); setFoundUser(prev => ({ ...prev, is_banned: isBanning })); } 
       else throw new Error();
-    } catch (e) { toast.error("Error en la operación", { id: tid }); }
+    } catch (e) { toast.error("Fallo de comando", { id: tid }); }
   };
 
   // 🔥 FUNCIONES DE GESTIÓN DE TORNEOS 🔥
@@ -209,21 +209,21 @@ export default function AdminDashboard({ userData }) {
       } else {
         setActiveEvent(null);
       }
-    } catch (e) { console.error("Error cargando evento", e); } finally { setLoadingEvent(false); }
+    } catch (e) { console.error("Error sincronizando evento activo", e); } finally { setLoadingEvent(false); }
   };
-   
-    const loadPastEvents = async () => {
+
+  const loadPastEvents = async () => {
     setLoadingPast(true);
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-past-events', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setPastEvents(data.pastEvents || []);
-    } catch (e) { console.error("Error cargando historial", e); } finally { setLoadingPast(false); }
+    } catch (e) { console.error("Error cargando archivos clasificados", e); } finally { setLoadingPast(false); }
   };
 
   const handleCreateEvent = async () => {
-    if (!eventTitle.trim()) return toast.error("Ponle un título al torneo.");
-    const tid = toast.loading("Lanzando torneo en vivo...");
+    if (!eventTitle.trim()) return toast.error("Requiere un título de Temporada.");
+    const tid = toast.loading("Iniciando despliegue de temporada...");
     try {
       const startDate = new Date().toISOString();
       const endDate = new Date();
@@ -243,18 +243,18 @@ export default function AdminDashboard({ userData }) {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("¡Torneo activado con éxito!", { id: tid });
+        toast.success("¡Temporada clasificatoria activada!", { id: tid });
         loadActiveEvent();
       } else throw new Error(data.error);
-    } catch (e) { toast.error(e.message || "Error al crear", { id: tid }); }
+    } catch (e) { toast.error(e.message || "Error de inicialización", { id: tid }); }
   };
 
-    const handleManageEvent = async (newStatus) => {
+  const handleManageEvent = async (newStatus) => {
     if (!activeEvent) return;
-    const confirmMsg = newStatus === 'deleted' ? "¿Estás seguro de ELIMINAR todo el torneo actual?" : "¿Quieres FINALIZAR el torneo ahora mismo?";
+    const confirmMsg = newStatus === 'deleted' ? "⚠️ ADVERTENCIA: ¿Purgar la temporada actual sin dejar rastro?" : "🛡️ ¿Cerrar el ciclo de temporada y registrar a los campeones?";
     if (!window.confirm(confirmMsg)) return;
 
-    const tid = toast.loading("Procesando...");
+    const tid = toast.loading("Sobreescribiendo protocolos de temporada...");
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
@@ -267,29 +267,29 @@ export default function AdminDashboard({ userData }) {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("Torneo actualizado", { id: tid });
+        toast.success("Temporada actualizada con éxito", { id: tid });
         loadActiveEvent();
-        loadPastEvents(); // 🔥 NUEVO: Refresca el historial de inmediato
+        loadPastEvents(); 
       } else throw new Error(data.error);
-    } catch (e) { toast.error(e.message || "Error en la gestión", { id: tid }); }
+    } catch (e) { toast.error(e.message || "Fallo en sobreescritura", { id: tid }); }
   };
 
   return (
     <div style={{ color: '#fff', paddingBottom: '20px' }}>
       <Toaster containerStyle={{ zIndex: 9999999 }} />
       <h2 style={{ color: '#ffe600', fontWeight: '900', textAlign: 'center', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-        {Icons.shield} Panel de Control
+        {Icons.shield} Comando Central
       </h2>
 
       {/* MÉTRICAS GLOBALES */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
         <div style={{ ...neon.card, flex: 1, textAlign: 'center', marginBottom: 0, padding: '12px' }}>
           <div style={{ fontSize: '24px', fontWeight: '900', color: '#00f0ff' }}>{stats.users}</div>
-          <div style={{ fontSize: '10px', color: '#ff99dd', fontWeight: '900' }}>USUARIOS TOTALES</div>
+          <div style={{ fontSize: '10px', color: '#ff99dd', fontWeight: '900' }}>JUGADORES REGISTRADOS</div>
         </div>
         <div style={{ ...neon.card, flex: 1, textAlign: 'center', marginBottom: 0, padding: '12px' }}>
           <div style={{ fontSize: '24px', fontWeight: '900', color: '#00ffaa' }}>{stats.tasks}</div>
-          <div style={{ fontSize: '10px', color: '#ff99dd', fontWeight: '900' }}>CAMPAÑAS CREADAS</div>
+          <div style={{ fontSize: '10px', color: '#ff99dd', fontWeight: '900' }}>MISIONES DESPLEGADAS</div>
         </div>
       </div>
 
@@ -297,21 +297,21 @@ export default function AdminDashboard({ userData }) {
       <div style={{ ...neon.card, borderColor: '#00f0ff', background: 'linear-gradient(145deg, #0d1225, #050b14)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, fontSize: '16px', color: '#00f0ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {Icons.trophy} Gestión de Torneos
+            {Icons.trophy} Control de Temporadas
           </h3>
           <button onClick={loadActiveEvent} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>{Icons.refresh}</button>
         </div>
 
         {loadingEvent ? (
-          <div style={{ textAlign: 'center', fontSize: '12px', color: '#00f0ff' }}>Comprobando eventos activos...</div>
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#00f0ff' }}>Escaneando radar de eventos...</div>
         ) : activeEvent ? (
           <div style={{ background: 'rgba(0,0,0,0.5)', padding: '16px', borderRadius: '12px', border: '1px dashed #00f0ff', textAlign: 'center' }}>
-            <div style={{ color: '#00ffaa', fontSize: '10px', fontWeight: '900', letterSpacing: '1px', marginBottom: '6px' }}>TORNEO EN CURSO</div>
+            <div style={{ color: '#00ffaa', fontSize: '10px', fontWeight: '900', letterSpacing: '1px', marginBottom: '6px' }}>TEMPORADA EN CURSO</div>
             <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>{activeEvent.title}</div>
             <div style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '16px' }}>
-              Modalidad: <b>{activeEvent.event_type === 'referral' ? 'Invitar Amigos' : 'Completar Tareas'}</b>
+              Modo de Juego: <b>{activeEvent.event_type === 'referral' ? 'Reclutar Aliados' : 'Cazar Misiones'}</b>
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '12px' }}>
               <div><div style={{fontSize:'16px'}}>🥇</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{activeEvent.prizes[0]}</div></div>
               <div><div style={{fontSize:'16px'}}>🥈</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{activeEvent.prizes[1]}</div></div>
@@ -319,34 +319,34 @@ export default function AdminDashboard({ userData }) {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => handleManageEvent('completed')} style={{ ...neon.btn, background: 'linear-gradient(90deg, #00f0ff, #0088ff)', flex: 1, color: '#fff' }}>FINALIZAR AHORA</button>
+              <button onClick={() => handleManageEvent('completed')} style={{ ...neon.btn, background: 'linear-gradient(90deg, #00f0ff, #0088ff)', flex: 1, color: '#fff' }}>FORZAR FINALIZACIÓN</button>
               <button onClick={() => handleManageEvent('deleted')} style={{ ...neon.btnDanger, flex: 1 }}>{Icons.trash} ELIMINAR</button>
             </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ fontSize: '11px', color: '#aaa', textAlign: 'center', marginBottom: '8px' }}>Crea un evento dinámico para que los usuarios compitan en el Salón de la Fama.</div>
-            
+            <div style={{ fontSize: '11px', color: '#aaa', textAlign: 'center', marginBottom: '8px' }}>Activa un protocolo de temporada para incentivar a los jugadores a competir en el Salón de la Fama.</div>
+
             <div>
-              <span style={neon.label}>Título del Evento</span>
-              <input type="text" style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0}} value={eventTitle} onChange={e => setEventTitle(e.target.value)} placeholder="Ej. Torneo de Fin de Semana" />
+              <span style={neon.label}>Nombre de la Temporada</span>
+              <input type="text" style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0}} value={eventTitle} onChange={e => setEventTitle(e.target.value)} placeholder="Ej. Temporada Cero" />
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <div style={{ flex: 2 }}>
                 <span style={neon.label}>Modo de Competencia</span>
                 <select style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0, padding: '11px'}} value={eventType} onChange={e => setEventType(e.target.value)}>
-                  <option value="referral">👥 Referidos (Invitar Amigos)</option>
-                  <option value="task_completion">🔥 Actividad (Hacer Tareas)</option>
+                  <option value="referral">👥 Reclutamiento Masivo</option>
+                  <option value="task_completion">🔥 Completar Misiones</option>
                 </select>
               </div>
               <div style={{ flex: 1 }}>
-                <span style={neon.label}>Días de duración</span>
+                <span style={neon.label}>Días Activos</span>
                 <input type="number" style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0, textAlign: 'center'}} value={eventDays} onChange={e => setEventDays(e.target.value)} />
               </div>
             </div>
 
-            <span style={{...neon.label, marginTop: '8px'}}>Premios para el TOP 3 (Pesos Específicos)</span>
+            <span style={{...neon.label, marginTop: '8px'}}>Recompensas para el TOP 3</span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input type="text" style={{...neon.input, borderColor: '#ffe600', marginBottom: 0, textAlign: 'center'}} value={prize1} onChange={e => setPrize1(e.target.value)} placeholder="🥇 1er Lugar" />
               <input type="text" style={{...neon.input, borderColor: '#C0C0C0', marginBottom: 0, textAlign: 'center'}} value={prize2} onChange={e => setPrize2(e.target.value)} placeholder="🥈 2do Lugar" />
@@ -354,59 +354,59 @@ export default function AdminDashboard({ userData }) {
             </div>
 
             <button onClick={handleCreateEvent} style={{ ...neon.btn, background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#fff', marginTop: '10px' }}>
-              🚀 LANZAR TORNEO EN VIVO
+              🚀 LANZAR TEMPORADA AHORA
             </button>
           </div>
         )}
       </div>
-      
-              {/* 🔥 HISTORIAL DE TORNEOS FINALIZADOS (PARA PAGOS) 🔥 */}
-        <div style={{ marginTop: '24px', borderTop: '1px dashed rgba(0, 240, 255, 0.3)', paddingTop: '20px' }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            Torneos Finalizados (Top 3 Ganadores)
-          </h4>
-          
-          {loadingPast ? (
-            <div style={{ textAlign: 'center', fontSize: '11px', color: '#aaa' }}>Cargando registros...</div>
-          ) : pastEvents.length === 0 ? (
-            <div style={{ textAlign: 'center', fontSize: '11px', color: '#666', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '10px' }}>
-              Aún no hay torneos completados.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }}>
-              {pastEvents.map(ev => (
-                <div key={ev.id} style={{ background: 'rgba(0,0,0,0.5)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(0, 240, 255, 0.2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '900', color: '#fff' }}>{ev.title}</span>
-                    <span style={{ fontSize: '10px', color: '#aaa', fontWeight: 'bold' }}>
-                      Finalizó: {new Date(ev.end_date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  
-                  {ev.winners && ev.winners.length > 0 ? (
-                    ev.winners.map((w, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: '6px' }}>
-                        <div style={{ color: '#ccc' }}>
-                          <span style={{ fontSize: '14px', marginRight: '6px' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-                          <span style={{ fontWeight: 'bold', color: '#fff' }}>@{w.username}</span> 
-                          <span style={{ fontSize: '10px', marginLeft: '4px' }}>(ID: {w.userId})</span>
-                        </div>
-                        <div style={{ color: '#ffe600', fontWeight: '900' }}>{w.score} pts</div>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ fontSize: '11px', color: '#666', textAlign: 'center' }}>Nadie participó en este evento.</div>
-                  )}
+
+      {/* 🔥 HISTORIAL DE TORNEOS FINALIZADOS (PARA PAGOS) 🔥 */}
+      <div style={{ marginTop: '24px', borderTop: '1px dashed rgba(0, 240, 255, 0.3)', paddingTop: '20px' }}>
+        <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '1px' }}>
+          Temporadas Finalizadas (Salón de la Fama)
+        </h4>
+
+        {loadingPast ? (
+          <div style={{ textAlign: 'center', fontSize: '11px', color: '#aaa' }}>Desencriptando registros...</div>
+        ) : pastEvents.length === 0 ? (
+          <div style={{ textAlign: 'center', fontSize: '11px', color: '#666', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '10px' }}>
+            Aún no hay temporadas completadas en la base de datos.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }}>
+            {pastEvents.map(ev => (
+              <div key={ev.id} style={{ background: 'rgba(0,0,0,0.5)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(0, 240, 255, 0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '900', color: '#fff' }}>{ev.title}</span>
+                  <span style={{ fontSize: '10px', color: '#aaa', fontWeight: 'bold' }}>
+                    Finalizó: {new Date(ev.end_date).toLocaleDateString()}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                {ev.winners && ev.winners.length > 0 ? (
+                  ev.winners.map((w, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: '6px' }}>
+                      <div style={{ color: '#ccc' }}>
+                        <span style={{ fontSize: '14px', marginRight: '6px' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
+                        <span style={{ fontWeight: 'bold', color: '#fff' }}>@{w.username}</span> 
+                        <span style={{ fontSize: '10px', marginLeft: '4px' }}>(ID: {w.userId})</span>
+                      </div>
+                      <div style={{ color: '#ffe600', fontWeight: '900' }}>{w.score} pts</div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ fontSize: '11px', color: '#666', textAlign: 'center' }}>Ningún jugador puntuó en este evento.</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* CONFIGURACIÓN DE BILLETERAS */}
       <div style={{ ...neon.card, borderColor: '#ff41b4' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff99dd', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {Icons.wallet} Billeteras de Operación
+          {Icons.wallet} Billeteras Maestras
         </h3>
 
         <span style={neon.label}>Billetera Pública GRAM (Red TON)</span>
@@ -428,18 +428,18 @@ export default function AdminDashboard({ userData }) {
         />
 
         <div style={{ background: 'rgba(0, 255, 170, 0.1)', border: '1px dashed #00ffaa', padding: '10px', borderRadius: '10px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#00ffaa' }}>
-          {Icons.lock} <span>Las llaves privadas de retiro y gas están protegidas en Vercel (process.env).</span>
+          {Icons.lock} <span>Las llaves privadas de retiro y gas están protegidas en el cifrado de entorno.</span>
         </div>
 
         <button onClick={handleSaveConfig} disabled={savingConfig} style={{ ...neon.btn, background: 'linear-gradient(90deg, #ff1493, #8a2be2)', color: '#fff' }}>
-          {savingConfig ? 'GUARDANDO...' : 'GUARDAR BILLETERAS'}
+          {savingConfig ? 'Sincronizando...' : 'GUARDAR BILLETERAS'}
         </button>
       </div>
 
       {/* BUSCADOR DE USUARIOS */}
       <div style={neon.card}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ffe600' }}>Control de Usuarios</h3>
-        <span style={neon.label}>Buscar por ID de Telegram</span>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ffe600' }}>Control de Jugadores (Anti-Trampas)</h3>
+        <span style={neon.label}>ID de Búsqueda Táctica</span>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
           <input 
             type="number" 
@@ -456,13 +456,13 @@ export default function AdminDashboard({ userData }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#00f0ff' }}>@{foundUser.username} (ID: {foundUser.id})</span>
               <span style={{ fontSize: '11px', color: foundUser.is_banned ? '#ff1493' : '#00ffaa', fontWeight: '900' }}>
-                {foundUser.is_banned ? 'BANEADO' : 'ACTIVO'}
+                {foundUser.is_banned ? 'EXPULSADO' : 'OPERATIVO'}
               </span>
             </div>
 
             {/* CONTROL 1: BÓVEDA USDT (DEPOSIT_BALANCE) */}
             <div style={{ marginBottom: '14px' }}>
-              <span style={{ ...neon.label, color: '#00ffaa' }}>Bóveda de Campañas (USDT - Solo Compras)</span>
+              <span style={{ ...neon.label, color: '#00ffaa' }}>Bóveda Táctica (USDT - Solo Misiones)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                   type="number" 
@@ -477,7 +477,7 @@ export default function AdminDashboard({ userData }) {
 
             {/* CONTROL 2: SALDO RETIRABLE (BALANCE) */}
             <div style={{ marginBottom: '16px' }}>
-              <span style={{ ...neon.label, color: '#00f0ff' }}>Saldo Retirable Base (1.00 = 1000 Gemas)</span>
+              <span style={{ ...neon.label, color: '#00f0ff' }}>Inventario Retirable Base (1.00 = 1000 Gemas)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                   type="number" 
@@ -491,7 +491,7 @@ export default function AdminDashboard({ userData }) {
             </div>
 
             <button onClick={handleToggleBan} style={foundUser.is_banned ? { ...neon.btnDanger, borderColor: '#00ffaa', color: '#00ffaa' } : neon.btnDanger}>
-              {foundUser.is_banned ? <>{Icons.restore} DESBANEAR USUARIO</> : <>{Icons.ban} BANEAR USUARIO</>}
+              {foundUser.is_banned ? <>{Icons.restore} RESTAURAR JUGADOR</> : <>{Icons.ban} EXPULSAR JUGADOR</>}
             </button>
           </div>
         )}
@@ -500,14 +500,14 @@ export default function AdminDashboard({ userData }) {
       {/* 🔥 INICIO PANEL DE RETIROS PENDIENTES 🔥 */}
       <div style={{ ...neon.card, borderColor: '#ff99dd' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', color: '#ff99dd' }}>Retiros Pendientes</h3>
+          <h3 style={{ margin: 0, fontSize: '16px', color: '#ff99dd' }}>Extracciones en Cola</h3>
           <button onClick={loadPendingWithdrawals} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>{Icons.refresh}</button>
         </div>
 
         {loadingWithdrawals ? (
-          <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>Cargando retiros...</div>
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>Rastreando peticiones...</div>
         ) : pendingWithdrawals.length === 0 ? (
-          <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>No hay retiros pendientes de aprobación.</div>
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>No hay solicitudes de extracción pendientes.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
             {pendingWithdrawals.map(w => (
@@ -517,14 +517,14 @@ export default function AdminDashboard({ userData }) {
                   <span style={{ fontSize: '14px', color: '#ffe600', fontWeight: '900' }}>{w.amount} USDT</span>
                 </div>
                 <div style={{ fontSize: '11px', color: '#00ffaa', marginBottom: '12px', wordBreak: 'break-all' }}>
-                  Billetera: {w.wallet_address}
+                  Billetera Objetivo: {w.wallet_address}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={() => handleApproveWithdrawal(w.id)} style={{ flex: 1, background: '#00ffaa', border: 'none', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    {Icons.check} APROBAR
+                    {Icons.check} AUTORIZAR
                   </button>
                   <button onClick={() => handleRejectWithdrawal(w.id)} style={{ flex: 1, background: 'transparent', border: '1px solid #ff1493', color: '#ff1493', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    {Icons.cross} RECHAZAR
+                    {Icons.cross} DENEGAR
                   </button>
                 </div>
               </div>
@@ -536,14 +536,14 @@ export default function AdminDashboard({ userData }) {
       {/* AUDITORÍA DE CAMPAÑAS */}
       <div style={neon.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#00ffaa' }}>Auditoría de Campañas</h3>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#00ffaa' }}>Auditoría Global de Misiones</h3>
           <button onClick={loadAllTasks} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>{Icons.refresh}</button>
         </div>
 
         {loadingTasks ? (
-          <div style={{ textAlign: 'center', fontSize: '12px', color: '#ff99dd' }}>Cargando datos...</div>
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#ff99dd' }}>Sincronizando radares...</div>
         ) : allTasks.length === 0 ? (
-          <div style={{ textAlign: 'center', fontSize: '12px', color: '#ff99dd' }}>No hay campañas activas en la plataforma.</div>
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#ff99dd' }}>No hay misiones activas en la red en este momento.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
             {allTasks.map(task => (
@@ -563,7 +563,7 @@ export default function AdminDashboard({ userData }) {
                 </div>
                 <div style={{ marginTop: '10px', textAlign: 'right' }}>
                   <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#ff1493', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}>
-                    {Icons.trash} Eliminar Forzada
+                    {Icons.trash} Eliminación Forzada
                   </button>
                 </div>
               </div>
