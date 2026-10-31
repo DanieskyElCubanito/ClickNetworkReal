@@ -977,7 +977,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                  </div>
               )}
 
-
+</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setShowEditModal(false)} style={{ ...neon.btnSecondary, flex: 1 }}>{t('ads_btn_cancel')}</button>
               <button onClick={handleSaveEdit} style={{ ...neon.btnPrimary, flex: 2, background: 'linear-gradient(180deg, #ffe600, #ffaa00)', color: '#050214', boxShadow: '0 6px 0 #cc8800' }}>{t('ads_btn_update')}</button>
