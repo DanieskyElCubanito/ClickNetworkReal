@@ -228,10 +228,27 @@ async function checkMembership(userId, chatId) {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${userId}`;
     const response = await fetchWithTimeout(url);
     const resData = await response.json();
-    if (!resData.ok) return false;
-    return ['member', 'administrator', 'creator'].includes(resData.result.status);
-  } catch (error) { return false; }
+    
+    // 🛡️ REGLA 1: Si la API falla (Rate limit, bot sin permisos, etc), NO penalizamos injustamente.
+    if (!resData.ok) {
+      console.log(`Error API Telegram en canal ${chatId}:`, resData.description);
+      return true; // Asumimos inocencia si Telegram no puede responder
+    }
+
+    // 🛡️ REGLA 2: Solo retornamos FALSE si estamos 100% seguros de que abandonó
+    const status = resData.result.status;
+    if (['left', 'kicked'].includes(status)) {
+      return false; // Aquí sí se salió, merece penalidad
+    }
+
+    // Si es member, creator, administrator o restricted, sigue ahí.
+    return true; 
+  } catch (error) { 
+    // 🛡️ REGLA 3: Si hay error de red/timeout, no penalizamos.
+    return true; 
+  }
 }
+
 
 async function checkAdminStatus(chatId) {
   try {
