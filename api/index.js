@@ -638,6 +638,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    // 🔥 NUEVO: Auditoría global de campañas para el Comando (Admin)
+    if (action === 'admin-get-all-tasks') {
+      const { adminId } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
+      
+      const { data: allTasks, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) return res.status(400).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true, tasks: allTasks || [] });
+    }
+
     if (action === 'admin-stats') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
@@ -1241,7 +1255,12 @@ export default async function handler(req, res) {
       }
 
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
-      if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Tarea no disponible.' });
+      if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Misión no disponible.' });
+
+      // 🔥 NUEVA REGLA: Bloqueo de auto-completado
+      if (String(task.creator_id) === targetId) {
+        return res.status(400).json({ success: false, error: 'Comando denegado: No puedes cobrar recompensas de tu propia misión.' });
+      }
 
       if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) {
         return res.status(400).json({ success: false, error: 'Código de validación incorrecto.' });
@@ -1392,7 +1411,7 @@ export default async function handler(req, res) {
     }
 
     if (action === 'edit-task') {
-      const { taskId, requestingUserId, newTitle, newUrl, isAdminAction } = req.body;
+      const { taskId, requestingUserId, newTitle, newUrl, addCompletions, isAdminAction } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
 
@@ -1400,8 +1419,35 @@ export default async function handler(req, res) {
          return res.status(403).json({ success: false, error: 'Sin permisos para editar.' });
       }
 
-      await supabase.from('tasks').update({ title: newTitle, url: newUrl }).eq('id', taskId);
-      return res.status(200).json({ success: true });
+      const updates = { title: newTitle, url: newUrl };
+
+      // 🔥 Inyección de capital (Agregar más cupos a la tarea)
+      if (addCompletions && Number(addCompletions) > 0) {
+        const extraCompletions = Number(addCompletions);
+        const extraCost = Number((extraCompletions * task.reward * 1.30).toFixed(4));
+
+        const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
+        if (!cUser || Number(cUser.deposit_balance) < extraCost) {
+           return res.status(400).json({ success: false, error: `Se requieren ${extraCost} USDT en Bóveda para añadir ${extraCompletions} cupos.` });
+        }
+        
+        // Descontar saldo y actualizar tarea
+        const newVaultBalance = Number((Number(cUser.deposit_balance) - extraCost).toFixed(4));
+        await supabase.from('users').update({ deposit_balance: newVaultBalance }).eq('id', task.creator_id);
+        
+        updates.completions_total = task.completions_total + extraCompletions;
+        updates.status = 'active'; // Se reactiva automáticamente si estaba pausada por falta de cupos
+
+        await supabase.from('history_logs').insert([{ 
+          user_id: task.creator_id, 
+          title: '🔋 Campaña Recargada', 
+          description: `+${extraCompletions} cupos añadidos a "${newTitle}". Costo: -$${extraCost.toFixed(2)} USDT.`, 
+          amount: -extraCost 
+        }]);
+      }
+
+      await supabase.from('tasks').update(updates).eq('id', taskId);
+      return res.status(200).json({ success: true, message: 'Parámetros tácticos actualizados.' });
     }
 
     if (action === 'get-history') {
