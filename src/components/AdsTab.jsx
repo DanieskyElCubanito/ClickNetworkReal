@@ -966,17 +966,17 @@ export default function AdsTab({ userData, setUserData, t }) {
                 <button onClick={() => setEditingTask(prev => ({...prev, addCompletions: prev.addCompletions + 10}))} style={{...neon.btnActionCalc, width: '35px', height: '35px', fontSize: '18px'}}>+</button>
               </div>
               
-              {editingTask.addCompletions > 0 && (
+                            {editingTask.addCompletions > 0 && (
                  <div style={{ 
                    fontSize: '11px', 
-                   color: depositBalanceUsdt >= ((editingTask.addCompletions * editingTask.reward * 1.30) / 1000) ? '#00ffaa' : '#ff4b4b', 
+                   color: depositBalanceUsdt >= (editingTask.addCompletions * editingTask.reward * 1.30) ? '#00ffaa' : '#ff4b4b', 
                    marginTop: '10px', 
                    fontWeight: 'bold' 
                  }}>
-                   Costo táctico: -${((editingTask.addCompletions * editingTask.reward * 1.30) / 1000).toFixed(4)} USDT de Bóveda
+                   Costo táctico: -${(editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4)} USDT de Bóveda
                  </div>
               )}
-            </div>
+
 
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setShowEditModal(false)} style={{ ...neon.btnSecondary, flex: 1 }}>{t('ads_btn_cancel')}</button>
