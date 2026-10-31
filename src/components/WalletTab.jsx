@@ -36,7 +36,7 @@ export default function WalletTab({ userData, setUserData, t }) {
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
-  // 🔥 NUEVO: CARGA DE SCRIPT DE GIGA PUB (Reemplaza a Adsgram)
+  // 🔥 CARGA DE SCRIPT DE GIGA PUB (Reemplaza a Adsgram)
   useEffect(() => {
     if (!window.showGiga) {
       const script = document.createElement("script");
@@ -90,7 +90,7 @@ export default function WalletTab({ userData, setUserData, t }) {
   const numericRecharge = Number(rechargeAmount) || 0;
   const gramRechargePrice = (numericRecharge / liveGramUsd).toFixed(2);
 
-  // 🔥 NUEVO: FUNCIÓN PARA VER ANUNCIOS DE PROGRESO CON GIGA PUB
+  // 🔥 FUNCIÓN PARA VER ANUNCIOS DE PROGRESO CON GIGA PUB
   const handleWatchProgressAd = () => {
     if (!window.showGiga) return toast.error("Servidor de anuncios inactivo. Desactiva tu bloqueador de anuncios.");
     setPlayingAd(true);
@@ -232,6 +232,41 @@ export default function WalletTab({ userData, setUserData, t }) {
         </div>
       </div>
 
+      {/* 🔥 BANNER TÁCTICO: CANAL DE PAGOS EN VIVO 🔥 */}
+      <div style={{ 
+        background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(138, 43, 226, 0.15))', 
+        border: '1px dashed #00f0ff', 
+        borderRadius: '20px', 
+        padding: '16px', 
+        marginBottom: '20px',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        boxShadow: 'inset 0 0 15px rgba(0,240,255,0.1)'
+      }}>
+        <div>
+          <div style={{ color: '#fff', fontSize: '13px', fontWeight: '900' }}>💎 Transparencia en Vivo</div>
+          <div style={{ color: '#00f0ff', fontSize: '11px', fontWeight: 'bold', marginTop: '2px' }}>Comprueba los pagos a la blockchain</div>
+        </div>
+        <button 
+          onClick={() => WebApp.openTelegramLink('https://t.me/PagosEnCrypto')} 
+          style={{ 
+            background: 'linear-gradient(180deg, #00f0ff, #0088ff)', 
+            color: '#050214', 
+            border: 'none', 
+            borderRadius: '12px', 
+            padding: '10px 14px', 
+            fontWeight: '900', 
+            fontSize: '11px', 
+            boxShadow: '0 4px 15px rgba(0,240,255,0.4)',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            textTransform: 'uppercase'
+          }}>
+          VER CANAL ➔
+        </button>
+      </div>
+
       <div style={neonStyles.tabContainer}>
         <button onClick={() => setActiveTab('withdraw')} style={neonStyles.tabBtn(activeTab === 'withdraw', false)}>
           {t('bank_tab_withdraw') || "RETIRAR GEMAS"}
@@ -276,7 +311,7 @@ export default function WalletTab({ userData, setUserData, t }) {
             </button>
           </div>
 
-          {/* 🛠️ BLOQUE VISUAL DE REQUISITOS DE RETIRO */}
+          {/* BLOQUE VISUAL DE REQUISITOS DE RETIRO */}
           <div style={{ background: 'linear-gradient(145deg, #10061e, #1a0b33)', border: '1.5px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '20px' }}>
             <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>🛡️ Requisitos de Retiro (Elige uno)</h4>
 
