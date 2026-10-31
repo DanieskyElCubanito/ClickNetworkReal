@@ -265,12 +265,27 @@ async function checkAdminStatusDetailed(chatId) {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${BOT_ID}`;
     const response = await fetchWithTimeout(url);
     const resData = await response.json();
-    if (!resData.ok) return { isAdmin: false, error: resData.description };
+    
+    if (!resData.ok) {
+      const apiError = resData.description.toLowerCase();
+      
+      // 🔥 Traducimos los errores crudos de Telegram a mensajes tácticos para el usuario
+      if (apiError.includes('member list is inaccessible') || apiError.includes('chat not found')) {
+        return { isAdmin: false, error: '⚠️ Radar bloqueado: El canal es privado o el bot no tiene permisos. Añade a nuestro bot como Administrador de tu base antes de conectarla.' };
+      }
+      return { isAdmin: false, error: '⚠️ Falla táctica: Verifica que el bot sea administrador del grupo/canal.' };
+    }
+    
     const status = resData.result.status;
     if (['administrator', 'creator'].includes(status)) return { isAdmin: true };
-    return { isAdmin: false, error: `El bot es ${status}, no es administrador.` };
-  } catch (error) { return { isAdmin: false, error: error.message }; }
+    
+    // Si el usuario metió al bot pero no le dio administrador
+    return { isAdmin: false, error: `⚠️ Comando denegado: El bot está como "${status}". Se requieren permisos de Administrador para validar las misiones de tu escuadrón.` };
+  } catch (error) { 
+    return { isAdmin: false, error: '📡 Interferencia en el nodo de red. Reintenta establecer conexión.' }; 
+  }
 }
+
 
 async function runRetentionAudit(userId) {
   try {
