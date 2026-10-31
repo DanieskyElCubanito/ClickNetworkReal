@@ -119,7 +119,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
-    // 🛡️ LÓGICA ANTI-TRAMPAS MEJORADA (8s para Promos, 1.5s para Telegram)
+  // 🛡️ LÓGICA ANTI-TRAMPAS MEJORADA (8s para Promos, 1.5s para Telegram)
   useEffect(() => {
     const handleHide = () => {
       setTaskStatus(prevStatus => {
@@ -193,9 +193,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     };
   }, [taskStartTimes, tasks]); // 🔥 IMPORTANTE: Ahora la función escucha las 'tasks'
 
-
-
-    const fetchTasks = async () => {
+  const fetchTasks = async () => {
     setLoadingTasks(true);
     try {
       const res = await fetch('/api', {
@@ -213,7 +211,6 @@ export default function AdsTab({ userData, setUserData, t }) {
       }
     } catch (e) {} finally { setLoadingTasks(false); }
   };
-
 
   const stepsFlow = taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'];
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -445,17 +442,52 @@ export default function AdsTab({ userData, setUserData, t }) {
     } catch (err) { toast.error(err.message || "Error al modificar el estado de la campaña.", { id: tid }); }
   };
 
-  const handleOpenEdit = (task) => { setEditingTask({ id: task.id, title: task.title, url: task.url }); setShowEditModal(true); };
+  // 🔥 NUEVO: Función para abrir modal e inyectar cupos extra
+  const handleOpenEdit = (task) => { 
+    setEditingTask({ 
+      id: task.id, 
+      title: task.title, 
+      url: task.url,
+      reward: Number(task.reward), // Requerido para la calculadora
+      addCompletions: 0 // Valor inicial para cupos nuevos
+    }); 
+    setShowEditModal(true); 
+  };
 
+  // 🔥 NUEVO: Función que guarda los cambios y procesa la inyección de saldo
   const handleSaveEdit = async () => {
-    const tid = toast.loading("Aplicando modificaciones...");
+    const extraCost = Number((editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4));
+    
+    if (editingTask.addCompletions > 0 && depositBalanceUsdt < extraCost) {
+      return toast.error(`Capital insuficiente. Requieres ${extraCost.toFixed(2)} USDT en Bóveda para inyectar estos cupos.`);
+    }
+
+    const tid = toast.loading("Aplicando modificaciones tácticas...");
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'edit-task', taskId: editingTask.id, requestingUserId: userData.id, newTitle: editingTask.title, newUrl: editingTask.url, isAdminAction: false })
+        body: JSON.stringify({ 
+          action: 'edit-task', 
+          taskId: editingTask.id, 
+          requestingUserId: userData.id, 
+          newTitle: editingTask.title, 
+          newUrl: editingTask.url, 
+          addCompletions: editingTask.addCompletions,
+          isAdminAction: false 
+        })
       });
       const data = await res.json();
-      if (data.success) { toast.success("Configuración de campaña actualizada.", { id: tid }); setShowEditModal(false); fetchTasks(); } 
+      if (data.success) { 
+        toast.success(data.message || "Configuración de campaña actualizada.", { id: tid }); 
+        
+        // Descontamos visualmente el saldo para no tener que recargar toda la app
+        if (editingTask.addCompletions > 0) {
+           setUserData(prev => ({...prev, deposit_balance: Math.max(0, prev.deposit_balance - extraCost)}));
+        }
+        
+        setShowEditModal(false); 
+        fetchTasks(); 
+      } 
       else { throw new Error(data.error); }
     } catch (err) { toast.error(err.message || "No se pudieron aplicar los cambios.", { id: tid }); }
   };
@@ -477,10 +509,16 @@ export default function AdsTab({ userData, setUserData, t }) {
   };
 
   const myTasks = tasks.filter(t => t.creator_id === String(userData?.id));
-  const communityTasks = tasks.filter(t => t.creator_id !== String(userData?.id) && t.status === 'active')
+  // 🔥 NUEVO: Las tareas en el radar ya no excluyen al creador, para que pueda ver la suya en la lista
+  const communityTasks = tasks.filter(t => t.status === 'active')
     .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
 
   const renderTaskButton = (task) => {
+    // 🔥 NUEVO: Bloqueo visual de campaña propia
+    if (String(task.creator_id) === String(userData?.id)) {
+       return <button disabled style={{...neon.taskButtonDisabled, background: 'rgba(255,255,255,0.05)', color: '#666', borderColor: '#444'}}>TU CAMPAÑA 🛡️</button>;
+    }
+
     const status = taskStatus[task.id];
     const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
 
@@ -804,7 +842,14 @@ export default function AdsTab({ userData, setUserData, t }) {
                 <p style={{ color: '#ff99dd', fontSize: '13px', marginBottom: '16px', lineHeight: '1.4', fontWeight: 'bold' }}>
                   {taskType === 'bot' && t('ads_url_desc_bot')}
                   {taskType === 'channel' && t('ads_url_desc_channel')}
-                  {taskType === 'promo' && t('ads_url_desc_promo')}
+                  {taskType === 'promo' && (
+                    <>
+                      {t('ads_url_desc_promo')}
+                      <span style={{ display: 'block', marginTop: '8px', color: '#00f0ff', fontSize: '11px', background: 'rgba(0, 240, 255, 0.1)', padding: '6px', borderRadius: '8px', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
+                        💡 <b>Nota Táctica:</b> Debes ocultar el "Código de Validación" dentro de tu web o video, e indicar a los usuarios dónde buscarlo desde el Título de tu campaña.
+                      </span>
+                    </>
+                  )}
                 </p>
                 <input style={neon.input} placeholder="https://t.me/..." value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
 
@@ -899,16 +944,40 @@ export default function AdsTab({ userData, setUserData, t }) {
 
       {showEditModal && editingTask && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100000, backdropFilter: 'blur(5px)' }}>
-          <div style={{ ...neon.card, width: '100%', maxWidth: '340px', marginBottom: 0, borderColor: '#ffe600' }}>
+          <div style={{ ...neon.card, width: '100%', maxWidth: '340px', marginBottom: 0, borderColor: '#ffe600', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 14px 0', color: '#ffe600', fontSize: '17px', fontWeight: '900' }}>{t('ads_edit_title')}</h3>
+            
             <div style={{ marginBottom: '10px' }}>
               <label style={neon.label}>{t('ads_label_title')}</label>
               <input style={neon.input} value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} />
             </div>
-            <div style={{ marginBottom: '20px' }}>
+            
+            <div style={{ marginBottom: '16px' }}>
               <label style={neon.label}>{t('ads_label_url')}</label>
               <input style={neon.input} value={editingTask.url} onChange={(e) => setEditingTask({ ...editingTask, url: e.target.value })} />
             </div>
+
+            {/* 🔥 NUEVO: Panel de Inyección de Cupos */}
+            <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed #00f0ff' }}>
+              <label style={{...neon.label, color: '#00f0ff'}}>INYECCIÓN DE CUPOS EXTRA (OPCIONAL)</label>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                <button onClick={() => setEditingTask(prev => ({...prev, addCompletions: Math.max(0, prev.addCompletions - 10)}))} style={{...neon.btnActionCalc, width: '35px', height: '35px', fontSize: '18px'}}>-</button>
+                <input type="number" style={{...neon.inputCalc, padding: '5px', fontSize: '16px'}} value={editingTask.addCompletions} onChange={(e) => setEditingTask(prev => ({...prev, addCompletions: Number(e.target.value) || 0}))} />
+                <button onClick={() => setEditingTask(prev => ({...prev, addCompletions: prev.addCompletions + 10}))} style={{...neon.btnActionCalc, width: '35px', height: '35px', fontSize: '18px'}}>+</button>
+              </div>
+              
+              {editingTask.addCompletions > 0 && (
+                 <div style={{ 
+                   fontSize: '11px', 
+                   color: depositBalanceUsdt >= ((editingTask.addCompletions * editingTask.reward * 1.30) / 1000) ? '#00ffaa' : '#ff4b4b', 
+                   marginTop: '10px', 
+                   fontWeight: 'bold' 
+                 }}>
+                   Costo táctico: -${((editingTask.addCompletions * editingTask.reward * 1.30) / 1000).toFixed(4)} USDT de Bóveda
+                 </div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setShowEditModal(false)} style={{ ...neon.btnSecondary, flex: 1 }}>{t('ads_btn_cancel')}</button>
               <button onClick={handleSaveEdit} style={{ ...neon.btnPrimary, flex: 2, background: 'linear-gradient(180deg, #ffe600, #ffaa00)', color: '#050214', boxShadow: '0 6px 0 #cc8800' }}>{t('ads_btn_update')}</button>
