@@ -652,6 +652,33 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tasks: allTasks || [] });
     }
 
+        // 🔥 NUEVO: Enviar premio de Sorteo y registrar en el historial
+    if (action === 'admin-send-sorteo') {
+      const { adminId, targetId, amount } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
+
+      const usdtAmount = Number(amount) / 1000;
+
+      // 1. Obtener usuario
+      const { data: user } = await supabase.from('users').select('balance, total_earnings').eq('id', String(targetId)).single();
+      if (!user) return res.status(400).json({ success: false, error: 'Usuario no encontrado' });
+
+      // 2. Sumar saldo
+      const newBalance = Number((Number(user.balance) + usdtAmount).toFixed(4));
+      const newTotal = Number((Number(user.total_earnings) + usdtAmount).toFixed(4));
+      await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', String(targetId));
+
+      // 3. Registrar en historial
+      await supabase.from('history_logs').insert([{
+        user_id: String(targetId),
+        title: '🎁 Premio de Sorteo / Evento',
+        description: `¡Felicidades! Has recibido un premio administrativo. | +${Number(amount).toFixed(2)} Gemas`,
+        amount: usdtAmount
+      }]);
+
+      return res.status(200).json({ success: true });
+    }
+
     if (action === 'admin-stats') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
