@@ -605,24 +605,33 @@ export default async function handler(req, res) {
     }
 
 
-      if (action === 'get-leaderboard') {
-      const { data: topTasks } = await supabase
+          if (action === 'get-leaderboard') {
+      // 🛠️ FIX: .group() no existe en el SDK de JS. Agrupamos rápido en memoria de Vercel.
+      const { data: recentTasks } = await supabase
         .from('user_completed_tasks')
-        .select('user_id, count(*)')
-        .group('user_id')
-        .order('count', { ascending: false })
-        .limit(10);
+        .select('user_id')
+        .limit(5000); 
+
+      const taskCounts = {};
+      if (recentTasks) {
+        for (const task of recentTasks) {
+          taskCounts[task.user_id] = (taskCounts[task.user_id] || 0) + 1;
+        }
+      }
+
+      // Ordenar de mayor a menor y extraer el Top 10
+      const top10Users = Object.entries(taskCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
 
       const completedRanking = [];
-      if (topTasks) {
-        for (const item of topTasks) {
-          const { data: usr } = await supabase.from('users').select('username').eq('id', item.user_id).single();
-          completedRanking.push({
-            id: item.user_id,
-            username: usr?.username || 'Usuario',
-            score: item.count
-          });
-        }
+      for (const [uid, count] of top10Users) {
+        const { data: usr } = await supabase.from('users').select('username').eq('id', uid).maybeSingle();
+        completedRanking.push({
+          id: uid,
+          username: usr?.username || 'Usuario',
+          score: count
+        });
       }
 
       const { data: topReferrers } = await supabase
