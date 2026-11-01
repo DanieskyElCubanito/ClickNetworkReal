@@ -562,30 +562,20 @@ export default async function handler(req, res) {
     }
 
 
-        // 🔥 NUEVO: Obtener el historial de torneos finalizados y sus ganadores
+    // 🔥 FILTRO MODO DIOS: HISTORIAL ADMIN
     if (action === 'admin-get-past-events') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
-      const { data: pastEvents, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'completed')
-        .order('end_date', { ascending: false })
-        .limit(10);
-
+      const { data: allEvents, error } = await supabase.from('events').select('*').order('end_date', { ascending: false });
       if (error) return res.status(400).json({ success: false, error: error.message });
+
+      const now = new Date().getTime();
+      const pastEvents = (allEvents || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 10);
 
       const eventsWithWinners = [];
       for (const ev of pastEvents) {
-        // Buscar a los 3 mejores de ese torneo específico
-        const { data: participants } = await supabase
-          .from('event_participants')
-          .select('user_id, score')
-          .eq('event_id', ev.id)
-          .order('score', { ascending: false })
-          .limit(3);
-
+        const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
         const winners = [];
         if (participants) {
           for (const p of participants) {
@@ -595,54 +585,30 @@ export default async function handler(req, res) {
         }
         eventsWithWinners.push({ ...ev, winners });
       }
-
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
 
-      if (action === 'get-leaderboard') {
-      const { data: topTasks } = await supabase
-        .from('user_completed_tasks')
-        .select('user_id, count(*)')
-        .group('user_id')
-        .order('count', { ascending: false })
-        .limit(10);
-
+          if (action === 'get-leaderboard') {
+      const { data: topTasks } = await supabase.from('user_completed_tasks').select('user_id, count(*)').group('user_id').order('count', { ascending: false }).limit(10);
       const completedRanking = [];
       if (topTasks) {
         for (const item of topTasks) {
           const { data: usr } = await supabase.from('users').select('username').eq('id', item.user_id).single();
-          completedRanking.push({
-            id: item.user_id,
-            username: usr?.username || 'Usuario',
-            score: item.count
-          });
+          completedRanking.push({ id: item.user_id, username: usr?.username || 'Usuario', score: item.count });
         }
       }
 
-      const { data: topReferrers } = await supabase
-        .from('users')
-        .select('id, username, referral_earnings')
-        .order('referral_earnings', { ascending: false })
-        .limit(10);
+      const { data: topReferrers } = await supabase.from('users').select('id, username, referral_earnings').order('referral_earnings', { ascending: false }).limit(10);
 
-            // 🔥 NUEVO: Obtener torneos pasados y sus Top 3 ganadores para el público
-      const { data: pastEventsData } = await supabase
-        .from('events')
-        .select('*')
-        .neq('status', 'active') // <- Aquí está la magia del rescate
-        .order('end_date', { ascending: false })
-        .limit(5);
+      // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES
+      const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
+      const now = new Date().getTime();
+      const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 5);
 
       const pastEventsPublic = [];
-      if (pastEventsData) {
+      if (pastEventsData.length > 0) {
         for (const ev of pastEventsData) {
-          const { data: participants } = await supabase
-            .from('event_participants')
-            .select('user_id, score')
-            .eq('event_id', ev.id)
-            .order('score', { ascending: false })
-            .limit(3);
-
+          const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
           const winners = [];
           if (participants) {
             for (const p of participants) {
@@ -658,10 +624,9 @@ export default async function handler(req, res) {
         success: true, 
         topTasks: completedRanking, 
         topReferrals: topReferrers || [],
-        pastEvents: pastEventsPublic // Se envía al Salón de la Fama del jugador
+        pastEvents: pastEventsPublic 
       });
-}
-
+    }
 
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
