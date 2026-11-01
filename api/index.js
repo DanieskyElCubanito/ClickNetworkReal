@@ -485,23 +485,23 @@ export default async function handler(req, res) {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
-      const { data: allEvents, error } = await supabase.from('events').select('*').order('end_date', { ascending: false });
+      // Magia: Traer TODO lo que NO sea 'active'
+      const { data: pastEvents, error } = await supabase.from('events').select('*').neq('status', 'active').order('end_date', { ascending: false }).limit(10);
       if (error) return res.status(400).json({ success: false, error: error.message });
 
-      const now = new Date().getTime();
-      const pastEvents = (allEvents || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 10);
-
       const eventsWithWinners = [];
-      for (const ev of pastEvents) {
-        const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
-        const winners = [];
-        if (participants) {
-          for (const p of participants) {
-            const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
-            winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
+      if (pastEvents) {
+        for (const ev of pastEvents) {
+          const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
+          const winners = [];
+          if (participants) {
+            for (const p of participants) {
+              const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
+              winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
+            }
           }
+          eventsWithWinners.push({ ...ev, winners });
         }
-        eventsWithWinners.push({ ...ev, winners });
       }
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
@@ -519,12 +519,10 @@ export default async function handler(req, res) {
       const { data: topReferrers } = await supabase.from('users').select('id, username, referral_earnings').order('referral_earnings', { ascending: false }).limit(10);
 
       // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES
-      const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
-      const now = new Date().getTime();
-      const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 5);
+      const { data: pastEventsData } = await supabase.from('events').select('*').neq('status', 'active').order('end_date', { ascending: false }).limit(5);
 
       const pastEventsPublic = [];
-      if (pastEventsData.length > 0) {
+      if (pastEventsData) {
         for (const ev of pastEventsData) {
           const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
           const winners = [];
