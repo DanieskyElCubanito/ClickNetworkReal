@@ -572,7 +572,7 @@ export default async function handler(req, res) {
       const { data: pastEvents, error } = await supabase
         .from('events')
         .select('*')
-        .eq('status', 'completed')
+        .neq('status', 'active')
         .order('end_date', { ascending: false })
         .limit(10);
 
@@ -713,8 +713,8 @@ export default async function handler(req, res) {
       // 3. Registrar en historial
       await supabase.from('history_logs').insert([{
         user_id: String(targetId),
-        title: '🎁 Premio del Torneo de Halloween',
-        description: `¡Felicidades! Has recibido un premio . | +${Number(amount).toFixed(2)} Gemas`,
+        title: '🎁 Premio de Sorteo / Evento',
+        description: `¡Felicidades! Has recibido un premio administrativo. | +${Number(amount).toFixed(2)} Gemas`,
         amount: usdtAmount
       }]);
 
@@ -1575,4 +1575,4 @@ export default async function handler(req, res) {
     const errorDescription = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     return res.status(500).json({ success: false, error: `Error en servidor: ${errorDescription}` }); 
   }
-} 
+}
