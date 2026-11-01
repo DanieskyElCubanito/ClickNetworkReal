@@ -588,45 +588,56 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
 
-          if (action === 'get-leaderboard') {
-      const { data: topTasks } = await supabase.from('user_completed_tasks').select('user_id, count(*)').group('user_id').order('count', { ascending: false }).limit(10);
-      const completedRanking = [];
-      if (topTasks) {
-        for (const item of topTasks) {
-          const { data: usr } = await supabase.from('users').select('username').eq('id', item.user_id).single();
-          completedRanking.push({ id: item.user_id, username: usr?.username || 'Usuario', score: item.count });
+              if (action === 'get-leaderboard') {
+      let completedRanking = [];
+      try {
+        // 🔥 FIX: Eliminado el .group() que hacía colapsar al servidor.
+        // Ahora clasificamos por ganancias totales como métrica global de élite.
+        const { data: topTasks } = await supabase.from('users').select('id, username, total_earnings').order('total_earnings', { ascending: false }).limit(10);
+        if (topTasks) {
+          completedRanking = topTasks.map(u => ({
+            id: u.id,
+            username: u.username || 'Usuario',
+            score: Math.floor(u.total_earnings * 1000) 
+          }));
         }
-      }
+      } catch (e) { console.error("Error en topTasks:", e); }
 
-      const { data: topReferrers } = await supabase.from('users').select('id, username, referral_earnings').order('referral_earnings', { ascending: false }).limit(10);
+      let topReferrers = [];
+      try {
+        const { data: tr } = await supabase.from('users').select('id, username, referral_earnings').order('referral_earnings', { ascending: false }).limit(10);
+        topReferrers = tr || [];
+      } catch (e) { console.error("Error en topReferrers:", e); }
 
-                  // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES (Lógica idéntica al Comando Central)
-      const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
-      const now = new Date().getTime();
-      
-      // Filtramos en memoria de forma 100% segura
-      const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 5);
+      let pastEventsPublic = [];
+      try {
+        // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES 100% BLINDADO
+        const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
+        const now = new Date().getTime();
+        
+        const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 5);
 
-      const pastEventsPublic = [];
-      for (const ev of pastEventsData) {
-        const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
-        const winners = [];
-        if (participants) {
-          for (const p of participants) {
-            const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
-            winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
+        for (const ev of pastEventsData) {
+          const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
+          const winners = [];
+          if (participants) {
+            for (const p of participants) {
+              const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
+              winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
+            }
           }
+          pastEventsPublic.push({ ...ev, winners });
         }
-        pastEventsPublic.push({ ...ev, winners });
-      }
+      } catch (e) { console.error("Error en pastEvents:", e); }
 
       return res.status(200).json({ 
         success: true, 
         topTasks: completedRanking, 
-        topReferrals: topReferrers || [],
+        topReferrals: topReferrers,
         pastEvents: pastEventsPublic 
       });
     }
+
 
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
