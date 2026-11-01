@@ -484,7 +484,7 @@ export default async function handler(req, res) {
       }
     }
 
-    if (action === 'get-active-event') {
+       if (action === 'get-active-event') {
       try {
         const { data: activeEvent } = await supabase
           .from('events')
@@ -493,6 +493,15 @@ export default async function handler(req, res) {
           .maybeSingle();
 
         if (!activeEvent) {
+          return res.status(200).json({ success: true, activeEvent: null, leaderboard: [] });
+        }
+
+        // 🔥 NUEVO: Auto-cierre Inteligente (Lazy Evaluation)
+        const now = new Date().getTime();
+        const endDate = new Date(activeEvent.end_date).getTime();
+        if (now >= endDate) {
+          // El tiempo expiró, lo cerramos en la base de datos automáticamente
+          await supabase.from('events').update({ status: 'completed' }).eq('id', activeEvent.id);
           return res.status(200).json({ success: true, activeEvent: null, leaderboard: [] });
         }
 
