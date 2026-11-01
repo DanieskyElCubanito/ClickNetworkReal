@@ -681,8 +681,8 @@ export default async function handler(req, res) {
       // 3. Registrar en historial
       await supabase.from('history_logs').insert([{
         user_id: String(targetId),
-        title: '🎁 Premio de Sorteo / Evento',
-        description: `¡Felicidades! Has recibido un premio administrativo. | +${Number(amount).toFixed(2)} Gemas`,
+        title: '🎁 Premio del Torneo de Halloween',
+        description: `¡Felicidades! Has recibido un premio . | +${Number(amount).toFixed(2)} Gemas`,
         amount: usdtAmount
       }]);
 
