@@ -600,28 +600,24 @@ export default async function handler(req, res) {
 
       const { data: topReferrers } = await supabase.from('users').select('id, username, referral_earnings').order('referral_earnings', { ascending: false }).limit(10);
 
-            // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES
-      const { data: pastEventsData } = await supabase
-        .from('events')
-        .select('*')
-        .neq('status', 'active') // <- Aquí está la magia del rescate
-        .order('end_date', { ascending: false })
-        .limit(5);
-
+                  // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES (Lógica idéntica al Comando Central)
+      const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
+      const now = new Date().getTime();
+      
+      // Filtramos en memoria de forma 100% segura
+      const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 5);
 
       const pastEventsPublic = [];
-      if (pastEventsData.length > 0) {
-        for (const ev of pastEventsData) {
-          const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
-          const winners = [];
-          if (participants) {
-            for (const p of participants) {
-              const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
-              winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
-            }
+      for (const ev of pastEventsData) {
+        const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
+        const winners = [];
+        if (participants) {
+          for (const p of participants) {
+            const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
+            winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
           }
-          pastEventsPublic.push({ ...ev, winners });
         }
+        pastEventsPublic.push({ ...ev, winners });
       }
 
       return res.status(200).json({ 
@@ -630,7 +626,6 @@ export default async function handler(req, res) {
         topReferrals: topReferrers || [],
         pastEvents: pastEventsPublic 
       });
-    }
 
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
