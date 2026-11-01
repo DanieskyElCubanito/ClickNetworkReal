@@ -31,6 +31,7 @@ export default function AdminDashboard({ userData }) {
 
   const [newBalance, setNewBalance] = useState('');
   const [newDepositBalance, setNewDepositBalance] = useState('');
+  const [sorteoAmount, setSorteoAmount] = useState(''); // 🔥 NUEVO: Monto del Sorteo
 
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
@@ -41,7 +42,7 @@ export default function AdminDashboard({ userData }) {
   const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(false);
 
-  // 🔥 NUEVOS ESTADOS PARA GESTIÓN DE TORNEOS 🔥
+  // ESTADOS PARA GESTIÓN DE TORNEOS
   const [activeEvent, setActiveEvent] = useState(null);
   const [loadingEvent, setLoadingEvent] = useState(false);
   const [eventTitle, setEventTitle] = useState('Temporada Clasificatoria VIP');
@@ -72,7 +73,6 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { console.error(e); }
   };
 
-  // 🔥 CORREGIDO: Ahora apunta a admin-get-all-tasks para saltar los filtros de creador
   const loadAllTasks = async () => {
     setLoadingTasks(true);
     try {
@@ -186,6 +186,33 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error("Error al inyectar fondos", { id: tid }); }
   };
 
+  // 🔥 NUEVO: Función para enviar el premio del SORTEO
+  const handleSendSorteo = async () => {
+    if (!foundUser) return;
+    if (!sorteoAmount || Number(sorteoAmount) <= 0) return toast.error("Ingresa una cantidad válida de Gemas.");
+
+    const tid = toast.loading("Acreditando premio y guardando en el historial...");
+    try {
+      const res = await fetch('/api', { 
+        method: 'POST', headers: apiHeaders, 
+        body: JSON.stringify({ 
+          action: 'admin-send-sorteo', 
+          adminId: userData.id, 
+          targetId: foundUser.id, 
+          amount: Number(sorteoAmount) 
+        }) 
+      });
+      const data = await res.json();
+      if (data.success) { 
+        toast.success("¡Premio enviado exitosamente!", { id: tid }); 
+        const addedUsdt = Number(sorteoAmount) / 1000;
+        setFoundUser(prev => ({ ...prev, balance: Number(prev.balance) + addedUsdt }));
+        setNewBalance(prev => Number(prev) + addedUsdt);
+        setSorteoAmount('');
+      } else throw new Error(data.error);
+    } catch (e) { toast.error(e.message || "Error al procesar el sorteo", { id: tid }); }
+  };
+
   const handleToggleBan = async () => {
     if (!foundUser) return;
     const isBanning = !foundUser.is_banned;
@@ -198,7 +225,7 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error("Fallo de comando", { id: tid }); }
   };
 
-  // 🔥 FUNCIONES DE GESTIÓN DE TORNEOS 🔥
+  // FUNCIONES DE GESTIÓN DE TORNEOS
   const loadActiveEvent = async () => {
     setLoadingEvent(true);
     try {
@@ -249,6 +276,7 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error(e.message || "Error de inicialización", { id: tid }); }
   };
 
+  // 🔥 PARCHE DE SEGURIDAD APLICADO AQUÍ (Stringify eventId)
   const handleManageEvent = async (newStatus) => {
     if (!activeEvent) return;
     const confirmMsg = newStatus === 'deleted' ? "⚠️ ADVERTENCIA: ¿Purgar la temporada actual sin dejar rastro?" : "🛡️ ¿Cerrar el ciclo de temporada y registrar a los campeones?";
@@ -261,7 +289,7 @@ export default function AdminDashboard({ userData }) {
         body: JSON.stringify({
           action: 'admin-manage-event',
           adminId: userData.id,
-          eventId: activeEvent.id,
+          eventId: String(activeEvent.id), // 🔥 Garantiza que la BD lo lea bien
           newStatus: newStatus
         })
       });
@@ -293,7 +321,7 @@ export default function AdminDashboard({ userData }) {
         </div>
       </div>
 
-      {/* 🔥 NUEVA SECCIÓN: GESTIÓN DE TORNEOS 🔥 */}
+      {/* GESTIÓN DE TORNEOS */}
       <div style={{ ...neon.card, borderColor: '#00f0ff', background: 'linear-gradient(145deg, #0d1225, #050b14)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, fontSize: '16px', color: '#00f0ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -360,7 +388,7 @@ export default function AdminDashboard({ userData }) {
         )}
       </div>
 
-      {/* 🔥 HISTORIAL DE TORNEOS FINALIZADOS (PARA PAGOS) 🔥 */}
+      {/* HISTORIAL DE TORNEOS FINALIZADOS */}
       <div style={{ marginTop: '24px', borderTop: '1px dashed rgba(0, 240, 255, 0.3)', paddingTop: '20px' }}>
         <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '1px' }}>
           Temporadas Finalizadas (Salón de la Fama)
@@ -436,9 +464,9 @@ export default function AdminDashboard({ userData }) {
         </button>
       </div>
 
-      {/* BUSCADOR DE USUARIOS */}
+      {/* BUSCADOR DE USUARIOS Y SORTEOS */}
       <div style={neon.card}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ffe600' }}>Control de Jugadores (Anti-Trampas)</h3>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ffe600' }}>Control de Jugadores & Sorteos</h3>
         <span style={neon.label}>ID de Búsqueda Táctica</span>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
           <input 
@@ -460,7 +488,7 @@ export default function AdminDashboard({ userData }) {
               </span>
             </div>
 
-            {/* CONTROL 1: BÓVEDA USDT (DEPOSIT_BALANCE) */}
+            {/* CONTROL 1: BÓVEDA USDT */}
             <div style={{ marginBottom: '14px' }}>
               <span style={{ ...neon.label, color: '#00ffaa' }}>Bóveda Táctica (USDT - Solo Misiones)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -475,7 +503,7 @@ export default function AdminDashboard({ userData }) {
               </div>
             </div>
 
-            {/* CONTROL 2: SALDO RETIRABLE (BALANCE) */}
+            {/* CONTROL 2: SALDO RETIRABLE */}
             <div style={{ marginBottom: '16px' }}>
               <span style={{ ...neon.label, color: '#00f0ff' }}>Inventario Retirable Base (1.00 = 1000 Gemas)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -490,6 +518,22 @@ export default function AdminDashboard({ userData }) {
               </div>
             </div>
 
+            {/* 🔥 CONTROL 3: PREMIO DE SORTEO (HISTORIAL) 🔥 */}
+            <div style={{ marginBottom: '16px', background: 'rgba(255, 20, 147, 0.1)', padding: '12px', borderRadius: '12px', border: '1px dashed #ff1493' }}>
+              <span style={{ ...neon.label, color: '#ff99dd' }}>🎁 Enviar Premio de Sorteo (Gemas)</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="number"
+                  placeholder="Ej: 500"
+                  style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#ff1493' }}
+                  value={sorteoAmount}
+                  onChange={(e) => setSorteoAmount(e.target.value)}
+                />
+                <button onClick={handleSendSorteo} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#fff' }}>Enviar</button>
+              </div>
+              <div style={{ fontSize: '10px', color: '#ff99dd', marginTop: '6px' }}>* Esto sumará el saldo y creará un registro de Sorteo en el historial del usuario.</div>
+            </div>
+
             <button onClick={handleToggleBan} style={foundUser.is_banned ? { ...neon.btnDanger, borderColor: '#00ffaa', color: '#00ffaa' } : neon.btnDanger}>
               {foundUser.is_banned ? <>{Icons.restore} RESTAURAR JUGADOR</> : <>{Icons.ban} EXPULSAR JUGADOR</>}
             </button>
@@ -497,7 +541,7 @@ export default function AdminDashboard({ userData }) {
         )}
       </div>
 
-      {/* 🔥 INICIO PANEL DE RETIROS PENDIENTES 🔥 */}
+      {/* PANEL DE RETIROS PENDIENTES */}
       <div style={{ ...neon.card, borderColor: '#ff99dd' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, fontSize: '16px', color: '#ff99dd' }}>Extracciones en Cola</h3>
