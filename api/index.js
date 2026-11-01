@@ -600,7 +600,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
 
-    if (action === 'get-leaderboard') {
+      if (action === 'get-leaderboard') {
       const { data: topTasks } = await supabase
         .from('user_completed_tasks')
         .select('user_id, count(*)')
@@ -626,12 +626,43 @@ export default async function handler(req, res) {
         .order('referral_earnings', { ascending: false })
         .limit(10);
 
+      // 🔥 NUEVO: Obtener torneos pasados y sus Top 3 ganadores para el público
+      const { data: pastEventsData } = await supabase
+        .from('events')
+        .select('*')
+        .eq('status', 'completed')
+        .order('end_date', { ascending: false })
+        .limit(5);
+
+      const pastEventsPublic = [];
+      if (pastEventsData) {
+        for (const ev of pastEventsData) {
+          const { data: participants } = await supabase
+            .from('event_participants')
+            .select('user_id, score')
+            .eq('event_id', ev.id)
+            .order('score', { ascending: false })
+            .limit(3);
+
+          const winners = [];
+          if (participants) {
+            for (const p of participants) {
+              const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
+              winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
+            }
+          }
+          pastEventsPublic.push({ ...ev, winners });
+        }
+      }
+
       return res.status(200).json({ 
         success: true, 
         topTasks: completedRanking, 
-        topReferrals: topReferrers || [] 
+        topReferrals: topReferrers || [],
+        pastEvents: pastEventsPublic // Se envía al Salón de la Fama del jugador
       });
     }
+
 
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
