@@ -1575,4 +1575,4 @@ export default async function handler(req, res) {
     const errorDescription = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     return res.status(500).json({ success: false, error: `Error en servidor: ${errorDescription}` }); 
   }
-}
+} 
