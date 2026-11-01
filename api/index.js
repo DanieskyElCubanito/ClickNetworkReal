@@ -564,23 +564,26 @@ export default async function handler(req, res) {
 
 
 
-        // 🔥 NUEVO: Obtener el historial de torneos finalizados y sus ganadores
+            // 🔥 NUEVO: Obtener el historial de torneos finalizados y sus ganadores
     if (action === 'admin-get-past-events') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
+      // 🛠️ CAMBIO: Filtro estricto a 'completed' y manejo de errores visible
       const { data: pastEvents, error } = await supabase
         .from('events')
         .select('*')
-        .neq('status', 'active') // 🔥 Magia: Traer todo lo que NO sea 'active'
+        .eq('status', 'completed')
         .order('end_date', { ascending: false })
         .limit(10);
 
-      if (error) return res.status(400).json({ success: false, error: error.message });
+      if (error) {
+        console.error("Error BD Torneos Pasados (Admin):", error.message);
+        return res.status(400).json({ success: false, error: error.message });
+      }
 
       const eventsWithWinners = [];
-      for (const ev of pastEvents) {
-        // Buscar a los 3 mejores de ese torneo específico
+      for (const ev of (pastEvents || [])) {
         const { data: participants } = await supabase
           .from('event_participants')
           .select('user_id, score')
@@ -600,6 +603,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
+
 
       if (action === 'get-leaderboard') {
       const { data: topTasks } = await supabase
