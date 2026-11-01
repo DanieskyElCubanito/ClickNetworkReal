@@ -600,10 +600,14 @@ export default async function handler(req, res) {
 
       const { data: topReferrers } = await supabase.from('users').select('id, username, referral_earnings').order('referral_earnings', { ascending: false }).limit(10);
 
-      // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES
-      const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
-      const now = new Date().getTime();
-      const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 5);
+            // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES
+      const { data: pastEventsData } = await supabase
+        .from('events')
+        .select('*')
+        .neq('status', 'active') // <- Aquí está la magia del rescate
+        .order('end_date', { ascending: false })
+        .limit(5);
+
 
       const pastEventsPublic = [];
       if (pastEventsData.length > 0) {
