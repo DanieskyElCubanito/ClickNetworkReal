@@ -1,4 +1,3 @@
-mira con este código sale el historial en el comando pero no en el top
 export const maxDuration = 60;
 
 import { createClient } from '@supabase/supabase-js';
