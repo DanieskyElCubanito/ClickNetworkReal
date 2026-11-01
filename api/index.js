@@ -547,21 +547,19 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, event: data });
     }
 
-           if (action === 'admin-manage-event') {
+         if (action === 'admin-manage-event') {
       const { adminId, eventId, newStatus } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
       if (newStatus === 'deleted') {
         await supabase.from('events').delete().eq('id', eventId);
       } else {
-        // 🔥 Cierre forzado absoluto: Apunta directamente al ID, sin importar en qué estado quedó trabado
+        // 🔥 Cierre Forzado Maestro (Evita errores de ID fantasma)
         await supabase.from('events').update({ status: 'completed' }).eq('id', eventId);
         await supabase.from('events').update({ status: 'completed' }).eq('status', 'active');
       }
       return res.status(200).json({ success: true });
     }
-
-
 
 
         // 🔥 NUEVO: Obtener el historial de torneos finalizados y sus ganadores
