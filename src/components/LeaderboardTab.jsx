@@ -71,11 +71,14 @@ export default function LeaderboardTab({ userData, t }) {
     if (!activeEvent || !activeEvent.end_date) return;
     const timer = setInterval(() => {
       const diff = new Date(activeEvent.end_date).getTime() - new Date().getTime();
-      if (diff <= 0) {
+            if (diff <= 0) {
         setTimeLeft('FINALIZADO');
+        setActiveEvent(null); // 🔥 NUEVO: Oculta el evento si el tiempo expiró para que no quede pegado
+        setTab('referrals'); // Cambia a la pestaña global
         clearInterval(timer);
         return;
       }
+
       const d = Math.floor(diff / (1000 * 60 * 60 * 24));
       const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const m = Math.floor((diff / 1000 / 60) % 60);
