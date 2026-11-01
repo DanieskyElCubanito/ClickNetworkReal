@@ -547,19 +547,20 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, event: data });
     }
 
-       if (action === 'admin-manage-event') {
+           if (action === 'admin-manage-event') {
       const { adminId, eventId, newStatus } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
       if (newStatus === 'deleted') {
         await supabase.from('events').delete().eq('id', eventId);
       } else {
-        // 🔥 Cierre forzado absoluto: Cerramos cualquier evento activo sin depender del ID
-        const { error } = await supabase.from('events').update({ status: 'completed' }).eq('status', 'active');
-        if (error) return res.status(400).json({ success: false, error: error.message });
+        // 🔥 Cierre forzado absoluto: Apunta directamente al ID, sin importar en qué estado quedó trabado
+        await supabase.from('events').update({ status: 'completed' }).eq('id', eventId);
+        await supabase.from('events').update({ status: 'completed' }).eq('status', 'active');
       }
       return res.status(200).json({ success: true });
     }
+
 
 
 
