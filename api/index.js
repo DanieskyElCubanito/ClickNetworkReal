@@ -572,7 +572,7 @@ export default async function handler(req, res) {
       const { data: pastEvents, error } = await supabase
         .from('events')
         .select('*')
-        .neq('status', 'active')
+        .neq('status', 'active') // 🔥 Magia: Traer todo lo que NO sea 'active'
         .order('end_date', { ascending: false })
         .limit(10);
 
