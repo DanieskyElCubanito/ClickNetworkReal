@@ -626,6 +626,7 @@ export default async function handler(req, res) {
         topReferrals: topReferrers || [],
         pastEvents: pastEventsPublic 
       });
+    }
 
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
