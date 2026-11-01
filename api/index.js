@@ -33,7 +33,7 @@ const tonClient = new TonClient({
 const BSC_RPC = "https://bsc-dataseed.binance.org/";
 const USDT_BEP20_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 
-// 🛡️ 1. CIFRADO AES-256-GCM (Vulnerabilidad Criptográfica)
+// 🛡️ 1. CIFRADO AES-256-GCM
 const RAW_KEY = process.env.ENCRYPTION_KEY || 'TeleGemFallbackKey2026NeedsToChangeNow';
 const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest(); 
 
@@ -59,7 +59,7 @@ function decryptText(text) {
   }
 }
 
-// 🛡️ 2. MEMORIA DE RATE LIMITING (Ataques DDoS)
+// 🛡️ 2. MEMORIA DE RATE LIMITING
 const rateLimitMap = new Map();
 function checkRateLimit(ip) {
   const now = Date.now();
@@ -77,7 +77,7 @@ function checkRateLimit(ip) {
   return data.count <= 30; 
 }
 
-// 🛡️ 3. FIRMA ANTI-SPOOFING (auth_date)
+// 🛡️ 3. FIRMA ANTI-SPOOFING
 function verifyTelegramWebAppData(telegramInitData) {
   if (!telegramInitData || !BOT_TOKEN) return false;
   const urlParams = new URLSearchParams(telegramInitData);
@@ -145,7 +145,6 @@ async function sweepUsdtAutomated(derivedWallet, usdtAmountWei) {
   }
 }
 
-// 🔥 NUEVO: Función para hacer que el sistema espere
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function sendTonAutomated(destinationAddress, usdtAmount) {
@@ -153,10 +152,7 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
   if (!mnemonic) throw new Error("Falta la variable MASTER_WALLET_MNEMONIC en Vercel.");
 
   const tonPrice = await getTonPrice();
-  // Nos aseguramos de que sean números reales
   const tonAmount = Number(usdtAmount) / Number(tonPrice); 
-
-  // Mantenemos la conversión perfecta a NanoTONs
   const amountInNano = BigInt(Math.floor(tonAmount * 1000000000));
 
   const mnemonics = mnemonic.split(" ");
@@ -172,28 +168,23 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
       sendMode: 3 
   });
 
-  // 🔥 NUEVO: Esperamos 8 segundos a que la blockchain confirme el bloque
   console.log("Pago enviado. Esperando 8 segundos a la blockchain...");
   await sleep(8000); 
 
   try {
-    // Consultamos la API pública para atrapar el TXID de esta transacción específica
     const res = await fetch(`https://toncenter.com/api/v2/getTransactions?address=${destinationAddress}&limit=1`);
     const data = await res.json();
     
     if (data.ok && data.result.length > 0) {
       const base64Hash = data.result[0].transaction_id.hash;
-      // Convertimos el Hash a Hexadecimal para que el enlace a Tonscan funcione perfecto
       return Buffer.from(base64Hash, 'base64').toString('hex'); 
     }
   } catch (error) {
     console.error("Fallo al buscar el TXID:", error);
   }
   
-  // Respaldo por si la red de GRAM tarda más de 15 segundos en procesar
   return "Transaccion_En_Proceso"; 
 }
-
 
 function extractTelegramUsername(url) {
   let val = url.trim();
@@ -218,9 +209,7 @@ async function notifyAdmin(message) {
 async function notifyUser(userId, message) {
   try {
     await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { chat_id: userId, text: message, parse_mode: 'HTML' });
-  } catch (e) {
-    console.log(`No se pudo enviar DM a ${userId}. (Posiblemente bloqueó el bot)`);
-  }
+  } catch (e) {}
 }
 
 async function checkMembership(userId, chatId) {
@@ -228,27 +217,13 @@ async function checkMembership(userId, chatId) {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${userId}`;
     const response = await fetchWithTimeout(url);
     const resData = await response.json();
-    
-    // 🛡️ REGLA 1: Si la API falla (Rate limit, bot sin permisos, etc), NO penalizamos injustamente.
-    if (!resData.ok) {
-      console.log(`Error API Telegram en canal ${chatId}:`, resData.description);
-      return true; // Asumimos inocencia si Telegram no puede responder
-    }
+    if (!resData.ok) return true; 
 
-    // 🛡️ REGLA 2: Solo retornamos FALSE si estamos 100% seguros de que abandonó
     const status = resData.result.status;
-    if (['left', 'kicked'].includes(status)) {
-      return false; // Aquí sí se salió, merece penalidad
-    }
-
-    // Si es member, creator, administrator o restricted, sigue ahí.
+    if (['left', 'kicked'].includes(status)) return false; 
     return true; 
-  } catch (error) { 
-    // 🛡️ REGLA 3: Si hay error de red/timeout, no penalizamos.
-    return true; 
-  }
+  } catch (error) { return true; }
 }
-
 
 async function checkAdminStatus(chatId) {
   try {
@@ -268,8 +243,6 @@ async function checkAdminStatusDetailed(chatId) {
     
     if (!resData.ok) {
       const apiError = resData.description.toLowerCase();
-      
-      // 🔥 Traducimos los errores crudos de Telegram a mensajes tácticos para el usuario
       if (apiError.includes('member list is inaccessible') || apiError.includes('chat not found')) {
         return { isAdmin: false, error: '⚠️ Radar bloqueado: El canal es privado o el bot no tiene permisos. Añade a nuestro bot como Administrador de tu base antes de conectarla.' };
       }
@@ -278,14 +251,11 @@ async function checkAdminStatusDetailed(chatId) {
     
     const status = resData.result.status;
     if (['administrator', 'creator'].includes(status)) return { isAdmin: true };
-    
-    // Si el usuario metió al bot pero no le dio administrador
     return { isAdmin: false, error: `⚠️ Comando denegado: El bot está como "${status}". Se requieren permisos de Administrador para validar las misiones de tu escuadrón.` };
   } catch (error) { 
     return { isAdmin: false, error: '📡 Interferencia en el nodo de red. Reintenta establecer conexión.' }; 
   }
 }
-
 
 async function runRetentionAudit(userId) {
   try {
@@ -307,7 +277,6 @@ async function runRetentionAudit(userId) {
           if (!isStillMember) {
             const penaltyAmount = Number(t.reward || 0);
 
-            // 🛠️ DEDUCCIÓN DIRECTA SIN RPC (Fix Penalidad e Inflación)
             const { data: pUser } = await supabase.from('users').select('balance, total_earnings').eq('id', userId).single();
             if (pUser) {
               const newBal = Math.max(0, Number(pUser.balance) - penaltyAmount);
@@ -410,15 +379,11 @@ export default async function handler(req, res) {
           referral_reward_granted: !isMultiAccount 
         };
 
-       // 🔥 CÓDIGO NUEVO (Registra Clones en el Muro de la Vergüenza)
         if (start_param && String(start_param) !== targetId) {
           const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
           if (inviter) {
-            // 🔥 Siempre vinculamos la cuenta (Incluso si es clon) para que salga en su pestaña "Mi Red"
             newUserObj.referred_by = String(start_param);
-            
             if (!isMultiAccount) {
-              // 🏆 Solo si NO ES MULTICUENTA, suma puntos en torneos y le da beneficios reales
               const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
               if (activeEv && activeEv.event_type === 'referral') {
                 const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', String(start_param)).maybeSingle();
@@ -429,12 +394,10 @@ export default async function handler(req, res) {
                 }
               }
             } else {
-              // 🚫 Si es Multicuenta (Trampa), avisa al admin y lo registra sin darle ningún premio
-              notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico. \n\n<i>Se agregó a su Muro de la Vergüenza como BLOQUEADO.</i>`);
+              notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico.`);
             }
           }
         }
-
 
         const { data: newUser, error: insertError } = await supabase.from('users').insert([newUserObj]).select().single();
         if (insertError) throw new Error("Error en Supabase (insert user): " + insertError.message);
@@ -455,142 +418,82 @@ export default async function handler(req, res) {
     if (action === 'get-global-stats') {
       try {
         const { count: totalUsers } = await supabase.from('users').select('*', { count: 'exact', head: true });
-
         const { data: withdrawals } = await supabase.from('withdrawals').select('amount').eq('status', 'completed');
         const totalWithdrawnUsdt = withdrawals ? withdrawals.reduce((sum, w) => sum + Number(w.amount), 0) : 0;
         const totalGemsWithdrawn = totalWithdrawnUsdt * 1000;
-
         const { data: deposits } = await supabase.from('users').select('deposit_balance');
         const totalDeposited = deposits ? deposits.reduce((sum, u) => sum + Number(u.deposit_balance), 0) : 0;
-
         const { data: statsRow } = await supabase.from('platform_stats').select('total_global_clicks').eq('id', 1).maybeSingle();
         const totalGlobalClicks = statsRow ? statsRow.total_global_clicks : 0;
-
         const launchDate = new Date("2026-10-01T00:00:00Z");
         const daysOnline = Math.floor((Date.now() - launchDate.getTime()) / (1000 * 60 * 60 * 24));
 
-        return res.status(200).json({
-          success: true,
-          stats: {
-            users: totalUsers || 0,
-            withdrawn: totalGemsWithdrawn,
-            deposited: totalDeposited,
-            globalClicks: totalGlobalClicks,
-            daysOnline: Math.max(1, daysOnline)
-          }
-        });
-      } catch (error) {
-        return res.status(400).json({ success: false, error: 'Error calculando stats' });
-      }
+        return res.status(200).json({ success: true, stats: { users: totalUsers || 0, withdrawn: totalGemsWithdrawn, deposited: totalDeposited, globalClicks: totalGlobalClicks, daysOnline: Math.max(1, daysOnline) } });
+      } catch (error) { return res.status(400).json({ success: false, error: 'Error calculando stats' }); }
     }
 
-       if (action === 'get-active-event') {
+    if (action === 'get-active-event') {
       try {
-        const { data: activeEvent } = await supabase
-          .from('events')
-          .select('*')
-          .eq('status', 'active')
-          .maybeSingle();
+        const { data: activeEvent } = await supabase.from('events').select('*').eq('status', 'active').maybeSingle();
 
-        if (!activeEvent) {
-          return res.status(200).json({ success: true, activeEvent: null, leaderboard: [] });
-        }
+        if (!activeEvent) return res.status(200).json({ success: true, activeEvent: null, leaderboard: [] });
 
-        // 🔥 NUEVO: Auto-cierre Inteligente (Lazy Evaluation)
         const now = new Date().getTime();
         const endDate = new Date(activeEvent.end_date).getTime();
         if (now >= endDate) {
-          // El tiempo expiró, lo cerramos en la base de datos automáticamente
           await supabase.from('events').update({ status: 'completed' }).eq('id', activeEvent.id);
           return res.status(200).json({ success: true, activeEvent: null, leaderboard: [] });
         }
 
-        const { data: participants } = await supabase
-          .from('event_participants')
-          .select('user_id, score')
-          .eq('event_id', activeEvent.id)
-          .order('score', { ascending: false })
-          .limit(10);
-
+        const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', activeEvent.id).order('score', { ascending: false }).limit(10);
         const leaderboard = [];
         if (participants) {
           for (const p of participants) {
             const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).single();
-            leaderboard.push({
-              userId: p.user_id,
-              username: u?.username || 'Usuario',
-              score: p.score
-            });
+            leaderboard.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
           }
         }
-
         return res.status(200).json({ success: true, activeEvent, leaderboard });
-      } catch (e) {
-        return res.status(400).json({ success: false, error: 'Error obteniendo evento' });
-      }
+      } catch (e) { return res.status(400).json({ success: false, error: 'Error obteniendo evento' }); }
     }
 
     if (action === 'admin-create-event') {
       const { adminId, title, event_type, start_date, end_date, prizes } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
-      const { data, error } = await supabase.from('events').insert([{
-        title,
-        event_type,
-        status: 'active',
-        start_date,
-        end_date,
-        prizes: prizes || []
-      }]).select().single();
-
+      const { data, error } = await supabase.from('events').insert([{ title, event_type, status: 'active', start_date, end_date, prizes: prizes || [] }]).select().single();
       if (error) return res.status(400).json({ success: false, error: error.message });
       return res.status(200).json({ success: true, event: data });
     }
 
-           if (action === 'admin-manage-event') {
+    if (action === 'admin-manage-event') {
       const { adminId, eventId, newStatus } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
       if (newStatus === 'deleted') {
         await supabase.from('events').delete().eq('id', eventId);
       } else {
-        // 🔥 Cierre forzado absoluto: Apunta directamente al ID, sin importar en qué estado quedó trabado
+        // 🔥 Cierre Forzado Maestro (Evita errores de ID fantasma)
         await supabase.from('events').update({ status: 'completed' }).eq('id', eventId);
         await supabase.from('events').update({ status: 'completed' }).eq('status', 'active');
       }
       return res.status(200).json({ success: true });
     }
 
-
-
-
-            // 🔥 NUEVO: Obtener el historial de torneos finalizados y sus ganadores
+    // 🔥 FILTRO MODO DIOS: HISTORIAL ADMIN
     if (action === 'admin-get-past-events') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
-      // 🛠️ CAMBIO: Filtro estricto a 'completed' y manejo de errores visible
-      const { data: pastEvents, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'completed')
-        .order('end_date', { ascending: false })
-        .limit(10);
+      const { data: allEvents, error } = await supabase.from('events').select('*').order('end_date', { ascending: false });
+      if (error) return res.status(400).json({ success: false, error: error.message });
 
-      if (error) {
-        console.error("Error BD Torneos Pasados (Admin):", error.message);
-        return res.status(400).json({ success: false, error: error.message });
-      }
+      const now = new Date().getTime();
+      const pastEvents = (allEvents || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 10);
 
       const eventsWithWinners = [];
-      for (const ev of (pastEvents || [])) {
-        const { data: participants } = await supabase
-          .from('event_participants')
-          .select('user_id, score')
-          .eq('event_id', ev.id)
-          .order('score', { ascending: false })
-          .limit(3);
-
+      for (const ev of pastEvents) {
+        const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
         const winners = [];
         if (participants) {
           for (const p of participants) {
@@ -600,66 +503,30 @@ export default async function handler(req, res) {
         }
         eventsWithWinners.push({ ...ev, winners });
       }
-
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
 
-
-          if (action === 'get-leaderboard') {
-      // 🛠️ FIX: .group() no existe en el SDK de JS. Agrupamos rápido en memoria de Vercel.
-      const { data: recentTasks } = await supabase
-        .from('user_completed_tasks')
-        .select('user_id')
-        .limit(5000); 
-
-      const taskCounts = {};
-      if (recentTasks) {
-        for (const task of recentTasks) {
-          taskCounts[task.user_id] = (taskCounts[task.user_id] || 0) + 1;
+    if (action === 'get-leaderboard') {
+      const { data: topTasks } = await supabase.from('user_completed_tasks').select('user_id, count(*)').group('user_id').order('count', { ascending: false }).limit(10);
+      const completedRanking = [];
+      if (topTasks) {
+        for (const item of topTasks) {
+          const { data: usr } = await supabase.from('users').select('username').eq('id', item.user_id).single();
+          completedRanking.push({ id: item.user_id, username: usr?.username || 'Usuario', score: item.count });
         }
       }
 
-      // Ordenar de mayor a menor y extraer el Top 10
-      const top10Users = Object.entries(taskCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10);
+      const { data: topReferrers } = await supabase.from('users').select('id, username, referral_earnings').order('referral_earnings', { ascending: false }).limit(10);
 
-      const completedRanking = [];
-      for (const [uid, count] of top10Users) {
-        const { data: usr } = await supabase.from('users').select('username').eq('id', uid).maybeSingle();
-        completedRanking.push({
-          id: uid,
-          username: usr?.username || 'Usuario',
-          score: count
-        });
-      }
-
-      const { data: topReferrers } = await supabase
-        .from('users')
-        .select('id, username, referral_earnings')
-        .order('referral_earnings', { ascending: false })
-        .limit(10);
-
-                  // 🔥 NUEVO: Obtener torneos pasados y sus Top 3 ganadores para el público
-      const { data: pastEventsData, error: topError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'completed') // 🛠️ CAMBIO: Filtro estricto absoluto
-        .order('end_date', { ascending: false })
-        .limit(5);
-
-      if (topError) console.error("Error BD Torneos Pasados (Leaderboard):", topError.message);
+      // 🔥 FILTRO MODO DIOS: HISTORIAL JUGADORES
+      const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
+      const now = new Date().getTime();
+      const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= now)).slice(0, 5);
 
       const pastEventsPublic = [];
-      if (pastEventsData) {
+      if (pastEventsData.length > 0) {
         for (const ev of pastEventsData) {
-          const { data: participants } = await supabase
-            .from('event_participants')
-            .select('user_id, score')
-            .eq('event_id', ev.id)
-            .order('score', { ascending: false })
-            .limit(3);
-
+          const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
           const winners = [];
           if (participants) {
             for (const p of participants) {
@@ -679,7 +546,6 @@ export default async function handler(req, res) {
       });
     }
 
-
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
@@ -695,44 +561,29 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 🔥 NUEVO: Auditoría global de campañas para el Comando (Admin)
     if (action === 'admin-get-all-tasks') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-      
-      const { data: allTasks, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
+      const { data: allTasks, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
       if (error) return res.status(400).json({ success: false, error: error.message });
       return res.status(200).json({ success: true, tasks: allTasks || [] });
     }
 
-        // 🔥 NUEVO: Enviar premio de Sorteo y registrar en el historial
     if (action === 'admin-send-sorteo') {
       const { adminId, targetId, amount } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-
       const usdtAmount = Number(amount) / 1000;
-
-      // 1. Obtener usuario
       const { data: user } = await supabase.from('users').select('balance, total_earnings').eq('id', String(targetId)).single();
       if (!user) return res.status(400).json({ success: false, error: 'Usuario no encontrado' });
 
-      // 2. Sumar saldo
       const newBalance = Number((Number(user.balance) + usdtAmount).toFixed(4));
       const newTotal = Number((Number(user.total_earnings) + usdtAmount).toFixed(4));
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', String(targetId));
 
-      // 3. Registrar en historial
       await supabase.from('history_logs').insert([{
-        user_id: String(targetId),
-        title: '🎁 Premio de Sorteo / Evento',
-        description: `¡Felicidades! Has recibido un premio administrativo. | +${Number(amount).toFixed(2)} Gemas`,
-        amount: usdtAmount
+        user_id: String(targetId), title: '🎁 Premio de Evento Especial',
+        description: `¡Felicidades! Premio acreditado. | +${Number(amount).toFixed(2)} Gemas`, amount: usdtAmount
       }]);
-
       return res.status(200).json({ success: true });
     }
 
@@ -762,13 +613,7 @@ export default async function handler(req, res) {
     if (action === 'admin-get-withdrawals') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-
-      const { data: withdrawals } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
+      const { data: withdrawals } = await supabase.from('withdrawals').select('*').eq('status', 'pending').order('created_at', { ascending: false });
       return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
     }
 
@@ -776,103 +621,46 @@ export default async function handler(req, res) {
       try {
         const { data: user } = await supabase.from('users').select('username').eq('id', userId).single();
         const usernameDisplay = user?.username && user.username !== 'Usuario' ? `@${user.username}` : `ID: ${userId}`;
-
         const tonPrice = await getTonPrice();
         const tonAmount = (usdtAmount / tonPrice).toFixed(4);
-
         const usdtDisplay = Number(usdtAmount).toFixed(2);
         const gemasDisplay = (Number(usdtAmount) * 1000).toFixed(0); 
-
-        // 🔥 NUEVO: Manejo de errores si Vercel corta antes de conseguir el TXID real
         const esHashValido = realTxid && realTxid.length > 20 && realTxid !== "Transaccion_En_Proceso";
-        
         const enlaceBlockchain = esHashValido 
           ? `🔹 <b>Ver Transacción en Blockchain:</b>\n<a href="https://tonscan.org/tx/${realTxid}">${realTxid.substring(0, 12)}...</a>\n\n`
           : `🔹 <b>Comprobante Blockchain:</b>\n<i>Procesado (Validando en red...)</i>\n<a href="https://tonviewer.com/${walletAddress}#transfers">Ver Historial de Cuenta ➔</a>\n\n`;
 
-        const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n` +
-                        `👤 <b>Beneficiario:</b> ${usernameDisplay}\n` +
-                        `💎 <b>Canje:</b> ${gemasDisplay} Gemas\n` +
-                        `💵 <b>Valor:</b> ${usdtDisplay} USDT\n` +
-                        `💸 <b>Enviado:</b> ${tonAmount} GRAM\n` +
-                        `🛡️ <b>Red:</b> TON Blockchain\n` +
-                        `⚡ <b>Estado:</b> Finalizado / 100%\n\n` +
-                        enlaceBlockchain +
-                        `🔥 ¡Retiros procesados con total transparencia!`;
-
-        const keyboard = {
-          inline_keyboard: [
-            [
-              { 
-                text: "💰 ¡QUIERO GANAR GRAM AHORA!", 
-                url: "https://t.me/TeleGemAds_bot/app",
-                style: "success" 
-              }
-            ]
-          ]
-        };
-
-        await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          chat_id: '-1002352835078',
-          text: message,
-          parse_mode: 'HTML',
-          reply_markup: keyboard,
-          disable_web_page_preview: true
-        });
-      } catch (error) {
-        console.error("Error enviando notificación al canal de pagos:", error);
-      }
+        const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💎 <b>Canje:</b> ${gemasDisplay} Gemas\n💵 <b>Valor:</b> ${usdtDisplay} USDT\n💸 <b>Enviado:</b> ${tonAmount} GRAM\n🛡️ <b>Red:</b> TON Blockchain\n⚡ <b>Estado:</b> Finalizado / 100%\n\n${enlaceBlockchain}🔥 ¡Retiros procesados con total transparencia!`;
+        const keyboard = { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR GRAM AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "success" }]] };
+        await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, { chat_id: '-1002352835078', text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true });
+      } catch (error) {}
     }
 
     if (action === 'admin-approve-withdrawal') {
       const { adminId, withdrawalId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-
       const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
       if (!withdrawal) return res.status(400).json({ success: false, error: 'Retiro no encontrado.' });
       if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue pagado.' });
 
       try {
-        // 1. Capturamos el TXID real que devuelve la función después de los 15 segundos
         const realTxid = await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
-        
         await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
-        
-        // 2. Le enviamos el realTxid al canal para que arme el enlace
         await notifyPaymentChannel(withdrawal.user_id, withdrawal.amount, withdrawal.wallet_address, realTxid);
-
         const gemasRetiradas = (Number(withdrawal.amount) * 1000).toFixed(2);
         const userMsg = `✅ <b>¡TU RETIRO HA SIDO ENVIADO!</b>\n\nHemos procesado tu retiro de <b>${gemasRetiradas} Gemas</b> exitosamente.\n\nRevisa tu billetera TON para confirmar la recepción de los fondos.`;
         await notifyUser(withdrawal.user_id, userMsg);
-
-        const { data: lastLog } = await supabase.from('history_logs')
-          .select('id')
-          .eq('user_id', withdrawal.user_id)
-          .eq('title', '📤 Retiro Procesando')
-          .eq('amount', -Number(withdrawal.amount))
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
+        const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).eq('title', '📤 Retiro Procesando').eq('amount', -Number(withdrawal.amount)).order('created_at', { ascending: false }).limit(1).maybeSingle();
         if (lastLog) {
-          await supabase.from('history_logs').update({
-            title: '✅ Retiro Completado',
-            // 3. Actualizamos el historial para que el usuario tenga un enlace clickeable a Tonscan
-            description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank" style="color:#00f0ff; text-decoration:underline;">Ver Transacción ➔</a>`
-          }).eq('id', lastLog.id);
+          await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank" style="color:#00f0ff; text-decoration:underline;">Ver Transacción ➔</a>` }).eq('id', lastLog.id);
         }
-
         return res.status(200).json({ success: true });
-      } catch (error) {
-        console.error("Fallo al enviar cripto:", error);
-        return res.status(400).json({ success: false, error: 'Fallo en blockchain. Revisa el saldo de tu Master Wallet.' });
-      }
+      } catch (error) { return res.status(400).json({ success: false, error: 'Fallo en blockchain. Revisa el saldo de tu Master Wallet.' }); }
     }
 
     if (action === 'admin-reject-withdrawal') {
       const { adminId, withdrawalId, reason } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
-
       const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
       if (!withdrawal) return res.status(400).json({ success: false, error: 'Retiro no encontrado.' });
       if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Este retiro ya fue procesado y no puede rechazarse.' });
@@ -882,34 +670,14 @@ export default async function handler(req, res) {
         const refundedBalance = Number((Number(userToRefund.balance) + Number(withdrawal.amount)).toFixed(4));
         await supabase.from('users').update({ balance: refundedBalance }).eq('id', withdrawal.user_id);
       }
-
       await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
-
       const gemasReembolso = (Number(withdrawal.amount) * 1000).toFixed(2);
       const userMsg = `❌ <b>RETIRO RECHAZADO</b>\n\nTu solicitud de retiro por <b>${gemasReembolso} Gemas</b> fue rechazada.\nMotivo: <i>${reason || 'Revisión de seguridad'}</i>\n\nLos fondos han sido devueltos a tu cuenta.`;
       await notifyUser(withdrawal.user_id, userMsg);
-
-      const { data: lastLog } = await supabase.from('history_logs')
-        .select('id')
-        .eq('user_id', withdrawal.user_id)
-        .eq('title', '📤 Retiro Procesando')
-        .eq('amount', -Number(withdrawal.amount))
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-            if (lastLog) {
-        await supabase.from('history_logs').update({
-          title: '❌ Retiro Rechazado',
-          description: reason ? `Reembolso: +${gemasReembolso} Gemas. Motivo: ${reason}` : `Fondos devueltos por seguridad: +${gemasReembolso} Gemas.`,
-          
-          // 🔥 CAMBIO EXACTO: Antes decía 0, ahora devuelve la cantidad en positivo
-          amount: Number(withdrawal.amount) 
-          
-        }).eq('id', lastLog.id);
+      const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).eq('title', '📤 Retiro Procesando').eq('amount', -Number(withdrawal.amount)).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (lastLog) {
+        await supabase.from('history_logs').update({ title: '❌ Retiro Rechazado', description: reason ? `Reembolso: +${gemasReembolso} Gemas. Motivo: ${reason}` : `Fondos devueltos por seguridad: +${gemasReembolso} Gemas.`, amount: Number(withdrawal.amount) }).eq('id', lastLog.id);
       }
-
-
       return res.status(200).json({ success: true });
     }
 
@@ -917,34 +685,20 @@ export default async function handler(req, res) {
       const targetId = String(userId || user?.id);
       const { address, amount } = req.body;
       let withdrawAmount = Number(amount);
-
       if (!address || withdrawAmount < 0.05) return res.status(400).json({ success: false, error: 'Mínimo: 0.05 USDT.' });
 
       const todayDate = new Date();
       todayDate.setUTCHours(0, 0, 0, 0);
       const todayStr = todayDate.toISOString();
-
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
-      const { count: adsCount } = await supabase.from('history_logs')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', targetId)
-        .like('description', '%[AdView]%')
-        .gte('created_at', todayStr);
+      const { count: adsCount } = await supabase.from('history_logs').select('*', { count: 'exact', head: true }).eq('user_id', targetId).like('description', '%[AdView]%').gte('created_at', todayStr);
 
       if ((refCount || 0) < 3 && (adsCount || 0) < 15) {
-        return res.status(400).json({ 
-          success: false, 
-          error: `Requisito incompleto: Necesitas 3 referidos activos (tienes ${refCount || 0}) O ver 15 anuncios hoy (llevas ${adsCount || 0}/15).` 
-        });
+        return res.status(400).json({ success: false, error: `Requisito incompleto: Necesitas 3 referidos activos (tienes ${refCount || 0}) O ver 15 anuncios hoy (llevas ${adsCount || 0}/15).` });
       }
 
       await runRetentionAudit(targetId).catch(e => console.error("Error audit pre-retiro", e));
-
-      const { data: recentTasks } = await supabase.from('user_completed_tasks')
-        .select('task_id, tasks(type, url, reward)')
-        .eq('user_id', targetId)
-        .order('created_at', { ascending: false })
-        .limit(5); 
+      const { data: recentTasks } = await supabase.from('user_completed_tasks').select('task_id, tasks(type, url, reward)').eq('user_id', targetId).order('created_at', { ascending: false }).limit(5); 
 
       let penaltyAmount = 0;
       if (recentTasks) {
@@ -965,43 +719,26 @@ export default async function handler(req, res) {
         }
       }
 
-      // 🛠️ DEDUCCIÓN DIRECTA HIT & RUN Y RETIRO (Sin RPC)
       let newBalance = 0;
       const { data: wUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
-      
       if (!wUser) return res.status(400).json({ success: false, error: 'Usuario no encontrado.' });
 
       if (penaltyAmount > 0) {
         const balAfterPenalty = Math.max(0, Number(wUser.balance) - penaltyAmount);
         const totAfterPenalty = Math.max(0, Number(wUser.total_earnings) - penaltyAmount);
         await supabase.from('users').update({ balance: balAfterPenalty, total_earnings: totAfterPenalty }).eq('id', targetId);
-        
         notifyAdmin(`⚖️ <b>Penalidad Hit&Run Aplicada</b>\nUsuario <code>${targetId}</code> se salió de canales.\nPenalidad: -${penaltyAmount.toFixed(4)} USDT.`);
-
-        await supabase.from('history_logs').insert([{ 
-          user_id: targetId, 
-          title: '⚠️ Penalidad de Red', 
-          description: `Abandono de canales. Sanción: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, 
-          amount: -penaltyAmount 
-        }]);
-
+        await supabase.from('history_logs').insert([{ user_id: targetId, title: '⚠️ Penalidad de Red', description: `Abandono de canales. Sanción: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, amount: -penaltyAmount }]);
         withdrawAmount = withdrawAmount - penaltyAmount;
         if (withdrawAmount < 0.05) return res.status(400).json({ success: false, error: `Se dedujeron ${penaltyAmount.toFixed(4)} USDT por abandonar canales. Saldo insuficiente para retirar.` });
-        
         wUser.balance = balAfterPenalty;
       }
 
-      if (Number(wUser.balance) < withdrawAmount) {
-         return res.status(400).json({ success: false, error: 'Saldo insuficiente o transacción bloqueada por seguridad.' });
-      }
+      if (Number(wUser.balance) < withdrawAmount) return res.status(400).json({ success: false, error: 'Saldo insuficiente o transacción bloqueada por seguridad.' });
 
       newBalance = Number((Number(wUser.balance) - withdrawAmount).toFixed(4));
       await supabase.from('users').update({ balance: newBalance }).eq('id', targetId);
-
-      const { data: withdrawal, error: withdrawError } = await supabase.from('withdrawals').insert([{
-        user_id: targetId, wallet_address: address, amount: withdrawAmount,
-        status: withdrawAmount <= 0.9 ? 'processing' : 'pending'
-      }]).select().single();
+      const { data: withdrawal, error: withdrawError } = await supabase.from('withdrawals').insert([{ user_id: targetId, wallet_address: address, amount: withdrawAmount, status: withdrawAmount <= 0.9 ? 'processing' : 'pending' }]).select().single();
 
       if (withdrawError || !withdrawal) {
         await supabase.from('users').update({ balance: newBalance + withdrawAmount }).eq('id', targetId);
@@ -1009,42 +746,19 @@ export default async function handler(req, res) {
       }
 
       const withdrawGemasStr = (withdrawAmount * 1000).toFixed(2);
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '📤 Retiro Procesando', 
-        description: `Destino: ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas`, 
-        amount: -withdrawAmount 
-      }]);
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Destino: ${address.substring(0,8)}... | -${withdrawGemasStr} Gemas`, amount: -withdrawAmount }]);
 
       if (withdrawAmount <= 0.9) {
           try {
-              // 🔥 1. Capturamos el TXID real del retiro automático
               const realTxid = await sendTonAutomated(address, withdrawAmount);
-              
               await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawal.id);
-              
-              // 🔥 2. Se lo pasamos al canal para que el enlace no se rompa
               await notifyPaymentChannel(targetId, withdrawAmount, address, realTxid);
-
               const userMsg = `✅ <b>¡TU RETIRO HA SIDO ENVIADO!</b>\n\nHemos procesado tu retiro automático de <b>${withdrawGemasStr} Gemas</b> exitosamente a la blockchain TON.`;
               await notifyUser(targetId, userMsg);
-
-              const { data: lastLog } = await supabase.from('history_logs')
-                .select('id')
-                .eq('user_id', targetId)
-                .eq('title', '📤 Retiro Procesando')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
+              const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).eq('title', '📤 Retiro Procesando').order('created_at', { ascending: false }).limit(1).maybeSingle();
               if (lastLog) {
-                await supabase.from('history_logs').update({
-                  title: '✅ Retiro Completado',
-                  // 🔥 3. Historial con enlace clickeable hacia Tonscan
-                  description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank" style="color:#00f0ff; text-decoration:underline;">Ver Transacción ➔</a>`
-                }).eq('id', lastLog.id);
+                await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank" style="color:#00f0ff; text-decoration:underline;">Ver Transacción ➔</a>` }).eq('id', lastLog.id);
               }
-
               return res.status(200).json({ success: true, balance: newBalance, message: 'Pago enviado a la blockchain.' });
           } catch (err) {
               await supabase.from('withdrawals').update({ status: 'pending' }).eq('id', withdrawal.id);
@@ -1053,38 +767,24 @@ export default async function handler(req, res) {
       } else {
           return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en revisión administrativa.' });
       }
-     }
-
+    }
 
     if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
       const targetId = String(userId);
-
       let masterUsdtWallet = "0x3062f1AbE78Cef11190c8A654Ef7F9e101E4eAce"; 
       try {
         const { data: cfg } = await supabase.from('system_settings').select('master_wallet_usdt_bep20').eq('id', 1).maybeSingle();
-        if (cfg && cfg.master_wallet_usdt_bep20) {
-          masterUsdtWallet = cfg.master_wallet_usdt_bep20;
-        }
+        if (cfg && cfg.master_wallet_usdt_bep20) masterUsdtWallet = cfg.master_wallet_usdt_bep20;
       } catch (e) {}
 
       const { ethers } = await import('ethers');
       const randomWallet = ethers.Wallet.createRandom();
       const publicAddress = randomWallet.address;
       const privateKey = randomWallet.privateKey;
-
       const encryptedKey = encryptText(privateKey);
-
-      const { data: newIntent, error: intentErr } = await supabase.from('payment_intents').insert([{ 
-        user_id: targetId, 
-        expected_amount: Number(price), 
-        public_wallet: publicAddress, 
-        encrypted_private_key: encryptedKey, 
-        status: 'pending' 
-      }]).select().single();
-
+      const { data: newIntent, error: intentErr } = await supabase.from('payment_intents').insert([{ user_id: targetId, expected_amount: Number(price), public_wallet: publicAddress, encrypted_private_key: encryptedKey, status: 'pending' }]).select().single();
       if (intentErr) return res.status(400).json({ success: false, error: intentErr.message });
-
       return res.status(200).json({ success: true, wallet: publicAddress, intentId: newIntent.id });
     }
 
@@ -1097,27 +797,17 @@ export default async function handler(req, res) {
       const provider = new ethers.JsonRpcProvider(BSC_RPC);
       const usdtAbi = ["function balanceOf(address owner) view returns (uint256)"];
       const usdtContract = new ethers.Contract(USDT_BEP20_ADDRESS, usdtAbi, provider);
-
       const balanceWei = await usdtContract.balanceOf(intent.public_wallet);
       const balanceUsdt = Number(ethers.formatUnits(balanceWei, 18));
-
       if (balanceUsdt < intent.expected_amount) return res.status(400).json({ success: false, error: `Saldo en blockchain: ${balanceUsdt.toFixed(2)} USDT.` });
 
       const { data: dbUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).single();
       const newDepositBalance = Number((Number(dbUser.deposit_balance || 0) + clicks).toFixed(4));
       await supabase.from('users').update({ deposit_balance: newDepositBalance }).eq('id', targetId);
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
-
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '📥 Recarga de Bóveda', 
-        description: `Depósito BSC (BEP20): $${Number(clicks).toFixed(2)} USDT acreditados.`, 
-        amount: 0 
-      }]);
-
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📥 Recarga de Bóveda', description: `Depósito BSC (BEP20): $${Number(clicks).toFixed(2)} USDT acreditados.`, amount: 0 }]);
       const derivedWallet = getDerivedUsdtWallet(targetId);
       sweepUsdtAutomated(derivedWallet, balanceWei).catch(e => console.error("Fallo barrido:", e));
-
       return res.status(200).json({ success: true, deposit_balance: newDepositBalance });
     }
 
@@ -1127,16 +817,9 @@ export default async function handler(req, res) {
       const mnemonics = await mnemonicNew(); 
       const keyPair = await mnemonicToPrivateKey(mnemonics);
       const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
-
       const secretWords = mnemonics.join(" ");
       const encryptedKey = encryptText(secretWords);
-
-      const { data: newIntent } = await supabase.from('payment_intents').insert([{ 
-        user_id: targetId, expected_amount: price, 
-        public_wallet: wallet.address.toString({ urlSafe: true, bounceable: false }), 
-        encrypted_private_key: encryptedKey, status: 'pending' 
-      }]).select().single();
-
+      const { data: newIntent } = await supabase.from('payment_intents').insert([{ user_id: targetId, expected_amount: price, public_wallet: wallet.address.toString({ urlSafe: true, bounceable: false }), encrypted_private_key: encryptedKey, status: 'pending' }]).select().single();
       return res.status(200).json({ success: true, wallet: newIntent.public_wallet, intentId: newIntent.id });
     }
 
@@ -1154,26 +837,18 @@ export default async function handler(req, res) {
       const newDepositBalance = Number((Number(dbUser.deposit_balance || 0) + clicks).toFixed(4));
       await supabase.from('users').update({ deposit_balance: newDepositBalance }).eq('id', targetId);
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
-
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '📥 Recarga de Bóveda', 
-        description: `Depósito TON (GRAM): $${Number(clicks).toFixed(2)} USDT acreditados.`, 
-        amount: 0 
-      }]);
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📥 Recarga de Bóveda', description: `Depósito TON (GRAM): $${Number(clicks).toFixed(2)} USDT acreditados.`, amount: 0 }]);
 
       try {
         let sweepWallet = FALLBACK_MASTER_WALLET_GRAM;
         const { data: cfg } = await supabase.from('system_settings').select('master_wallet_gram').eq('id', 1).maybeSingle();
         if (cfg && cfg.master_wallet_gram) sweepWallet = cfg.master_wallet_gram;
-
         const secretWords = decryptText(intent.encrypted_private_key);
         const mnemonics = secretWords.split(" "); 
         const keyPair = await mnemonicToPrivateKey(mnemonics);
         const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
         const contract = tonClient.open(wallet); 
         const seqno = await contract.getSeqno();
-
         await contract.sendTransfer({ seqno: seqno || 0, secretKey: keyPair.secretKey, messages: [ internal({ to: sweepWallet, value: 0n, bounce: false, body: "Barrido" }) ], sendMode: 128 });
       } catch (sweepError) {}
       return res.status(200).json({ success: true, deposit_balance: newDepositBalance });
@@ -1182,153 +857,87 @@ export default async function handler(req, res) {
     if (action === 'verify-admin') {
       const { url } = req.body;
       if (!url) return res.status(400).json({ success: false, error: 'Enlace no proporcionado.' });
-
       const chatId = extractTelegramUsername(url);
       if (!chatId) return res.status(400).json({ success: false, error: 'Formato de enlace inválido. Usa @usuario o t.me/usuario.' });
-
       const adminCheck = await checkAdminStatusDetailed(chatId);
-
-      if (adminCheck.isAdmin) {
-        return res.status(200).json({ success: true });
-      } else {
-        return res.status(400).json({ success: false, error: adminCheck.error || 'El bot no tiene permisos de administrador en esa comunidad.' });
-      }
+      if (adminCheck.isAdmin) return res.status(200).json({ success: true });
+      return res.status(400).json({ success: false, error: adminCheck.error || 'El bot no tiene permisos de administrador en esa comunidad.' });
     }
 
     if (action === 'create-task') {
       const { creator_id, type, title, url, bot_token, completions_total, reward, validation_code } = req.body;
       const targetId = String(creator_id || userId);
-
       const count = Number(completions_total || 100); 
       const rew = Number(reward || 0.001); 
       const totalCost = Number((count * rew * 1.30).toFixed(4));
-
-      // 🛠️ DEDUCCIÓN DE BÓVEDA SIN RPC
       const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).single();
-      if (!cUser || Number(cUser.deposit_balance) < totalCost) {
-         return res.status(400).json({ success: false, error: 'Capital de Bóveda insuficiente.' });
-      }
+      if (!cUser || Number(cUser.deposit_balance) < totalCost) return res.status(400).json({ success: false, error: 'Capital de Bóveda insuficiente.' });
       const newVaultBalance = Number((Number(cUser.deposit_balance) - totalCost).toFixed(4));
       await supabase.from('users').update({ deposit_balance: newVaultBalance }).eq('id', targetId);
 
-      const { data: newTask, error: taskError } = await supabase.from('tasks').insert([{ 
-        creator_id: targetId, type, title, url, bot_token: bot_token || null, 
-        completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, 
-        status: 'active', validation_code: validation_code || null,
-        current_clicks: 0, target_clicks: count
-      }]).select().single();
-
+      const { data: newTask, error: taskError } = await supabase.from('tasks').insert([{ creator_id: targetId, type, title, url, bot_token: bot_token || null, completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active', validation_code: validation_code || null, current_clicks: 0, target_clicks: count }]).select().single();
       if (taskError || !newTask) {
         await supabase.from('users').update({ deposit_balance: newVaultBalance + totalCost }).eq('id', targetId);
         return res.status(400).json({ success: false, error: `Fallo BD. Saldo devuelto.` });
       }
-
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '🚀 Campaña Activada', 
-        description: `Despliegue de "${title}" (${count} cupos) | -$${totalCost.toFixed(2)} USDT de Bóveda.`, 
-        amount: -totalCost 
-      }]);
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '🚀 Campaña Activada', description: `Despliegue de "${title}" (${count} cupos) | -$${totalCost.toFixed(2)} USDT de Bóveda.`, amount: -totalCost }]);
       return res.status(200).json({ success: true, task: newTask, deposit_balance: newVaultBalance });
     }
 
     if (action === 'get-tasks') {
       const targetId = String(userId);
       const { data: allTasks } = await supabase.from('tasks').select('*').or(`status.in.(active,paused),creator_id.eq.${targetId}`).order('created_at', { ascending: false });
-
       const { data: completedRows } = await supabase.from('user_completed_tasks').select('task_id').eq('user_id', targetId);
       const completedIds = new Set((completedRows || []).map(r => String(r.task_id)));
-
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: historyLogs } = await supabase.from('history_logs').select('description').eq('user_id', targetId).gte('created_at', yesterday);
       const completedDailyIds = new Set();
-      
-      let gigaPubClaimed = false; // 🔥 NUEVO: Variable para el botón visual
-      
+      let gigaPubClaimed = false; 
       if (historyLogs) {
          historyLogs.forEach(log => {
            const match = log.description?.match(/\[Daily:(.+?)\]/);
            if (match) completedDailyIds.add(match[1]);
-           // 🔥 NUEVO: Buscamos si ya reclamó GigaPub hoy
            if (log.description?.includes('[GigaPubDaily]')) gigaPubClaimed = true; 
          });
       }
-
       const mappedTasks = (allTasks || []).map(t => {
         const isDaily = t.type.startsWith('daily_') || t.type === 'daily';
         return { ...t, reward: (t.reward || 1), is_completed: isDaily ? completedDailyIds.has(String(t.id)) : completedIds.has(String(t.id)) };
       });
-
-      // 🔥 NUEVO: Agregamos gigaPubClaimed a la respuesta
       return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed });
     }
 
-    // 🔥 NUEVO: Recompensa diaria ahora usando Giga Pub
     if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
       const earnedGemas = 5.00; 
       const rewardForDb = earnedGemas / 1000;
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      
       const { data: recentLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).like('description', '%[GigaPubDaily]%').gte('created_at', yesterday).maybeSingle();
       if (recentLog) return res.status(400).json({ success: false, error: 'Ya reclamaste tu bono hoy. Vuelve mañana.' });
 
-      // 🔥 Modificado para extraer referred_by y is_human
       const { data: dbUser } = await supabase.from('users').select('balance, total_earnings, referred_by, is_human').eq('id', targetId).single();
-      
-      const wasPending = Number(dbUser.total_earnings || 0) < 0.005; // ¿Era pendiente?
-      
+      const wasPending = Number(dbUser.total_earnings || 0) < 0.005; 
       const newBalance = Number((Number(dbUser.balance || 0) + rewardForDb).toFixed(4));
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardForDb).toFixed(4));
-      
-      const isNowActive = newTotal >= 0.005; // ¿Ya superó la meta?
-
+      const isNowActive = newTotal >= 0.005; 
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '🎁 Bono Diario (Check-in)', description: `Anuncio completado [GigaPubDaily] | +${earnedGemas.toFixed(2)} Gemas`, amount: rewardForDb }]);
 
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '🎁 Bono Diario (Check-in)', 
-        description: `Anuncio completado [GigaPubDaily] | +${earnedGemas.toFixed(2)} Gemas`, 
-        amount: rewardForDb 
-      }]);
-
-      // 🏆 BONO ÚNICO DE VALIDACIÓN: Si el usuario era Pendiente y ahora es Activo
       if (wasPending && isNowActive && dbUser.referred_by && dbUser.is_human) {
          const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
          if (referrer) {
-            const oneTimeBonus = 0.005; // 5 Gemas exactas
-            await supabase.from('users').update({ 
-              balance: Number((Number(referrer.balance || 0) + oneTimeBonus).toFixed(4)), 
-              referral_earnings: Number((Number(referrer.referral_earnings || 0) + oneTimeBonus).toFixed(4)), 
-              total_earnings: Number((Number(referrer.total_earnings || 0) + oneTimeBonus).toFixed(4)) 
-            }).eq('id', referrer.id);
-
-            await supabase.from('history_logs').insert([{ 
-              user_id: referrer.id, 
-              title: '🎯 Recluta Validado', 
-              description: `Tu recluta (ID: ${targetId}) se ha activado. Bono: +5.00 Gemas`, 
-              amount: oneTimeBonus 
-            }]);
+            const oneTimeBonus = 0.005; 
+            await supabase.from('users').update({ balance: Number((Number(referrer.balance || 0) + oneTimeBonus).toFixed(4)), referral_earnings: Number((Number(referrer.referral_earnings || 0) + oneTimeBonus).toFixed(4)), total_earnings: Number((Number(referrer.total_earnings || 0) + oneTimeBonus).toFixed(4)) }).eq('id', referrer.id);
+            await supabase.from('history_logs').insert([{ user_id: referrer.id, title: '🎯 Recluta Validado', description: `Tu recluta (ID: ${targetId}) se ha activado. Bono: +5.00 Gemas`, amount: oneTimeBonus }]);
          }
       }
-
       return res.status(200).json({ success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance });
     }
-
 
     if (action === 'complete-task') {
       const { taskId, validation_code_input } = req.body; 
       const targetId = String(userId);
-
-      const { data: lastLog } = await supabase
-        .from('history_logs')
-        .select('created_at')
-        .eq('user_id', targetId)
-        .eq('title', '✅ Tarea Completada')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
+      const { data: lastLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).eq('title', '✅ Tarea Completada').order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (lastLog) {
         const lastTime = new Date(lastLog.created_at).getTime();
         const now = Date.now();
@@ -1340,19 +949,11 @@ export default async function handler(req, res) {
 
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Misión no disponible.' });
-
-      // 🔥 NUEVA REGLA: Bloqueo de auto-completado
-      if (String(task.creator_id) === targetId) {
-        return res.status(400).json({ success: false, error: 'Comando denegado: No puedes cobrar recompensas de tu propia misión.' });
-      }
-
-      if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) {
-        return res.status(400).json({ success: false, error: 'Código de validación incorrecto.' });
-      }
+      if (String(task.creator_id) === targetId) return res.status(400).json({ success: false, error: 'Comando denegado: No puedes cobrar recompensas de tu propia misión.' });
+      if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) return res.status(400).json({ success: false, error: 'Código de validación incorrecto.' });
 
       const isDaily = task.type.startsWith('daily_') || task.type === 'daily';
       const baseType = isDaily ? task.type.replace('daily_', '') : task.type;
-
       const { data: alreadyDone } = await supabase.from('user_completed_tasks').select('id').eq('task_id', taskId).eq('user_id', targetId).maybeSingle();
 
       if (isDaily) {
@@ -1381,9 +982,7 @@ export default async function handler(req, res) {
       }
 
       if (!isDaily) await supabase.from('user_completed_tasks').insert([{ task_id: taskId, user_id: targetId }]);
-
       const rewardAmount = Number(task.reward || 1);
-
       const { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).single();
       const newBalance = Number((Number(dbUser.balance || 0) + rewardAmount).toFixed(4));
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardAmount).toFixed(4));
@@ -1396,47 +995,28 @@ export default async function handler(req, res) {
       if (dbUser.referred_by) {
         const wasPending = Number(dbUser.total_earnings || 0) < 0.005;
         const isNowActive = newTotal >= 0.005;
-
-        // 🔥 1. COMISIÓN NORMAL (Solo 10% por la misión, se repite siempre)
         const commissionAmount = Number((rewardAmount * 0.10).toFixed(4));
         let totalToReferrer = commissionAmount;
         let logDescription = `Misión de recluta (ID: ${targetId}) | +${(commissionAmount * 1000).toFixed(2)} Gemas`;
         
-        // 🏆 2. BONO ÚNICO DE VALIDACIÓN (Se suma SOLO si esta tarea lo hace cruzar la meta)
         if (wasPending && isNowActive && dbUser.is_human) {
-            totalToReferrer = Number((totalToReferrer + 0.005).toFixed(4)); // Suma las 5 gemas adicionales
+            totalToReferrer = Number((totalToReferrer + 0.005).toFixed(4)); 
             logDescription = `Recluta Validado + Comisión (ID: ${targetId}) | +${(totalToReferrer * 1000).toFixed(2)} Gemas`;
         }
 
         const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
         if (referrer) {
-          await supabase.from('users').update({ 
-            balance: Number((Number(referrer.balance || 0) + totalToReferrer).toFixed(4)), 
-            referral_earnings: Number((Number(referrer.referral_earnings || 0) + totalToReferrer).toFixed(4)), 
-            total_earnings: Number((Number(referrer.total_earnings || 0) + totalToReferrer).toFixed(4)) 
-          }).eq('id', referrer.id);
-
-          await supabase.from('history_logs').insert([{ 
-            user_id: referrer.id, 
-            title: '👥 Comisión de Escuadrón', 
-            description: logDescription, 
-            amount: totalToReferrer 
-          }]);
+          await supabase.from('users').update({ balance: Number((Number(referrer.balance || 0) + totalToReferrer).toFixed(4)), referral_earnings: Number((Number(referrer.referral_earnings || 0) + totalToReferrer).toFixed(4)), total_earnings: Number((Number(referrer.total_earnings || 0) + totalToReferrer).toFixed(4)) }).eq('id', referrer.id);
+          await supabase.from('history_logs').insert([{ user_id: referrer.id, title: '👥 Comisión de Escuadrón', description: logDescription, amount: totalToReferrer }]);
         }
       }
 
       const newDoneCount = Number(task.completions_done || 0) + 1;
       const newCurrentClicks = Number(task.current_clicks || 0) + 1;
-      await supabase.from('tasks').update({ 
-        completions_done: newDoneCount, 
-        current_clicks: newCurrentClicks,
-        status: (newDoneCount >= Number(task.completions_total)) ? 'completed' : 'active' 
-      }).eq('id', taskId);
+      await supabase.from('tasks').update({ completions_done: newDoneCount, current_clicks: newCurrentClicks, status: (newDoneCount >= Number(task.completions_total)) ? 'completed' : 'active' }).eq('id', taskId);
 
-      // 🛠️ ACTUALIZACIÓN DE CLICKS GLOBALES SEGURA (Fix crash RPC)
       const { error: rpcGlobalErr } = await supabase.rpc('increment_global_clicks');
       if (rpcGlobalErr) {
-        // Fallback seguro si no existe el RPC en base de datos
         const { data: s } = await supabase.from('platform_stats').select('total_global_clicks').eq('id', 1).maybeSingle();
         if (s) {
           await supabase.from('platform_stats').update({ total_global_clicks: (s.total_global_clicks || 0) + 1 }).eq('id', 1);
@@ -1460,7 +1040,6 @@ export default async function handler(req, res) {
       const { taskId, requestingUserId } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).eq('creator_id', String(requestingUserId)).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada o sin permisos.' });
-
       const newStatus = task.status === 'active' ? 'paused' : 'active';
       await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
       return res.status(200).json({ success: true, status: newStatus });
@@ -1470,10 +1049,7 @@ export default async function handler(req, res) {
       const { taskId, requestingUserId, isAdminAction } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
-
-      if (task.creator_id !== String(requestingUserId) && !isAdminAction) {
-         return res.status(403).json({ success: false, error: 'Sin permisos para eliminar.' });
-      }
+      if (task.creator_id !== String(requestingUserId) && !isAdminAction) return res.status(403).json({ success: false, error: 'Sin permisos para eliminar.' });
 
       const remainingCompletions = task.completions_total - (task.completions_done || 0);
       if (remainingCompletions > 0) {
@@ -1481,13 +1057,7 @@ export default async function handler(req, res) {
         const { data: user } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
         if (user) {
           await supabase.from('users').update({ deposit_balance: Number((Number(user.deposit_balance) + refundAmount).toFixed(4)) }).eq('id', task.creator_id);
-
-          await supabase.from('history_logs').insert([{ 
-            user_id: task.creator_id, 
-            title: '💰 Reembolso de Campaña', 
-            description: `Cancelación de campaña. Reembolso: +$${refundAmount.toFixed(2)} USDT a Bóveda.`, 
-            amount: 0 
-          }]);
+          await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: '💰 Reembolso de Campaña', description: `Cancelación de campaña. Reembolso: +$${refundAmount.toFixed(2)} USDT a Bóveda.`, amount: 0 }]);
         }
       }
       await supabase.from('tasks').delete().eq('id', taskId);
@@ -1498,38 +1068,21 @@ export default async function handler(req, res) {
       const { taskId, requestingUserId, newTitle, newUrl, addCompletions, isAdminAction } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
-
-      if (task.creator_id !== String(requestingUserId) && !isAdminAction) {
-         return res.status(403).json({ success: false, error: 'Sin permisos para editar.' });
-      }
+      if (task.creator_id !== String(requestingUserId) && !isAdminAction) return res.status(403).json({ success: false, error: 'Sin permisos para editar.' });
 
       const updates = { title: newTitle, url: newUrl };
-
-      // 🔥 Inyección de capital (Agregar más cupos a la tarea)
       if (addCompletions && Number(addCompletions) > 0) {
         const extraCompletions = Number(addCompletions);
         const extraCost = Number((extraCompletions * task.reward * 1.30).toFixed(4));
-
         const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
-        if (!cUser || Number(cUser.deposit_balance) < extraCost) {
-           return res.status(400).json({ success: false, error: `Se requieren ${extraCost} USDT en Bóveda para añadir ${extraCompletions} cupos.` });
-        }
+        if (!cUser || Number(cUser.deposit_balance) < extraCost) return res.status(400).json({ success: false, error: `Se requieren ${extraCost} USDT en Bóveda para añadir ${extraCompletions} cupos.` });
         
-        // Descontar saldo y actualizar tarea
         const newVaultBalance = Number((Number(cUser.deposit_balance) - extraCost).toFixed(4));
         await supabase.from('users').update({ deposit_balance: newVaultBalance }).eq('id', task.creator_id);
-        
         updates.completions_total = task.completions_total + extraCompletions;
-        updates.status = 'active'; // Se reactiva automáticamente si estaba pausada por falta de cupos
-
-        await supabase.from('history_logs').insert([{ 
-          user_id: task.creator_id, 
-          title: '🔋 Campaña Recargada', 
-          description: `+${extraCompletions} cupos añadidos a "${newTitle}". Costo: -$${extraCost.toFixed(2)} USDT.`, 
-          amount: -extraCost 
-        }]);
+        updates.status = 'active'; 
+        await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: '🔋 Campaña Recargada', description: `+${extraCompletions} cupos añadidos a "${newTitle}". Costo: -$${extraCost.toFixed(2)} USDT.`, amount: -extraCost }]);
       }
-
       await supabase.from('tasks').update(updates).eq('id', taskId);
       return res.status(200).json({ success: true, message: 'Parámetros tácticos actualizados.' });
     }
@@ -1540,11 +1093,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, history: history || [] });
     }
 
-        if (action === 'get-referrals') {
+    if (action === 'get-referrals') {
       const targetId = String(userId);
       let { data: lv1 } = await supabase.from('users').select('*').eq('referred_by', targetId);
       const { data: dbUser } = await supabase.from('users').select('referral_earnings').eq('id', targetId).maybeSingle();
-
       return res.status(200).json({ success: true, referrals: lv1 || [], earnings: dbUser?.referral_earnings || 0 });
     }
 
@@ -1552,14 +1104,8 @@ export default async function handler(req, res) {
       const targetId = String(userId);
       const todayDate = new Date();
       todayDate.setUTCHours(0, 0, 0, 0);
-
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
-      const { count: adsCount } = await supabase.from('history_logs')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', targetId)
-        .like('description', '%[AdView]%')
-        .gte('created_at', todayDate.toISOString());
-
+      const { count: adsCount } = await supabase.from('history_logs').select('*', { count: 'exact', head: true }).eq('user_id', targetId).like('description', '%[AdView]%').gte('created_at', todayDate.toISOString());
       return res.status(200).json({ success: true, referrals: refCount || 0, ads: adsCount || 0 });
     }
 
@@ -1567,19 +1113,11 @@ export default async function handler(req, res) {
       const targetId = String(userId);
       const earnedGemas = 0.50; 
       const rewardForDb = earnedGemas / 1000;
-
       const { data: dbUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
       const newBalance = Number((Number(dbUser.balance || 0) + rewardForDb).toFixed(4));
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardForDb).toFixed(4));
-
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
-      await supabase.from('history_logs').insert([{ 
-        user_id: targetId, 
-        title: '📺 Anuncio Visto', 
-        description: `Visualización para retiro [AdView] | +${earnedGemas.toFixed(2)} Gemas`, 
-        amount: rewardForDb 
-      }]);
-
+      await supabase.from('history_logs').insert([{ user_id: targetId, title: '📺 Anuncio Visto', description: `Visualización para retiro [AdView] | +${earnedGemas.toFixed(2)} Gemas`, amount: rewardForDb }]);
       return res.status(200).json({ success: true, balance: newBalance });
     }
 
