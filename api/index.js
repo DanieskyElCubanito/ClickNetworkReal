@@ -631,13 +631,15 @@ export default async function handler(req, res) {
         .order('referral_earnings', { ascending: false })
         .limit(10);
 
-            // 🔥 NUEVO: Obtener torneos pasados y sus Top 3 ganadores para el público
-      const { data: pastEventsData } = await supabase
+                  // 🔥 NUEVO: Obtener torneos pasados y sus Top 3 ganadores para el público
+      const { data: pastEventsData, error: topError } = await supabase
         .from('events')
         .select('*')
-        .neq('status', 'active') // <- Aquí está la magia del rescate
+        .eq('status', 'completed') // 🛠️ CAMBIO: Filtro estricto absoluto
         .order('end_date', { ascending: false })
         .limit(5);
+
+      if (topError) console.error("Error BD Torneos Pasados (Leaderboard):", topError.message);
 
       const pastEventsPublic = [];
       if (pastEventsData) {
@@ -664,9 +666,9 @@ export default async function handler(req, res) {
         success: true, 
         topTasks: completedRanking, 
         topReferrals: topReferrers || [],
-        pastEvents: pastEventsPublic // Se envía al Salón de la Fama del jugador
+        pastEvents: pastEventsPublic 
       });
-}
+    }
 
 
     if (action === 'admin-get-config') {
