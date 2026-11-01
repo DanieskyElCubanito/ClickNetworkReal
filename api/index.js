@@ -481,7 +481,7 @@ export default async function handler(req, res) {
     }
 
 
-    // 🔥 FILTRO MODO DIOS: HISTORIAL ADMIN
+        // 🔥 FILTRO MODO DIOS: HISTORIAL ADMIN
     if (action === 'admin-get-past-events') {
       const { adminId } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
@@ -507,7 +507,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
 
-    if (action === 'get-leaderboard') {
+
+        if (action === 'get-leaderboard') {
       const { data: topTasks } = await supabase.from('user_completed_tasks').select('user_id, count(*)').group('user_id').order('count', { ascending: false }).limit(10);
       const completedRanking = [];
       if (topTasks) {
@@ -546,6 +547,7 @@ export default async function handler(req, res) {
         pastEvents: pastEventsPublic 
       });
     }
+
 
     if (action === 'admin-get-config') {
       const { adminId } = req.body;
