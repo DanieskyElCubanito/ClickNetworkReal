@@ -467,7 +467,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, event: data });
     }
 
-    if (action === 'admin-manage-event') {
+        if (action === 'admin-manage-event') {
       const { adminId, eventId, newStatus } = req.body;
       if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false });
 
@@ -480,6 +480,7 @@ export default async function handler(req, res) {
       }
       return res.status(200).json({ success: true });
     }
+
 
     // 🔥 FILTRO MODO DIOS: HISTORIAL ADMIN
     if (action === 'admin-get-past-events') {
