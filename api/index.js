@@ -922,7 +922,7 @@ export default async function handler(req, res) {
       todayDate.setUTCHours(0, 0, 0, 0);
       const todayStr = todayDate.toISOString();
 
-      const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
+      const { count: refCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', targetId).gte('total_earnings', 0.005);
       const { count: adsCount } = await supabase.from('history_logs')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', targetId)
