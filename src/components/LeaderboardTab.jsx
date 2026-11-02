@@ -269,8 +269,9 @@ export default function LeaderboardTab({ userData, t }) {
                         @{item.username !== 'Usuario' ? item.username : `ID: ${item.id.substring(0, 5)}...`}
                       </div>
                     </div>
-                    <div style={{ color: isTop3 ? '#00f0ff' : '#00ffaa', fontWeight: '900', fontSize: '14px' }}>
-                      {(Number(item.referral_earnings || 0) * 1000).toFixed(2)} 💎
+                    <div                     <div style={{ color: isTop3 ? '#00f0ff' : '#00ffaa', fontWeight: '900', fontSize: '14px', textAlign: 'right' }}>
+                      {item.score}
+                      <span style={{ display: 'block', fontSize: '10px', color: '#aaa', fontWeight: 'bold', textTransform: 'uppercase' }}>Activos</span>
                     </div>
                   </div>
                 )})
