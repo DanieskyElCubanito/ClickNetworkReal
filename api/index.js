@@ -172,6 +172,7 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
       sendMode: 3 
   });
 
+  // 🔥 NUEVO: Esperamos 8 segundos a que la blockchain confirme el bloque
   console.log("Pago enviado. Esperando 8 segundos a la blockchain...");
   await sleep(8000); 
 
@@ -268,6 +269,7 @@ async function checkAdminStatusDetailed(chatId) {
     if (!resData.ok) {
       const apiError = resData.description.toLowerCase();
       
+      // 🔥 Traducimos los errores crudos de Telegram a mensajes tácticos para el usuario
       if (apiError.includes('member list is inaccessible') || apiError.includes('chat not found')) {
         return { isAdmin: false, error: '⚠️ Radar bloqueado: El canal es privado o el bot no tiene permisos. Añade a nuestro bot como Administrador de tu base antes de conectarla.' };
       }
@@ -277,6 +279,7 @@ async function checkAdminStatusDetailed(chatId) {
     const status = resData.result.status;
     if (['administrator', 'creator'].includes(status)) return { isAdmin: true };
     
+    // Si el usuario metió al bot pero no le dio administrador
     return { isAdmin: false, error: `⚠️ Comando denegado: El bot está como "${status}". Se requieren permisos de Administrador para validar las misiones de tu escuadrón.` };
   } catch (error) { 
     return { isAdmin: false, error: '📡 Interferencia en el nodo de red. Reintenta establecer conexión.' }; 
@@ -304,6 +307,7 @@ async function runRetentionAudit(userId) {
           if (!isStillMember) {
             const penaltyAmount = Number(t.reward || 0);
 
+            // 🛠️ DEDUCCIÓN DIRECTA SIN RPC (Fix Penalidad e Inflación)
             const { data: pUser } = await supabase.from('users').select('balance, total_earnings').eq('id', userId).single();
             if (pUser) {
               const newBal = Math.max(0, Number(pUser.balance) - penaltyAmount);
@@ -412,7 +416,7 @@ export default async function handler(req, res) {
           if (inviter) {
           
             newUserObj.referred_by = String(start_param);
-                        if (!isMultiAccount) {
+            if (!isMultiAccount) {
               // 🏆 Solo si NO ES MULTICUENTA, suma puntos
               const { data: activeEv } = await supabase.from('events').select('id, event_type, end_date').eq('status', 'active').maybeSingle();
               if (activeEv && activeEv.event_type === 'referral') {
@@ -426,14 +430,13 @@ export default async function handler(req, res) {
                   } else {
                     await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: String(start_param), score: 1 }]);
                   }
-                                } else {
+                } else {
                   // Cierre de emergencia si caducó
                   await supabase.from('events').update({ status: 'completed' }).eq('id', activeEv.id);
                 }
               }
             } else {
               // 🚫 Si es Multicuenta (Trampa), avisa al admin y lo registra sin darle ningún premio
-
               notifyAdmin(`🚨 <b>Intento de Fraude de Referidos Bloqueado</b>\nLa cuenta clon <code>${targetId}</code> intentó usar el referido de <code>${start_param}</code> desde el mismo dispositivo físico. \n\n<i>Se agregó a su Muro de la Vergüenza como BLOQUEADO.</i>`);
             }
           }
@@ -1406,7 +1409,7 @@ export default async function handler(req, res) {
         }
       }
 
-            const { data: activeEv } = await supabase.from('events').select('id, event_type, end_date').eq('status', 'active').maybeSingle();
+      const { data: activeEv } = await supabase.from('events').select('id, event_type, end_date').eq('status', 'active').maybeSingle();
       if (activeEv && activeEv.event_type === 'task_completion') {
         const now = new Date().getTime();
         const endDate = new Date(activeEv.end_date).getTime();
@@ -1418,13 +1421,13 @@ export default async function handler(req, res) {
           } else {
             await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: targetId, score: 1 }]);
           }
-                       } else {
-                   await supabase.from('events').update({ status: 'completed' }).eq('id', activeEv.id);
-                }
-              }
+        } else {
+           await supabase.from('events').update({ status: 'completed' }).eq('id', activeEv.id);
+        }
+      }
 
-              return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
-
+      return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
+    }
 
     if (action === 'toggle-task-status') {
       const { taskId, requestingUserId } = req.body;
@@ -1560,4 +1563,4 @@ export default async function handler(req, res) {
     const errorDescription = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     return res.status(500).json({ success: false, error: `Error en servidor: ${errorDescription}` }); 
   }
-}  
+}
