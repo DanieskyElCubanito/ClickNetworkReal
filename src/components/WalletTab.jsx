@@ -36,7 +36,6 @@ export default function WalletTab({ userData, setUserData, t }) {
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
-  // 🔥 CARGA DE SCRIPT DE GIGA PUB (Reemplaza a Adsgram)
   useEffect(() => {
     if (!window.showGiga) {
       const script = document.createElement("script");
@@ -46,7 +45,6 @@ export default function WalletTab({ userData, setUserData, t }) {
     }
   }, []);
 
-  // 🛠️ OBTENER PROGRESO DE RETIRO DESDE EL BACKEND
   useEffect(() => {
     const fetchReqs = async () => {
       if (userData?.id) {
@@ -90,11 +88,10 @@ export default function WalletTab({ userData, setUserData, t }) {
   const numericRecharge = Number(rechargeAmount) || 0;
   const gramRechargePrice = (numericRecharge / liveGramUsd).toFixed(2);
 
-  // 🔥 FUNCIÓN PARA VER ANUNCIOS DE PROGRESO CON GIGA PUB
   const handleWatchProgressAd = () => {
     if (!window.showGiga) return toast.error("Servidor de anuncios inactivo. Desactiva tu bloqueador de anuncios.");
     setPlayingAd(true);
-    
+
     window.showGiga()
       .then(async () => {
         try {
@@ -129,9 +126,8 @@ export default function WalletTab({ userData, setUserData, t }) {
     if (!gemasAmount || gemasAmount < 50) return toast.error(t('bank_err_min_withdraw') || "El retiro mínimo es de 50 Gemas.");
     if (gemasAmount > gemBalance) return toast.error(t('bank_err_insufficient') || "No tienes suficientes Gemas.");
 
-    // 🛠️ VALIDACIÓN LOCAL DE REQUISITOS ANTES DE ENVIAR AL BACKEND
     if (reqs.referrals < 3 && reqs.ads < 15) {
-      return toast.error("Debes cumplir uno de los requisitos para retirar (3 Referidos o 15 Anuncios hoy).");
+      return toast.error("Debes cumplir uno de los requisitos para retirar (3 Referidos Activos o 15 Anuncios hoy).");
     }
 
     setIsWithdrawing(true);
@@ -232,7 +228,6 @@ export default function WalletTab({ userData, setUserData, t }) {
         </div>
       </div>
 
-      {/* 🔥 BANNER TÁCTICO: CANAL DE PAGOS EN VIVO 🔥 */}
       <div style={{ 
         background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(138, 43, 226, 0.15))', 
         border: '1px dashed #00f0ff', 
@@ -311,23 +306,24 @@ export default function WalletTab({ userData, setUserData, t }) {
             </button>
           </div>
 
-          {/* BLOQUE VISUAL DE REQUISITOS DE RETIRO */}
           <div style={{ background: 'linear-gradient(145deg, #10061e, #1a0b33)', border: '1.5px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '20px' }}>
             <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>🛡️ Requisitos de Retiro (Elige uno)</h4>
 
-            {/* Opción 1: Referidos */}
+            {/* 🔥 NUEVO: Opción 1 rediseñada con aclaración visual */}
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
-                <span>Opción 1: Referidos Activos</span>
-                <span style={{ color: reqs.referrals >= 3 ? '#00ffaa' : '#ff99dd' }}>{reqs.referrals} / 3</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>Opción 1: Referidos Activos</span>
+                  <span style={{ fontSize: '9px', color: '#ff99dd', marginTop: '2px', fontWeight: 'normal' }}>(Deben haber ganado al menos 5 Gemas)</span>
+                </div>
+                <span style={{ color: reqs.referrals >= 3 ? '#00ffaa' : '#ff99dd', paddingTop: '2px' }}>{reqs.referrals} / 3</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>
                 <div style={{ width: `${Math.min((reqs.referrals / 3) * 100, 100)}%`, height: '100%', background: reqs.referrals >= 3 ? '#00ffaa' : '#ff1493', borderRadius: '4px', transition: 'width 0.3s' }}></div>
               </div>
             </div>
 
-            {/* Opción 2: Anuncios */}
-            <div>
+            <div style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
                 <span>Opción 2: Anuncios de Hoy</span>
                 <span style={{ color: reqs.ads >= 15 ? '#00ffaa' : '#ff99dd' }}>{reqs.ads} / 15</span>
