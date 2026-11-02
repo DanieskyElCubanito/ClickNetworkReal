@@ -285,7 +285,7 @@ export default function LeaderboardTab({ userData, t }) {
                 🔥 Cazadores Élite
               </div>
               <div style={{ textAlign: 'center', marginBottom: '16px', fontSize: '9px', color: '#ff99dd', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Puntos por Misiones, Anuncios y Check-in Diario
+                Puntos por Misiones Completadas
               </div>
 
               {topTasks.length === 0 ? (
@@ -304,7 +304,7 @@ export default function LeaderboardTab({ userData, t }) {
                       </div>
                     </div>
                     <div style={{ color: '#00f0ff', fontWeight: '900', fontSize: '16px', textShadow: isTop3 ? '0 0 10px rgba(0,240,255,0.3)' : 'none' }}>
-                      {item.score} <span style={{fontSize: '10px', color: '#aaa'}}>💎</span>
+                      {item.score} <span style={{fontSize: '10px', color: '#aaa', textTransform: 'uppercase'}}>pts</span>
                     </div>
                   </div>
                 )})
