@@ -149,7 +149,7 @@ export default function LeaderboardTab({ userData, t }) {
         </div>
       )}
 
-      {/* PESTAÑAS DE NAVEGACIÓN */}
+            {/* PESTAÑAS DE NAVEGACIÓN */}
       <div style={neon.tabContainer}>
         {activeEvent && (
           <button onClick={() => setTab('event')} style={neon.tabBtn(tab === 'event')}>
@@ -163,9 +163,10 @@ export default function LeaderboardTab({ userData, t }) {
           {t('lb_tab_ref') || 'GLOBAL RED'}
         </button>
         <button onClick={() => setTab('tasks')} style={neon.tabBtn(tab === 'tasks')}>
-          {t('lb_tab_task') || 'GLOBAL TAREAS'}
+          🔥 CAZADORES ÉLITE
         </button>
       </div>
+
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#00f0ff', fontWeight: '900', fontSize: '14px', letterSpacing: '1px' }}>
