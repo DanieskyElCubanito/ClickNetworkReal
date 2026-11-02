@@ -172,7 +172,6 @@ async function sendTonAutomated(destinationAddress, usdtAmount) {
       sendMode: 3 
   });
 
-  // 🔥 NUEVO: Esperamos 8 segundos a que la blockchain confirme el bloque
   console.log("Pago enviado. Esperando 8 segundos a la blockchain...");
   await sleep(8000); 
 
@@ -269,7 +268,6 @@ async function checkAdminStatusDetailed(chatId) {
     if (!resData.ok) {
       const apiError = resData.description.toLowerCase();
       
-      // 🔥 Traducimos los errores crudos de Telegram a mensajes tácticos para el usuario
       if (apiError.includes('member list is inaccessible') || apiError.includes('chat not found')) {
         return { isAdmin: false, error: '⚠️ Radar bloqueado: El canal es privado o el bot no tiene permisos. Añade a nuestro bot como Administrador de tu base antes de conectarla.' };
       }
@@ -279,7 +277,6 @@ async function checkAdminStatusDetailed(chatId) {
     const status = resData.result.status;
     if (['administrator', 'creator'].includes(status)) return { isAdmin: true };
     
-    // Si el usuario metió al bot pero no le dio administrador
     return { isAdmin: false, error: `⚠️ Comando denegado: El bot está como "${status}". Se requieren permisos de Administrador para validar las misiones de tu escuadrón.` };
   } catch (error) { 
     return { isAdmin: false, error: '📡 Interferencia en el nodo de red. Reintenta establecer conexión.' }; 
@@ -307,7 +304,7 @@ async function runRetentionAudit(userId) {
           if (!isStillMember) {
             const penaltyAmount = Number(t.reward || 0);
 
-            // 🛠️ DEDUCCIÓN DIRECTA SIN RPC (Fix Penalidad e Inflación)
+SIN RPC (Fix Penalidad e Inflación)
             const { data: pUser } = await supabase.from('users').select('balance, total_earnings').eq('id', userId).single();
             if (pUser) {
               const newBal = Math.max(0, Number(pUser.balance) - penaltyAmount);
@@ -410,17 +407,33 @@ export default async function handler(req, res) {
           referral_reward_granted: !isMultiAccount 
         };
 
-       // 🔥 CÓDIGO NUEVO (Registra Clones en el Muro de la Vergüenza)
+       
         if (start_param && String(start_param) !== targetId) {
           const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
           if (inviter) {
-            // 🔥 Siempre vinculamos la cuenta (Incluso si es clon) para que salga en su pestaña "Mi Red"
+          
             newUserObj.referred_by = String(start_param);
-            
-            if (!isMultiAccount) {
-              // 🏆 Solo si NO ES MULTICUENTA, suma puntos en torneos y le da beneficios reales
-              const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
+                        if (!isMultiAccount) {
+              // 🏆 Solo si NO ES MULTICUENTA, suma puntos
+              const { data: activeEv } = await supabase.from('events').select('id, event_type, end_date').eq('status', 'active').maybeSingle();
               if (activeEv && activeEv.event_type === 'referral') {
+                const now = new Date().getTime();
+                const endDate = new Date(activeEv.end_date).getTime();
+                
+                if (now < endDate) { // Solo si el torneo NO ha caducado
+                  const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', String(start_param)).maybeSingle();
+                  if (part) {
+                    await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', String(start_param));
+                  } else {
+                    await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: String(start_param), score: 1 }]);
+                  }
+                } else {
+                  // Cierre de emergencia si caducó
+                  await supabase.from('events').update({ status: 'completed' }).eq('id', activeEv.id);
+                }
+              }
+            }
+
                 const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', String(start_param)).maybeSingle();
                 if (part) {
                   await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', String(start_param));
@@ -1402,8 +1415,23 @@ export default async function handler(req, res) {
         }
       }
 
-      const { data: activeEv } = await supabase.from('events').select('id, event_type').eq('status', 'active').maybeSingle();
+            const { data: activeEv } = await supabase.from('events').select('id, event_type, end_date').eq('status', 'active').maybeSingle();
       if (activeEv && activeEv.event_type === 'task_completion') {
+        const now = new Date().getTime();
+        const endDate = new Date(activeEv.end_date).getTime();
+        
+        if (now < endDate) {
+          const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', targetId).maybeSingle();
+          if (part) {
+            await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', targetId);
+          } else {
+            await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: targetId, score: 1 }]);
+          }
+        } else {
+           await supabase.from('events').update({ status: 'completed' }).eq('id', activeEv.id);
+        }
+      }
+
         const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', targetId).maybeSingle();
         if (part) {
           await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', targetId);
