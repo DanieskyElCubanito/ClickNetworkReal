@@ -1,5 +1,6 @@
-// AdsWizard.jsx
 import React from 'react';
+import toast from 'react-hot-toast';
+import WebApp from '@twa-dev/sdk';
 import { neon, TaskIcons } from './AdsStyles';
 
 export default function AdsWizard({ props }) {
@@ -137,8 +138,8 @@ export default function AdsWizard({ props }) {
           <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#ffe600', marginBottom: '16px', textTransform: 'uppercase' }}>Enlace Destino</h3>
           <div style={neon.card}>
             <p style={{ color: '#ff99dd', fontSize: '13px', marginBottom: '16px', lineHeight: '1.4', fontWeight: 'bold' }}>
-              {taskType === 'bot' && t('ads_url_desc_bot')}
-              {taskType === 'channel' && t('ads_url_desc_channel')}
+              {taskType === 'bot' && (t('ads_url_desc_bot') || 'URL del Bot')}
+              {taskType === 'channel' && (t('ads_url_desc_channel') || 'URL del Canal')}
               {taskType === 'promo' && 'Dirige tráfico a tu sitio web, video o app.'}
             </p>
             <input style={neon.input} placeholder="https://t.me/..." value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
@@ -218,4 +219,4 @@ export default function AdsWizard({ props }) {
       )}
     </div>
   );
-};
+}
