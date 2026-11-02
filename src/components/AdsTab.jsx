@@ -40,7 +40,7 @@ const TaskIcons = {
   play: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
   pause: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>,
   edit: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-  trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2-2v2"/></svg>,
   check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
   vault: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
 };
@@ -48,7 +48,7 @@ const TaskIcons = {
 export default function AdsTab({ userData, setUserData, t }) {
   const [view, setView] = useState('list');
   const [tasks, setTasks] = useState([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [loadingTasks, setLoadingTasks] = useState(true); // 🔥 Inicializado en true para evitar el fantasma inicial
 
   const [taskStatus, setTaskStatus] = useState({}); 
   const [verifyInputs, setVerifyInputs] = useState({}); 
@@ -195,7 +195,7 @@ export default function AdsTab({ userData, setUserData, t }) {
       window.removeEventListener('blur', handleHide);
       window.removeEventListener('focus', handleShow);
     };
-  }, [taskStartTimes, tasks]); // 🔥 IMPORTANTE: Ahora la función escucha las 'tasks'
+  }, [taskStartTimes, tasks]);
 
   const fetchTasks = async () => {
     setLoadingTasks(true);
@@ -208,12 +208,12 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (data && data.success) {
         setTasks(data.tasks || []);
         
-        // 🔥 NUEVO: Bloqueamos el botón visualmente desde el inicio si ya lo reclamó
+        // Bloqueamos el botón visualmente desde el inicio si ya lo reclamó
         if (data.gigaPubClaimed) {
           setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
         }
       }
-    } catch (e) {} finally { setLoadingTasks(false); }
+    } catch (e) {} finally { setLoadingTasks(false); } // 🔥 El loading false ocurre hasta el final
   };
 
   const stepsFlow = taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'];
@@ -344,7 +344,6 @@ export default function AdsTab({ userData, setUserData, t }) {
     } catch (e) { toast.error("Error al procesar la redirección del enlace."); }
   };
 
-  // 🔥 NUEVO: Función para ejecutar el anuncio con Giga Pub
   const handlePlayGigaPub = () => {
     if (!window.showGiga) {
       toast.error("El servidor de anuncios no está disponible. Desactiva tu bloqueador de anuncios.");
@@ -446,7 +445,6 @@ export default function AdsTab({ userData, setUserData, t }) {
     } catch (err) { toast.error(err.message || "Error al modificar el estado de la campaña.", { id: tid }); }
   };
 
-  // 🔥 NUEVO: Función para abrir modal e inyectar cupos extra, recompensa e icono
   const handleOpenEdit = (task) => { 
     setEditingTask({ 
       id: task.id, 
@@ -459,7 +457,6 @@ export default function AdsTab({ userData, setUserData, t }) {
     setShowEditModal(true); 
   };
 
-  // 🔥 NUEVO: Función que guarda los cambios (incluye icono y pago) y procesa inyección de saldo
   const handleSaveEdit = async () => {
     const extraCost = Number((editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4));
     
@@ -590,7 +587,10 @@ export default function AdsTab({ userData, setUserData, t }) {
                   <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>Patrocinado por GigaPub</div>
                 </div>
               </div>
-              {taskStatus['gigapub_daily'] === 'completed' ? (
+              {/* 🔥 BOTÓN DEL CHECK-IN BLINDADO CON LOADING VISUAL */}
+              {loadingTasks ? (
+                 <button disabled style={{...neon.taskButtonDisabled, background: 'rgba(0, 255, 170, 0.1)', borderColor: '#00ffaa', color: '#00ffaa', opacity: 0.6}}>CARGANDO...</button>
+              ) : taskStatus['gigapub_daily'] === 'completed' ? (
                  <button disabled style={neon.taskButtonDisabled}>VUELVE MAÑANA</button>
               ) : (
                  <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
@@ -601,7 +601,12 @@ export default function AdsTab({ userData, setUserData, t }) {
           </div>
 
           {loadingTasks ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: '#00f0ff', fontSize: '14px', fontWeight: 'bold' }}>Sincronizando información...</div>
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <div style={{ color: '#00f0ff', fontSize: '14px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                <style>{`@keyframes pulseTasks { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
+                <div style={{ animation: 'pulseTasks 1.5s infinite' }}>Cargando Misiones...</div>
+              </div>
+            </div>
           ) : communityTasks.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px dashed rgba(255,255,255,0.1)' }}>
               <p style={{ color: '#ff99dd', fontSize: '13px', fontWeight: 'bold', margin: 0, lineHeight: '1.5' }}>{t('ads_empty_market')}</p>
@@ -649,7 +654,12 @@ export default function AdsTab({ userData, setUserData, t }) {
           </div>
 
           {loadingTasks ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: '#ff41b4', fontSize: '14px', fontWeight: 'bold' }}>Sincronizando información...</div>
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <div style={{ color: '#ff41b4', fontSize: '14px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                <style>{`@keyframes pulseMyAds { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
+                <div style={{ animation: 'pulseMyAds 1.5s infinite' }}>Buscando tus Campañas...</div>
+              </div>
+            </div>
           ) : myTasks.length === 0 ? (
             <div style={{...neon.card, textAlign: 'center', padding: '30px 20px', borderColor: '#ff1493' }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
