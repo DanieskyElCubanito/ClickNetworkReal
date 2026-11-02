@@ -182,19 +182,33 @@ export default function AdsWizard({ props }) {
 
           <span style={neon.label}>Usuarios a contratar</span>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-            <button onClick={() => setCompletions(p => Math.max(10, p - 10))} style={neon.btnActionCalc}>-</button>
-            <input type="number" value={completions} onChange={(e) => setCompletions(Number(e.target.value) || 0)} style={neon.inputCalc} />
-            <button onClick={() => setCompletions(p => p + 10)} style={neon.btnActionCalc}>+</button>
+            <button onClick={() => setCompletions(p => Math.max(10, Number(p) - 10))} style={neon.btnActionCalc}>-</button>
+            <input 
+              type="number" 
+              value={completions} 
+              onChange={(e) => setCompletions(e.target.value === '' ? '' : Number(e.target.value))} 
+              onBlur={(e) => setCompletions(Math.max(10, Number(e.target.value) || 10))} 
+              style={neon.inputCalc} 
+            />
+            <button onClick={() => setCompletions(p => Number(p) + 10)} style={neon.btnActionCalc}>+</button>
           </div>
 
           <span style={neon.label}>Pago por usuario (Gemas)</span>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-            <button onClick={() => setRewardPerGema(p => Math.max(1, p - 0.5))} style={neon.btnActionCalc}>-</button>
-            <input type="number" step="0.5" max="2.5" value={rewardPerGema} onChange={(e) => setRewardPerGema(Math.min(2.5, Number(e.target.value) || 0))} style={neon.inputCalc} />
-            <button onClick={() => setRewardPerGema(p => Math.min(2.5, p + 0.5))} style={neon.btnActionCalc}>+</button>
+            <button onClick={() => setRewardPerGema(p => Math.max(1, Number((Number(p) - 0.1).toFixed(1))))} style={neon.btnActionCalc}>-</button>
+            <input 
+              type="number" 
+              step="0.1" 
+              min="1" 
+              max="2.5" 
+              value={rewardPerGema} 
+              onChange={(e) => setRewardPerGema(e.target.value === '' ? '' : Number(e.target.value))} 
+              onBlur={(e) => setRewardPerGema(Math.min(2.5, Math.max(1, Number(e.target.value) || 1)))} 
+              style={neon.inputCalc} 
+            />
+            <button onClick={() => setRewardPerGema(p => Math.min(2.5, Number((Number(p) + 0.1).toFixed(1))))} style={neon.btnActionCalc}>+</button>
           </div>
 
-          {/* 🔥 SECCIÓN ECONÓMICA RESTAURADA COMPLETAMENTE */}
           <div style={neon.summaryBox}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>1. Asignación a usuarios: {baseCostGemas} 💎</div>
