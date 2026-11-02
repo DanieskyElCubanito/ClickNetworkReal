@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
 const neon = {
-  container: { color: '#ffffff', paddingBottom: '20px' }, 
+  container: { color: '#ffffff', paddingBottom: '20px' },
   title: { fontSize: '22px', fontWeight: '900', textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase', margin: '10px 0 20px 0', color: '#00f0ff', textShadow: '0 0 15px rgba(0, 240, 255, 0.4)' },
   eventCard: { background: 'linear-gradient(135deg, rgba(255, 230, 0, 0.15), rgba(255, 170, 0, 0.25))', border: '2px solid #ffe600', borderRadius: '24px', padding: '20px', marginBottom: '20px', textAlign: 'center', boxShadow: '0 8px 30px rgba(255, 230, 0, 0.2)' },
   tabContainer: { display: 'flex', gap: '10px', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '20px' },
@@ -26,7 +26,7 @@ export default function LeaderboardTab({ userData, t }) {
   // Datos Globales
   const [topTasks, setTopTasks] = useState([]);
   const [topReferrals, setTopReferrals] = useState([]);
-  const [pastEvents, setPastEvents] = useState([]); // 🔥 NUEVO: Salón de la Fama
+  const [pastEvents, setPastEvents] = useState([]); 
 
   // Datos del Evento Dinámico
   const [activeEvent, setActiveEvent] = useState(null);
@@ -45,9 +45,9 @@ export default function LeaderboardTab({ userData, t }) {
         if (dataEvent.success && dataEvent.activeEvent) {
           setActiveEvent(dataEvent.activeEvent);
           setEventLeaderboard(dataEvent.leaderboard || []);
-          setTab('event'); // Si hay evento, forzamos a mostrar esta pestaña primero
+          setTab('event'); 
         } else {
-          setTab('past'); // 🔥 Si no hay evento, mostramos el Salón de la Fama por defecto
+          setTab('past'); 
         }
 
         // 2. Cargar Top Histórico Global y Torneos Pasados
@@ -56,7 +56,7 @@ export default function LeaderboardTab({ userData, t }) {
         if (dataGlobal.success) {
           setTopTasks(dataGlobal.topTasks || []);
           setTopReferrals(dataGlobal.topReferrals || []);
-          setPastEvents(dataGlobal.pastEvents || []); // 🔥 NUEVO
+          setPastEvents(dataGlobal.pastEvents || []); 
         }
 
       } catch (e) {
@@ -75,8 +75,8 @@ export default function LeaderboardTab({ userData, t }) {
       const diff = new Date(activeEvent.end_date).getTime() - new Date().getTime();
       if (diff <= 0) {
         setTimeLeft('FINALIZADO');
-        setActiveEvent(null); // Oculta el evento caducado inmediatamente de la vista
-        setTab('past'); // Salta al Salón de la Fama
+        setActiveEvent(null); 
+        setTab('past'); 
         clearInterval(timer);
         return;
       }
@@ -101,7 +101,6 @@ export default function LeaderboardTab({ userData, t }) {
     return `#${index + 1}`;
   };
 
-  // Por si el admin no configuró los premios, ponemos unos épicos por defecto
   const defaultPrizes = ["15 TON", "10 TON", "5 TON"];
   const prizeList = activeEvent?.prizes?.length > 0 ? activeEvent.prizes : defaultPrizes;
 
@@ -127,7 +126,6 @@ export default function LeaderboardTab({ userData, t }) {
               : (t('lb_tourney_desc_task') || '¡Completa misiones y domina la tabla para asegurar tu premio!')}
           </div>
 
-          {/* 💰 PESOS / PREMIOS ESPECÍFICOS */}
           <div style={neon.prizeBox}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '22px' }}>🥇</div>
@@ -158,7 +156,6 @@ export default function LeaderboardTab({ userData, t }) {
             {t('lb_tab_tourney') || 'TORNEO'}
           </button>
         )}
-        {/* 🔥 NUEVO BOTÓN: SALÓN DE LA FAMA */}
         <button onClick={() => setTab('past')} style={neon.tabBtn(tab === 'past')}>
           SALÓN FAMA
         </button>
@@ -214,11 +211,11 @@ export default function LeaderboardTab({ userData, t }) {
             </div>
           )}
 
-          {/* 🔥 NUEVO: SALÓN DE LA FAMA (TORNEOS PASADOS) */}
+          {/* SALÓN DE LA FAMA (TORNEOS PASADOS) */}
           {tab === 'past' && (
             <div className="fade-in">
               <div style={{ textAlign: 'center', marginBottom: '14px', fontSize: '11px', color: '#ffe600', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Campeones de Temporadas Anteriores</div>
-              
+
               {pastEvents.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#aaa', padding: '20px', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', border: '1px dashed #ffe600' }}>
                   Aún no hay campeones coronados en el Salón de la Fama.
@@ -230,7 +227,7 @@ export default function LeaderboardTab({ userData, t }) {
                       <span style={{ fontWeight: '900', color: '#ffe600', fontSize: '14px', textTransform: 'uppercase' }}>{ev.title}</span>
                       <span style={{ fontSize: '10px', color: '#aaa', fontWeight: 'bold' }}>{new Date(ev.end_date).toLocaleDateString()}</span>
                     </div>
-                    
+
                     {ev.winners && ev.winners.length > 0 ? (
                       ev.winners.map((w, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -269,10 +266,13 @@ export default function LeaderboardTab({ userData, t }) {
                         @{item.username !== 'Usuario' ? item.username : `ID: ${item.id.substring(0, 5)}...`}
                       </div>
                     </div>
-                    <div                     <div style={{ color: isTop3 ? '#00f0ff' : '#00ffaa', fontWeight: '900', fontSize: '14px', textAlign: 'right' }}>
+                    
+                    {/* AQUÍ ESTÁ EL CAMBIO CORRECTO */}
+                    <div style={{ color: isTop3 ? '#00f0ff' : '#00ffaa', fontWeight: '900', fontSize: '14px', textAlign: 'right' }}>
                       {item.score}
                       <span style={{ display: 'block', fontSize: '10px', color: '#aaa', fontWeight: 'bold', textTransform: 'uppercase' }}>Activos</span>
                     </div>
+
                   </div>
                 )})
               )}
