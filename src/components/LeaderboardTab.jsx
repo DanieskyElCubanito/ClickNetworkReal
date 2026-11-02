@@ -192,7 +192,7 @@ export default function LeaderboardTab({ userData, t }) {
                       </div>
                       <div>
                         <div style={{ fontWeight: '900', color: '#fff', fontSize: '15px' }}>
-                          @{item.username !== 'Usuario' ? item.username : `ID: ${item.userId.substring(0, 5)}...`}
+                          {item.username !== 'Usuario' ? `@${item.username}` : `ID: ${item.userId}`}
                           {userData?.id === item.userId && <span style={{ color: '#00ffaa', fontSize: '10px', marginLeft: '6px' }}>{t('lb_you') || '(TÚ)'}</span>}
                         </div>
                         {isTop3 && (
@@ -233,7 +233,9 @@ export default function LeaderboardTab({ userData, t }) {
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ fontSize: '18px' }}>{getMedal(i)}</span>
-                            <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>@{w.username}</span>
+                            <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
+                              {w.username !== 'Usuario' ? `@${w.username}` : `ID: ${w.id || w.userId || 'Desconocido'}`}
+                            </span>
                           </div>
                           <div style={{ color: '#00f0ff', fontWeight: '900', fontSize: '14px' }}>{w.score} <span style={{fontSize:'9px', color:'#aaa'}}>pts</span></div>
                         </div>
@@ -263,7 +265,7 @@ export default function LeaderboardTab({ userData, t }) {
                         {getMedal(index)}
                       </div>
                       <div style={{ fontWeight: '900', color: '#fff', fontSize: '14px' }}>
-                        @{item.username !== 'Usuario' ? item.username : `ID: ${item.id.substring(0, 5)}...`}
+                        {item.username !== 'Usuario' ? `@${item.username}` : `ID: ${item.id}`}
                       </div>
                     </div>
 
@@ -300,7 +302,7 @@ export default function LeaderboardTab({ userData, t }) {
                         {getMedal(index)}
                       </div>
                       <div style={{ fontWeight: '900', color: '#fff', fontSize: '14px' }}>
-                        @{item.username !== 'Usuario' ? item.username : `ID: ${item.id.substring(0, 5)}...`}
+                        {item.username !== 'Usuario' ? `@${item.username}` : `ID: ${item.id}`}
                       </div>
                     </div>
                     <div style={{ color: '#00f0ff', fontWeight: '900', fontSize: '16px', textShadow: isTop3 ? '0 0 10px rgba(0,240,255,0.3)' : 'none' }}>
