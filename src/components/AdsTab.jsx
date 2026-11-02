@@ -247,10 +247,13 @@ export default function AdsTab({ userData, setUserData, t }) {
   const sharedProps = { 
     tasks, userData, taskStatus, verifyInputs, setVerifyInputs, handleStartTask, handleCheckTask, loadingTasks, setView, fetchTasks, t, gigaReady, playingAd, handlePlayGigaPub,
     handleToggleStatus, handleOpenEdit, handleDeleteTask, 
-    currentStepIndex, totalSteps: taskType === 'bot' ? 4 : 3, stepsFlow: taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'], currentStepId: (taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'])[currentStepIndex],
+    currentStepIndex: taskType ? (taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget']).indexOf(taskType) : 0, 
+    totalSteps: taskType === 'bot' ? 4 : 3, 
+    stepsFlow: taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'], 
+    currentStepId: (taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'])[taskType ? (taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget']).indexOf(taskType) : 0],
     taskType, setTaskType, targetUrl, setTargetUrl, botToken, setBotToken, validationCode, setValidationCode, completions, setCompletions, rewardPerGema, setRewardPerGema, isVerifying, handleVerifyUrl, 
     depositBalanceUsdt, campaignCostUsdt: ((completions * rewardPerGema) * 1.3)/1000, baseCostGemas: completions * rewardPerGema, referralFeeGemas: Math.floor((completions * rewardPerGema)*0.20), adminFeeGemas: Math.floor((completions * rewardPerGema)*0.10), totalGemasCost: (completions * rewardPerGema) + Math.floor((completions * rewardPerGema)*0.20) + Math.floor((completions * rewardPerGema)*0.10),
-    handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, nextStep: () => setCurrentStepIndex(p => p+1), prevStep: () => setCurrentStepIndex(p => Math.max(p - 1, 0)), TASK_TYPES,
+    handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, nextStep: () => {}, prevStep: () => {}, TASK_TYPES,
     recharging, rechargeMethod, setRechargeMethod, rechargeAmount, checkoutView, tempWallet, intentId, liveGramUsd, handleStartRecharge, handleVerifyPayment, cancelCheckout: () => { setCheckoutView(false); setRecharging(false); }
   };
 
