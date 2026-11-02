@@ -595,7 +595,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
 
-                  if (action === 'get-leaderboard') {
+    if (action === 'get-leaderboard') {
       let completedRanking = [];
       try {
         // 🔥 CAZADORES ÉLITE REPARADO: 1 Tarea Completada = 1 Punto (Ignora el saldo y premios manuales)
@@ -1053,7 +1053,6 @@ export default async function handler(req, res) {
       }
      }
 
-
     if (action === 'generate-usdt-wallet') {
       const { price } = req.body;
       const targetId = String(userId);
@@ -1241,13 +1240,12 @@ export default async function handler(req, res) {
       const { data: historyLogs } = await supabase.from('history_logs').select('description').eq('user_id', targetId).gte('created_at', yesterday);
       const completedDailyIds = new Set();
       
-      let gigaPubClaimed = false; // 🔥 NUEVO: Variable para el botón visual
+      let gigaPubClaimed = false; 
       
       if (historyLogs) {
          historyLogs.forEach(log => {
            const match = log.description?.match(/\[Daily:(.+?)\]/);
            if (match) completedDailyIds.add(match[1]);
-           // 🔥 NUEVO: Buscamos si ya reclamó GigaPub hoy
            if (log.description?.includes('[GigaPubDaily]')) gigaPubClaimed = true; 
          });
       }
@@ -1257,11 +1255,9 @@ export default async function handler(req, res) {
         return { ...t, reward: (t.reward || 1), is_completed: isDaily ? completedDailyIds.has(String(t.id)) : completedIds.has(String(t.id)) };
       });
 
-      // 🔥 NUEVO: Agregamos gigaPubClaimed a la respuesta
       return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed });
     }
 
-    // 🔥 NUEVO: Recompensa diaria ahora usando Giga Pub
     if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
       const earnedGemas = 1.00; 
@@ -1271,15 +1267,12 @@ export default async function handler(req, res) {
       const { data: recentLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).like('description', '%[GigaPubDaily]%').gte('created_at', yesterday).maybeSingle();
       if (recentLog) return res.status(400).json({ success: false, error: 'Ya reclamaste tu bono hoy. Vuelve mañana.' });
 
-      // 🔥 Modificado para extraer referred_by y is_human
       const { data: dbUser } = await supabase.from('users').select('balance, total_earnings, referred_by, is_human').eq('id', targetId).single();
       
-      const wasPending = Number(dbUser.total_earnings || 0) < 0.005; // ¿Era pendiente?
-      
+      const wasPending = Number(dbUser.total_earnings || 0) < 0.005; 
       const newBalance = Number((Number(dbUser.balance || 0) + rewardForDb).toFixed(4));
       const newTotal = Number((Number(dbUser.total_earnings || 0) + rewardForDb).toFixed(4));
-      
-      const isNowActive = newTotal >= 0.005; // ¿Ya superó la meta?
+      const isNowActive = newTotal >= 0.005; 
 
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
 
@@ -1290,11 +1283,10 @@ export default async function handler(req, res) {
         amount: rewardForDb 
       }]);
 
-      // 🏆 BONO ÚNICO DE VALIDACIÓN: Si el usuario era Pendiente y ahora es Activo
       if (wasPending && isNowActive && dbUser.referred_by && dbUser.is_human) {
          const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
          if (referrer) {
-            const oneTimeBonus = 0.005; // 5 Gemas exactas
+            const oneTimeBonus = 0.005; 
             await supabase.from('users').update({ 
               balance: Number((Number(referrer.balance || 0) + oneTimeBonus).toFixed(4)), 
               referral_earnings: Number((Number(referrer.referral_earnings || 0) + oneTimeBonus).toFixed(4)), 
@@ -1312,7 +1304,6 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance });
     }
-
 
     if (action === 'complete-task') {
       const { taskId, validation_code_input } = req.body; 
@@ -1339,7 +1330,6 @@ export default async function handler(req, res) {
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Misión no disponible.' });
 
-      // 🔥 NUEVA REGLA: Bloqueo de auto-completado
       if (String(task.creator_id) === targetId) {
         return res.status(400).json({ success: false, error: 'Comando denegado: No puedes cobrar recompensas de tu propia misión.' });
       }
@@ -1395,14 +1385,12 @@ export default async function handler(req, res) {
         const wasPending = Number(dbUser.total_earnings || 0) < 0.005;
         const isNowActive = newTotal >= 0.005;
 
-        // 🔥 1. COMISIÓN NORMAL (Solo 10% por la misión, se repite siempre)
         const commissionAmount = Number((rewardAmount * 0.10).toFixed(4));
         let totalToReferrer = commissionAmount;
         let logDescription = `Misión de recluta (ID: ${targetId}) | +${(commissionAmount * 1000).toFixed(2)} Gemas`;
         
-        // 🏆 2. BONO ÚNICO DE VALIDACIÓN (Se suma SOLO si esta tarea lo hace cruzar la meta)
         if (wasPending && isNowActive && dbUser.is_human) {
-            totalToReferrer = Number((totalToReferrer + 0.005).toFixed(4)); // Suma las 5 gemas adicionales
+            totalToReferrer = Number((totalToReferrer + 0.005).toFixed(4)); 
             logDescription = `Recluta Validado + Comisión (ID: ${targetId}) | +${(totalToReferrer * 1000).toFixed(2)} Gemas`;
         }
 
@@ -1431,10 +1419,8 @@ export default async function handler(req, res) {
         status: (newDoneCount >= Number(task.completions_total)) ? 'completed' : 'active' 
       }).eq('id', taskId);
 
-      // 🛠️ ACTUALIZACIÓN DE CLICKS GLOBALES SEGURA (Fix crash RPC)
       const { error: rpcGlobalErr } = await supabase.rpc('increment_global_clicks');
       if (rpcGlobalErr) {
-        // Fallback seguro si no existe el RPC en base de datos
         const { data: s } = await supabase.from('platform_stats').select('total_global_clicks').eq('id', 1).maybeSingle();
         if (s) {
           await supabase.from('platform_stats').update({ total_global_clicks: (s.total_global_clicks || 0) + 1 }).eq('id', 1);
@@ -1499,7 +1485,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-        if (action === 'edit-task') {
+    if (action === 'edit-task') {
       const { taskId, requestingUserId, newTitle, newUrl, addCompletions, newReward, newLogo, isAdminAction } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
@@ -1515,17 +1501,15 @@ export default async function handler(req, res) {
       let logMessages = [];
       const remainingCompletions = task.completions_total - (task.completions_done || 0);
 
-      // 1. Modificación de Recompensa (Ajuste de presupuesto)
       if (newReward && Number(newReward) !== Number(task.reward) && remainingCompletions > 0) {
         const oldBudget = remainingCompletions * task.reward * 1.30;
         const newBudget = remainingCompletions * Number(newReward) * 1.30;
-        const diff = newBudget - oldBudget; // Si es positivo, debe pagar. Si es negativo, se le reembolsa.
+        const diff = newBudget - oldBudget; 
         netCost += diff;
         updates.reward = Number(newReward);
         logMessages.push(`Pago actualizado a ${newReward} USDT. Ajuste: ${diff > 0 ? '-' : '+'}$${Math.abs(diff).toFixed(4)} USDT.`);
       }
 
-      // 2. Inyección de nuevos cupos
       let addedCompletions = 0;
       if (addCompletions && Number(addCompletions) > 0) {
         addedCompletions = Number(addCompletions);
@@ -1537,7 +1521,6 @@ export default async function handler(req, res) {
         logMessages.push(`+${addedCompletions} cupos añadidos.`);
       }
 
-      // 3. Procesar cobro o reembolso en la Bóveda
       if (netCost !== 0) {
         const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
         
@@ -1567,7 +1550,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, history: history || [] });
     }
 
-        if (action === 'get-referrals') {
+    if (action === 'get-referrals') {
       const targetId = String(userId);
       let { data: lv1 } = await supabase.from('users').select('*').eq('referred_by', targetId);
       const { data: dbUser } = await supabase.from('users').select('referral_earnings').eq('id', targetId).maybeSingle();
@@ -1575,12 +1558,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, referrals: lv1 || [], earnings: dbUser?.referral_earnings || 0 });
     }
 
-        if (action === 'get-withdrawal-reqs') {
+    if (action === 'get-withdrawal-reqs') {
       const targetId = String(userId);
       const todayDate = new Date();
       todayDate.setUTCHours(0, 0, 0, 0);
 
-      // 🔥 BLINDAJE: Solo cuenta referidos que hayan ganado al menos 5 Gemas (0.005 USDT)
       const { count: refCount } = await supabase.from('users')
         .select('id', { count: 'exact', head: true })
         .eq('referred_by', targetId)
