@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
-import { neon, TaskIcons } from './AdsStyles';
-import AdsMarket from './AdsMarket';
-import AdsActivity from './AdsActivity';
-import AdsWizard from './AdsWizard';
+import { neon, TaskIcons } from './AdsStyles.jsx';
+import AdsMarket from './AdsMarket.jsx';
+import AdsActivity from './AdsActivity.jsx';
+import AdsWizard from './AdsWizard.jsx';
 
 export default function AdsTab({ userData, setUserData, t }) {
   const [view, setView] = useState('list'); // list | activity | wizard
