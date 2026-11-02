@@ -595,20 +595,30 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, pastEvents: eventsWithWinners });
     }
 
-              if (action === 'get-leaderboard') {
+                  if (action === 'get-leaderboard') {
       let completedRanking = [];
       try {
-        // 🔥 FIX: Eliminado el .group() que hacía colapsar al servidor.
-        // Ahora clasificamos por ganancias totales como métrica global de élite.
-        const { data: topTasks } = await supabase.from('users').select('id, username, total_earnings').order('total_earnings', { ascending: false }).limit(10);
-        if (topTasks) {
-          completedRanking = topTasks.map(u => ({
-            id: u.id,
-            username: u.username || 'Usuario',
-            score: Math.floor(u.total_earnings * 1000) 
-          }));
+        // 🔥 CAZADORES ÉLITE REPARADO: 1 Tarea Completada = 1 Punto (Ignora el saldo y premios manuales)
+        const { data: allTasksDone } = await supabase.from('user_completed_tasks').select('user_id');
+        if (allTasksDone) {
+          const taskCounts = {};
+          for (const t of allTasksDone) {
+            taskCounts[t.user_id] = (taskCounts[t.user_id] || 0) + 1;
+          }
+          // Ordenamos de mayor a menor y sacamos el Top 10
+          const sortedUsers = Object.entries(taskCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+          
+          for (const [uid, count] of sortedUsers) {
+            const { data: u } = await supabase.from('users').select('username').eq('id', uid).maybeSingle();
+            completedRanking.push({
+              id: uid,
+              username: u?.username || 'Usuario',
+              score: count // Puntos por misiones reales completadas
+            });
+          }
         }
       } catch (e) { console.error("Error en topTasks:", e); }
+
 
             let topReferrers = [];
       try {
