@@ -594,7 +594,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                  <button disabled style={neon.taskButtonDisabled}>VUELVE MAÑANA</button>
               ) : (
                  <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
-                   {playingAd ? 'CARGANDO...' : '+5.00 💎'}
+                   {playingAd ? 'CARGANDO...' : '+1.00 💎'}
                  </button>
               )}
             </div>
