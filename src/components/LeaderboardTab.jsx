@@ -149,7 +149,7 @@ export default function LeaderboardTab({ userData, t }) {
         </div>
       )}
 
-            {/* PESTAÑAS DE NAVEGACIÓN */}
+      {/* PESTAÑAS DE NAVEGACIÓN */}
       <div style={neon.tabContainer}>
         {activeEvent && (
           <button onClick={() => setTab('event')} style={neon.tabBtn(tab === 'event')}>
@@ -166,7 +166,6 @@ export default function LeaderboardTab({ userData, t }) {
           🔥 CAZADORES ÉLITE
         </button>
       </div>
-
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#00f0ff', fontWeight: '900', fontSize: '14px', letterSpacing: '1px' }}>
@@ -267,8 +266,7 @@ export default function LeaderboardTab({ userData, t }) {
                         @{item.username !== 'Usuario' ? item.username : `ID: ${item.id.substring(0, 5)}...`}
                       </div>
                     </div>
-                    
-                    {/* AQUÍ ESTÁ EL CAMBIO CORRECTO */}
+
                     <div style={{ color: isTop3 ? '#00f0ff' : '#00ffaa', fontWeight: '900', fontSize: '14px', textAlign: 'right' }}>
                       {item.score}
                       <span style={{ display: 'block', fontSize: '10px', color: '#aaa', fontWeight: 'bold', textTransform: 'uppercase' }}>Activos</span>
@@ -280,10 +278,16 @@ export default function LeaderboardTab({ userData, t }) {
             </div>
           )}
 
-          {/* TABLA HISTÓRICA DE TAREAS */}
+          {/* TABLA HISTÓRICA CAZADORES ÉLITE */}
           {tab === 'tasks' && (
             <div className="fade-in">
-              <div style={{ textAlign: 'center', marginBottom: '14px', fontSize: '11px', color: '#ff99dd', fontWeight: 'bold', textTransform: 'uppercase' }}>{t('lb_lifetime_task') || 'Top Global Misiones'}</div>
+              <div style={{ textAlign: 'center', marginBottom: '4px', fontSize: '15px', color: '#00f0ff', fontWeight: '900', textTransform: 'uppercase', textShadow: '0 0 10px rgba(0,240,255,0.5)' }}>
+                🔥 Cazadores Élite
+              </div>
+              <div style={{ textAlign: 'center', marginBottom: '16px', fontSize: '9px', color: '#ff99dd', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Puntos por Misiones, Anuncios y Check-in Diario
+              </div>
+
               {topTasks.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#aaa', padding: '20px' }}>{t('lb_empty_history') || 'Aún no hay datos históricos.'}</div>
               ) : (
@@ -299,8 +303,8 @@ export default function LeaderboardTab({ userData, t }) {
                         @{item.username !== 'Usuario' ? item.username : `ID: ${item.id.substring(0, 5)}...`}
                       </div>
                     </div>
-                    <div style={{ color: '#00f0ff', fontWeight: '900', fontSize: '14px' }}>
-                      {item.score} 💎
+                    <div style={{ color: '#00f0ff', fontWeight: '900', fontSize: '16px', textShadow: isTop3 ? '0 0 10px rgba(0,240,255,0.3)' : 'none' }}>
+                      {item.score} <span style={{fontSize: '10px', color: '#aaa'}}>💎</span>
                     </div>
                   </div>
                 )})
