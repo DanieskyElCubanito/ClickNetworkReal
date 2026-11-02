@@ -1418,21 +1418,13 @@ export default async function handler(req, res) {
           } else {
             await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: targetId, score: 1 }]);
           }
-        } else {
-           await supabase.from('events').update({ status: 'completed' }).eq('id', activeEv.id);
-        }
-      }
+                       } else {
+                   await supabase.from('events').update({ status: 'completed' }).eq('id', activeEv.id);
+                }
+              }
 
-        const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', targetId).maybeSingle();
-        if (part) {
-          await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', targetId);
-        } else {
-          await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: targetId, score: 1 }]);
-        }
-      }
+              return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
 
-      return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
-    }
 
     if (action === 'toggle-task-status') {
       const { taskId, requestingUserId } = req.body;
