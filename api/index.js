@@ -1238,7 +1238,7 @@ export default async function handler(req, res) {
     // 🔥 NUEVO: Recompensa diaria ahora usando Giga Pub
     if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
-      const earnedGemas = 5.00; 
+      const earnedGemas = 1.00; 
       const rewardForDb = earnedGemas / 1000;
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       
