@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
+// ==========================================
+// 🎨 ESTILOS Y COMPONENTES VISUALES
+// ==========================================
 const neon = {
   card: { background: 'linear-gradient(145deg, rgba(46, 16, 77, 0.85), rgba(20, 8, 38, 0.95))', border: '2px solid #00f0ff', borderRadius: '24px', padding: '20px', marginBottom: '16px', boxShadow: '0 8px 24px rgba(0, 240, 255, 0.15)' },
   cardInteractive: { background: 'linear-gradient(135deg, rgba(38, 14, 66, 0.9), rgba(18, 7, 36, 0.9))', border: '2px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(138, 43, 226, 0.3)', transition: 'all 0.2s ease' },
@@ -24,7 +27,8 @@ const neon = {
   summaryBox: { background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(138, 43, 226, 0.1))', border: '1px dashed #00f0ff', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', boxShadow: 'inset 0 0 10px rgba(0, 240, 255, 0.1)' },
   actionBtn: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00f0ff 0%, #0099ff 100%)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' },
   actionBtnDisabled: { width: '100%', padding: '16px', background: 'rgba(255,255,255,0.05)', color: '#666', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', cursor: 'not-allowed', textTransform: 'uppercase' },
-  actionBtnDanger: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #ff1493 0%, #d80073 100%)', color: '#fff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' }
+  actionBtnDanger: { width: '100%', padding: '16px', background: 'linear-gradient(180deg, #ff1493 0%, #d80073 100%)', color: '#fff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.4)', cursor: 'pointer', transition: 'all 0.1s', textTransform: 'uppercase' },
+  subTabBtn: (active) => ({ flex: 1, padding: '10px 5px', fontSize: '12px', fontWeight: '900', textAlign: 'center', cursor: 'pointer', borderRadius: '12px', transition: 'all 0.3s', background: active ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'rgba(255,255,255,0.05)', color: active ? '#050214' : '#00f0ff', border: active ? 'none' : '1px solid rgba(0,240,255,0.3)', boxShadow: active ? '0 4px 10px rgba(0,240,255,0.3)' : 'none', textTransform: 'uppercase'})
 };
 
 const TaskIcons = {
@@ -41,26 +45,427 @@ const TaskIcons = {
   pause: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>,
   edit: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2-2v2"/></svg>,
-  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
-  vault: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
 };
 
+// ==========================================
+// 1️⃣ COMPONENTE: LISTA DE MISIONES (MARKET)
+// ==========================================
+const AdsMarket = ({ props }) => {
+  const { 
+    tasks, userData, taskStatus, verifyInputs, setVerifyInputs, 
+    handleStartTask, handleCheckTask, loadingTasks, setView, fetchTasks, t,
+    gigaReady, playingAd, handlePlayGigaPub
+  } = props;
+  
+  const [category, setCategory] = useState('pagadas'); // pagadas | diarias | partners
+
+  const communityTasks = tasks.filter(t => t.status === 'active' && t.creator_id !== String(userData?.id))
+    .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
+
+  // 🔥 Filtros de tareas
+  const pagadas = communityTasks.filter(t => t.type !== 'partner' && !t.type.includes('daily'));
+  const partners = communityTasks.filter(t => t.type === 'partner');
+  const diarias = communityTasks.filter(t => t.type.includes('daily'));
+
+  const getTaskIconType = (task) => {
+    if (task.logo) return task.logo;
+    if (task.type === 'publish_group' || task.type === 'partner') return 'channel';
+    return task.type;
+  };
+
+  const getTaskLabel = (type) => {
+    if (type === 'partner') return 'Alianza Estratégica';
+    if (type === 'publish_group') return 'Red Comunitaria';
+    if (type === 'group' || type === 'channel') return t('ads_type_group');
+    if (type === 'bot') return t('ads_type_bot');
+    if (type === 'promo') return t('ads_type_promo');
+    return 'Tarea';
+  };
+
+  // 🔥 DATOS RACHA DIARIA (Preparado para conectar con backend luego)
+  const streakCount = userData?.streak_count || 1; 
+  const gigaClaimed = taskStatus['gigapub_daily'] === 'completed';
+
+  const renderTaskItem = (task) => {
+    const iconType = getTaskIconType(task);
+    const status = taskStatus[task.id];
+    const isCompleted = task.is_completed || status === 'completed';
+    const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
+
+    return (
+      <div key={task.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={neon.taskIconBox}>{TaskIcons[iconType] ? TaskIcons[iconType]('#00f0ff') : TaskIcons.promo('#00f0ff')}</div>
+            <div>
+              <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>{task.title}</div>
+              <div style={{ color: '#00f0ff', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>
+                {getTaskLabel(task.type)} {task.type !== 'partner' && !task.type.includes('daily') && `• ${task.completions_done} / ${task.completions_total}`}
+              </div>
+              {(task.type === 'channel' || task.type === 'group' || task.type === 'partner') && (
+                <div style={{ color: '#ffe600', fontSize: '9px', fontWeight: '900', marginTop: '4px', textTransform: 'uppercase' }}>
+                  🛡️ Permanencia requerida: 24h
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Botón de acción */}
+          {task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR</button> :
+           isCompleted ? <button disabled style={neon.taskButtonDisabled}>{t('ads_completed')}</button> :
+           status === 'waiting_for_redirect' ? <button disabled style={neon.taskButtonDisabled}>⏳ 8 SEG</button> :
+           status === 'away' ? <button disabled style={neon.taskButtonDisabled}>⏳ REVISANDO...</button> :
+           status === 'verifying' ? <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button> :
+           status === 'ready_to_claim' ? (
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+               {task.validation_code && (
+                 <input style={{ ...neon.input, padding: '8px', fontSize: '12px', width: '130px', textAlign: 'center', background: 'rgba(0,0,0,0.5)' }} placeholder="Escribe el código..." value={verifyInputs[task.id] || ''} onChange={(e) => setVerifyInputs({ ...verifyInputs, [task.id]: e.target.value })} />
+               )}
+               <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '130px' : 'auto'}}>{TaskIcons.check} RECLAMAR</button>
+             </div>
+           ) : <button onClick={() => handleStartTask(task)} style={neon.taskButton}>{`+${displayGemas} 💎`}</button>}
+        </div>
+      </div>
+    );
+  };
+
+  const currentList = category === 'pagadas' ? pagadas : category === 'diarias' ? diarias : partners;
+
+  return (
+    <div className="fade-in">
+      {/* 🚀 BOTÓN PREMIUM PARA CREAR CAMPAÑAS */}
+      <button onClick={() => setView('wizard')} style={{
+        width: '100%', padding: '16px', borderRadius: '16px',
+        background: 'linear-gradient(90deg, #ff1493, #8a2be2)',
+        color: '#fff', fontSize: '16px', fontWeight: '900',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+        boxShadow: '0 4px 15px rgba(255, 20, 147, 0.4)', border: 'none', cursor: 'pointer',
+        marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px'
+      }}>
+        <span style={{ fontSize: '24px', fontWeight: '900', lineHeight: 1 }}>+</span> 
+        Crear Nueva Campaña
+      </button>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
+        <h4 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_explore')}</h4>
+        <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update')}</button>
+      </div>
+
+      {/* 🎯 PESTAÑAS DE CATEGORÍAS */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '16px' }}>
+        <button onClick={() => setCategory('pagadas')} style={neon.subTabBtn(category === 'pagadas')}>Pagadas</button>
+        <button onClick={() => setCategory('diarias')} style={neon.subTabBtn(category === 'diarias')}>Diarias</button>
+        <button onClick={() => setCategory('partners')} style={neon.subTabBtn(category === 'partners')}>Partners</button>
+      </div>
+
+      {/* 🔥 SECCIÓN ESPECIAL: RACHA DIARIA GIGAPUB */}
+      {category === 'diarias' && (
+        <div style={{ ...neon.taskCard, borderColor: '#00ffaa', background: 'linear-gradient(145deg, rgba(0, 255, 170, 0.1), rgba(26, 11, 51, 0.9))', flexDirection: 'column', alignItems: 'stretch' }}>
+          
+          {/* UI de la Racha (Streak) */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid rgba(0,255,170,0.2)', paddingBottom: '12px' }}>
+            {[1,2,3,4,5,6,7].map(day => {
+              const isPast = day < streakCount;
+              const isToday = day === streakCount;
+              const isFuture = day > streakCount;
+              const color = isPast || (isToday && gigaClaimed) ? '#00ffaa' : isToday ? '#ffe600' : '#444';
+              
+              return (
+                <div key={day} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: isFuture ? 0.5 : 1 }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: color, color: '#050214', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '900', boxShadow: (isToday && !gigaClaimed) ? '0 0 10px #ffe600' : 'none' }}>
+                    {(isPast || (isToday && gigaClaimed)) ? '✓' : day}
+                  </div>
+                  <span style={{ fontSize: '10px', marginTop: '6px', color: '#fff', fontWeight: 'bold' }}>{day} 💎</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{ ...neon.taskIconBox, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.1)' }}>{TaskIcons.daily('#00ffaa')}</div>
+              <div>
+                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>🎁 Racha Diaria (Día {streakCount})</div>
+                <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>Patrocinado por GigaPub</div>
+              </div>
+            </div>
+            {loadingTasks ? (
+               <button disabled style={{...neon.taskButtonDisabled, background: 'rgba(0, 255, 170, 0.1)', borderColor: '#00ffaa', color: '#00ffaa', opacity: 0.6}}>CARGANDO...</button>
+            ) : gigaClaimed ? (
+               <button disabled style={neon.taskButtonDisabled}>VUELVE MAÑANA</button>
+            ) : (
+               <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
+                 {playingAd ? 'CARGANDO...' : `+${streakCount}.00 💎`}
+               </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 📋 LISTA DE TAREAS FILTRADAS */}
+      {loadingTasks ? (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <div style={{ color: '#00f0ff', fontSize: '14px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            <style>{`@keyframes pulseTasks { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
+            <div style={{ animation: 'pulseTasks 1.5s infinite' }}>Buscando Misiones...</div>
+          </div>
+        </div>
+      ) : currentList.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+          <p style={{ color: '#ff99dd', fontSize: '13px', fontWeight: 'bold', margin: 0, lineHeight: '1.5' }}>
+             No hay misiones disponibles en esta categoría. Vuelve más tarde.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {currentList.map(renderTaskItem)}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// ==========================================
+// 2️⃣ COMPONENTE: MIS CAMPAÑAS (ACTIVITY)
+// ==========================================
+const AdsActivity = ({ props }) => {
+  const { tasks, userData, handleToggleStatus, handleOpenEdit, handleDeleteTask, loadingTasks, setView, fetchTasks, t } = props;
+  
+  const myTasks = tasks.filter(t => t.creator_id === String(userData?.id));
+  const getTaskIconType = (task) => task.logo || (task.type === 'publish_group' ? 'channel' : task.type);
+
+  return (
+    <div className="fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
+        <h4 style={{ margin: 0, color: '#ff41b4', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_your_campaigns')}</h4>
+        <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update')}</button>
+      </div>
+
+      {loadingTasks ? (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <div style={{ color: '#ff41b4', fontSize: '14px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            <style>{`@keyframes pulseMyAds { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
+            <div style={{ animation: 'pulseMyAds 1.5s infinite' }}>Cargando tus Campañas...</div>
+          </div>
+        </div>
+      ) : myTasks.length === 0 ? (
+        <div style={{...neon.card, textAlign: 'center', padding: '30px 20px', borderColor: '#ff1493' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+            <div style={{ padding: '16px', background: 'rgba(255, 20, 147, 0.1)', borderRadius: '16px' }}>{TaskIcons.promo('#ff1493')}</div>
+          </div>
+          <p style={{ color: '#ff99dd', fontSize: '13px', lineHeight: '1.5', margin: '0 0 20px 0' }}>{t('ads_empty_my_ads')}</p>
+          <button onClick={() => setView('wizard')} style={{...neon.btnPrimary, background: 'linear-gradient(180deg, #ff1493, #d80073)', boxShadow: '0 4px 15px rgba(255, 20, 147, 0.4)'}}>CREAR MI PRIMERA CAMPAÑA</button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {myTasks.map((task) => {
+            const percent = Math.floor((task.completions_done / task.completions_total) * 100);
+            const isPaused = task.status === 'paused';
+            const isCompleted = task.status === 'completed' || task.completions_done >= task.completions_total;
+            const iconType = getTaskIconType(task);
+
+            return (
+              <div key={task.id} style={{...neon.taskCard, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4', opacity: (isPaused || isCompleted) ? 0.7 : 1}}>
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
+                    <div style={{...neon.taskIconBox, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493', background: isCompleted ? 'rgba(0, 255, 170, 0.1)' : isPaused ? 'rgba(255, 170, 0, 0.1)' : 'rgba(255, 20, 147, 0.1)'}}>
+                      {TaskIcons[iconType] ? TaskIcons[iconType](isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493') : TaskIcons.promo(isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493')}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900' }}>
+                        {task.title} 
+                        {isPaused && <span style={{ color: '#ffaa00', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_paused')})</span>}
+                        {isCompleted && <span style={{ color: '#00ffaa', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_completed')})</span>}
+                      </div>
+                      <div style={{ color: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff99dd', fontSize: '11px', marginTop: '4px', fontWeight: 'bold', fontFamily: 'monospace' }}>{task.url.substring(0, 25)}...</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>
+                    <span style={{ color: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4' }}>Progreso</span>
+                    <span style={{ color: '#fff' }}>{task.completions_done} / {task.completions_total} usuarios</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', marginBottom: '12px' }}>
+                    <div style={{ width: `${percent}%`, height: '100%', background: isCompleted ? 'linear-gradient(90deg, #00ffaa, #00bb77)' : isPaused ? 'linear-gradient(90deg, #ffaa00, #ffe600)' : 'linear-gradient(90deg, #ff1493, #ff66cc)', transition: 'width 0.3s ease' }}></div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    {!isCompleted && (
+                      <button onClick={() => handleToggleStatus(task)} style={{ background: isPaused ? '#00ffaa' : '#ffaa00', color: '#050214', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {isPaused ? TaskIcons.play : TaskIcons.pause} {isPaused ? 'REANUDAR' : 'PAUSAR'}
+                      </button>
+                    )}
+                    <button onClick={() => handleOpenEdit(task)} style={{ background: '#00f0ff', color: '#050214', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {TaskIcons.edit} EDITAR
+                    </button>
+                    {!isCompleted && (
+                      <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#ff1493', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {TaskIcons.trash} ELIMINAR
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// ==========================================
+// 3️⃣ COMPONENTE: WIZARD DE CREACIÓN
+// ==========================================
+const AdsWizard = ({ props }) => {
+  const { 
+    currentStepIndex, totalSteps, stepsFlow, currentStepId,
+    taskType, setTaskType, targetUrl, setTargetUrl, botToken, setBotToken, validationCode, setValidationCode,
+    completions, setCompletions, rewardPerGema, setRewardPerGema, isVerifying, handleVerifyUrl, 
+    depositBalanceUsdt, campaignCostUsdt, baseCostGemas, referralFeeGemas, adminFeeGemas, totalGemasCost,
+    handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, prevStep, setView, TASK_TYPES, t
+  } = props;
+
+  return (
+    <div className="fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        {currentStepIndex > 0 ? (
+          <button onClick={prevStep} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>◀</button>
+        ) : <div />}
+        <div style={{ fontSize: '12px', fontWeight: '900', color: '#00f0ff', letterSpacing: '1px' }}>PASO {currentStepIndex + 1} DE {totalSteps}</div>
+        <button onClick={() => { setView('list'); setTaskType(null); }} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>✕</button>
+      </div>
+      <div style={neon.progressBox}>{stepsFlow.map((step, idx) => <div key={idx} style={neon.progressStep(idx <= currentStepIndex)} />)}</div>
+
+      {currentStepId === 'type' && (
+        <div className="fade-in">
+          <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#ffe600', marginBottom: '16px', textTransform: 'uppercase' }}>Seleccione el objetivo</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {TASK_TYPES.map((type) => (
+              <div key={type.id} onClick={() => { setTaskType(type.id); props.nextStep(); }}
+                style={{ ...neon.cardInteractive, borderColor: taskType === type.id ? type.color : '#8a2be2', background: taskType === type.id ? `linear-gradient(135deg, ${type.color}22, rgba(18, 7, 36, 0.9))` : neon.cardInteractive.background }}>
+                <div style={{ width: '44px', height: '44px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{type.icon}</div>
+                <div>
+                  <div style={{ color: '#fff', fontSize: '15px', fontWeight: '900', lineHeight: '1.2' }}>{type.title}</div>
+                  <div style={{ color: '#ff99dd', fontSize: '11px', fontWeight: 'bold', marginTop: '4px' }}>{type.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {currentStepId === 'url' && (
+        <div className="fade-in">
+          <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#ffe600', marginBottom: '16px', textTransform: 'uppercase' }}>Enlace Destino</h3>
+          <div style={neon.card}>
+            <p style={{ color: '#ff99dd', fontSize: '13px', marginBottom: '16px', lineHeight: '1.4', fontWeight: 'bold' }}>
+              {taskType === 'bot' && t('ads_url_desc_bot')}
+              {taskType === 'channel' && t('ads_url_desc_channel')}
+              {taskType === 'promo' && 'Dirige tráfico a tu sitio web, video o app.'}
+            </p>
+            <input style={neon.input} placeholder="https://t.me/..." value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
+            
+            {taskType === 'promo' && (
+              <div style={{ marginTop: '16px', borderTop: '1px dashed #8a2be2', paddingTop: '16px' }}>
+                <label style={neon.label}>Código de Validación (Opcional)</label>
+                <input style={{...neon.input, background: 'rgba(0,0,0,0.4)', borderColor: '#00f0ff'}} placeholder="Ej: MIBOT2026" value={validationCode} onChange={(e) => setValidationCode(e.target.value)} />
+                <p style={{ fontSize: '11px', color: '#00f0ff', marginTop: '6px', fontWeight: 'bold' }}>Obliga a los usuarios a buscar este código en tu web para cobrar.</p>
+              </div>
+            )}
+          </div>
+          <button onClick={handleVerifyUrl} disabled={isVerifying} style={neon.btnPrimary}>{isVerifying ? 'VERIFICANDO...' : 'VALIDAR ➔'}</button>
+        </div>
+      )}
+
+      {currentStepId === 'token' && (
+        <div className="fade-in">
+          <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#ffe600', marginBottom: '16px', textTransform: 'uppercase' }}>Autenticación del Bot</h3>
+          <div style={{...neon.card, borderColor: '#ff41b4'}}>
+            <input style={{...neon.input, borderColor: '#ff41b4'}} placeholder="Token de @BotFather" value={botToken} onChange={(e) => setBotToken(e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={props.nextStep} style={{...neon.btnSecondary, flex: 1, border: '1px solid #8a2be2', color: '#8a2be2'}}>OMITIR</button>
+            <button onClick={props.nextStep} style={{...neon.btnPrimary, flex: 1}}>CONTINUAR ➔</button>
+          </div>
+        </div>
+      )}
+
+      {currentStepId === 'budget' && (
+        <div className="fade-in" style={neon.calcContainer}>
+          <h2 style={{ margin: '0 0 10px 0', fontSize: '22px', fontWeight: '900', color: '#ffffff' }}>Configuración Final</h2>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+            <button onClick={() => setCompletions(100)} style={neon.pillButton(completions === 100)}>100</button>
+            <button onClick={() => setCompletions(500)} style={neon.pillButton(completions === 500)}>500</button>
+            <button onClick={() => setCompletions(1000)} style={neon.pillButton(completions === 1000)}>1K</button>
+            <button onClick={() => setCompletions(5000)} style={neon.pillButton(completions === 5000)}>5K</button>
+          </div>
+
+          <span style={neon.label}>Usuarios a contratar</span>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <button onClick={() => setCompletions(p => Math.max(10, p - 10))} style={neon.btnActionCalc}>-</button>
+            <input type="number" value={completions} onChange={(e) => setCompletions(Number(e.target.value) || 0)} style={neon.inputCalc} />
+            <button onClick={() => setCompletions(p => p + 10)} style={neon.btnActionCalc}>+</button>
+          </div>
+
+          <span style={neon.label}>Pago por usuario (Gemas)</span>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <button onClick={() => setRewardPerGema(p => Math.max(1, p - 0.5))} style={neon.btnActionCalc}>-</button>
+            <input type="number" step="0.5" max="2.5" value={rewardPerGema} onChange={(e) => setRewardPerGema(Math.min(2.5, Number(e.target.value) || 0))} style={neon.inputCalc} />
+            <button onClick={() => setRewardPerGema(p => Math.min(2.5, p + 0.5))} style={neon.btnActionCalc}>+</button>
+          </div>
+
+          <div style={neon.summaryBox}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '6px' }}>Total a repartir en red: {baseCostGemas + referralFeeGemas} 💎</div>
+              <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>INVERSIÓN REQUERIDA:</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: '900', fontSize: '20px', color: '#00f0ff' }}>{totalGemasCost} 💎</div>
+              <div style={{ fontSize: '12px', color: '#00f0ff', opacity: 0.8 }}>${campaignCostUsdt.toFixed(2)} USDT</div>
+            </div>
+          </div>
+
+          {depositBalanceUsdt >= campaignCostUsdt ? (
+            <button onClick={handleCreateTaskWithVault} disabled={isGenerating} style={neon.actionBtn}>
+              {isGenerating ? 'PROCESANDO...' : '✔️ ACTIVAR CAMPAÑA'}
+            </button>
+          ) : (
+            <>
+              <div style={{ textAlign: 'center', marginBottom: '12px', fontSize: '12px', color: '#ff4b4b', fontWeight: 'bold' }}>Faltan USDT en la Bóveda</div>
+              <button onClick={() => { setRechargeAmount(Math.ceil(campaignCostUsdt)); setRecharging(true); }} style={neon.actionBtnDanger}>RECARGAR BÓVEDA</button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// ==========================================
+// 🚀 COMPONENTE PRINCIPAL (AdsTab Padre)
+// ==========================================
 export default function AdsTab({ userData, setUserData, t }) {
-  const [view, setView] = useState('list');
+  const [view, setView] = useState('list'); // list | activity | wizard
   const [tasks, setTasks] = useState([]);
-  const [loadingTasks, setLoadingTasks] = useState(true); // 🔥 Inicializado en true para evitar el fantasma inicial
+  const [loadingTasks, setLoadingTasks] = useState(true);
 
   const [taskStatus, setTaskStatus] = useState({}); 
   const [verifyInputs, setVerifyInputs] = useState({}); 
   const [taskStartTimes, setTaskStartTimes] = useState({});
 
+  // Estados del Wizard y Recarga
   const [taskType, setTaskType] = useState(null);
   const [targetUrl, setTargetUrl] = useState('');
   const [botToken, setBotToken] = useState('');
   const [validationCode, setValidationCode] = useState(''); 
   const [isVerifying, setIsVerifying] = useState(false);
-
-  // 🛡️ REEMPLAZO: Giga Pub
+  
   const [gigaReady, setGigaReady] = useState(false);
   const [playingAd, setPlayingAd] = useState(false);
 
@@ -80,16 +485,15 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [liveGramUsd, setLiveGramUsd] = useState(5.00);
 
   const depositBalanceUsdt = Number(userData?.deposit_balance || 0);
-
-  const TASK_TYPES = [
-    { id: 'bot', icon: TaskIcons.bot('#ffe600'), title: t('ads_type_bot'), desc: 'Impulse la interacción con su bot o aplicación', color: '#ffe600', autoName: 'Campaña de Bot/App' },
-    { id: 'channel', icon: TaskIcons.channel('#00ffaa'), title: t('ads_type_group'), desc: 'Adquiera miembros reales para su canal o grupo', color: '#00ffaa', autoName: 'Campaña de Comunidad' },
-    { id: 'promo', icon: TaskIcons.promo('#ff1493'), title: t('ads_type_promo'), desc: 'Genere tráfico cualificado o red de referidos', color: '#ff1493', autoName: 'Campaña de Tráfico' }
-  ];
-
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
-  // 🔥 NUEVO: Carga del Script de Giga Pub al iniciar
+  const TASK_TYPES = [
+    { id: 'bot', icon: TaskIcons.bot('#ffe600'), title: t('ads_type_bot') || 'Bot', desc: 'Interacción con bot', color: '#ffe600', autoName: 'Campaña Bot' },
+    { id: 'channel', icon: TaskIcons.channel('#00ffaa'), title: t('ads_type_group') || 'Canal', desc: 'Miembros reales', color: '#00ffaa', autoName: 'Campaña Comunidad' },
+    { id: 'promo', icon: TaskIcons.promo('#ff1493'), title: t('ads_type_promo') || 'Tráfico', desc: 'Visitas web o referidos', color: '#ff1493', autoName: 'Campaña Tráfico' }
+  ];
+
+  // (Scripts y Funciones de API que ya tenías)
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://ad.gigapub.tech/script?id=8567";
@@ -99,238 +503,65 @@ export default function AdsTab({ userData, setUserData, t }) {
   }, []);
 
   useEffect(() => {
-    const fetchLivePrice = async () => {
-      try {
-        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-        const data = await res.json();
-        if (data && data['the-open-network'] && data['the-open-network'].usd) {
-          setLiveGramUsd(data['the-open-network'].usd);
-        }
-      } catch (error) {}
-    };
-    fetchLivePrice();
+    fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd')
+      .then(r => r.json()).then(d => { if(d['the-open-network']?.usd) setLiveGramUsd(d['the-open-network'].usd); }).catch(()=>{});
   }, []);
-
-  const baseCostGemas = completions * rewardPerGema;
-  const referralFeeGemas = Math.floor(baseCostGemas * 0.20); 
-  const adminFeeGemas = Math.floor(baseCostGemas * 0.10);    
-  const totalGemasCost = baseCostGemas + referralFeeGemas + adminFeeGemas; 
-
-  const campaignCostUsdt = totalGemasCost / 1000; 
-  const gramRechargePrice = (rechargeAmount / liveGramUsd).toFixed(2);
 
   useEffect(() => {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
-  // 🛡️ LÓGICA ANTI-TRAMPAS MEJORADA (8s para Promos, 1.5s para Telegram)
+  // Antifraude Visibilidad
   useEffect(() => {
     const handleHide = () => {
       setTaskStatus(prevStatus => {
         const nextStatus = { ...prevStatus };
         let changed = false;
         const newStartTimes = {};
-        
         Object.keys(nextStatus).forEach(id => {
           if (nextStatus[id] === 'waiting_for_redirect' || nextStatus[id] === 'ready_to_claim') {
-            nextStatus[id] = 'away';
-            newStartTimes[id] = Date.now();
-            changed = true;
+            nextStatus[id] = 'away'; newStartTimes[id] = Date.now(); changed = true;
           }
         });
-        
-        if (changed) {
-          setTaskStartTimes(prevTimes => ({ ...prevTimes, ...newStartTimes }));
-        }
+        if (changed) setTaskStartTimes(prevTimes => ({ ...prevTimes, ...newStartTimes }));
         return nextStatus;
       });
     };
-
     const handleShow = () => {
       setTaskStatus(prev => {
         const next = { ...prev };
         let showedError = false;
-
         Object.keys(next).forEach(id => {
           if (next[id] === 'away') {
             const timeAway = Date.now() - (taskStartTimes[id] || 0);
-            
-            // 🔥 NUEVO: Detectamos qué tipo de campaña es
             const task = tasks.find(t => String(t.id) === String(id));
-            const isPromo = task?.type === 'promo';
-            
-            // 8 segundos para web externa, solo 1.5 seg para Telegram
-            const requiredTime = isPromo ? 8000 : 1500;
-
-            if (timeAway >= requiredTime) { 
-              next[id] = 'ready_to_claim';
-            } else {
-              next[id] = 'ready'; // Se reinicia el botón por hacer trampa
-              if (!showedError) {
-                if (isPromo) {
-                  toast.error("Trampa detectada 🚫. Debes permanecer en la página web al menos 8 segundos.", { duration: 4000 });
-                } else {
-                  toast.error("Demasiado rápido 🚫. Tómate al menos un segundo para unirte a la comunidad.", { duration: 3000 });
-                }
-                showedError = true;
-              }
+            const requiredTime = task?.type === 'promo' ? 8000 : 1500;
+            if (timeAway >= requiredTime) { next[id] = 'ready_to_claim'; } 
+            else {
+              next[id] = 'ready'; 
+              if (!showedError) { toast.error(task?.type === 'promo' ? "Debes estar 8s en la web." : "Demasiado rápido."); showedError = true; }
             }
           }
         });
         return next;
       });
     };
-
-    const visibilityHandler = () => {
-      if (document.hidden) handleHide();
-      else handleShow();
-    };
-
-    document.addEventListener('visibilitychange', visibilityHandler);
-    window.addEventListener('blur', handleHide);
-    window.addEventListener('focus', handleShow);
-
-    return () => {
-      document.removeEventListener('visibilitychange', visibilityHandler);
-      window.removeEventListener('blur', handleHide);
-      window.removeEventListener('focus', handleShow);
-    };
+    document.addEventListener('visibilitychange', () => document.hidden ? handleHide() : handleShow());
+    window.addEventListener('blur', handleHide); window.addEventListener('focus', handleShow);
+    return () => { window.removeEventListener('blur', handleHide); window.removeEventListener('focus', handleShow); };
   }, [taskStartTimes, tasks]);
 
   const fetchTasks = async () => {
     setLoadingTasks(true);
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'get-tasks', userId: userData.id })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'get-tasks', userId: userData.id }) });
       const data = await res.json();
       if (data && data.success) {
         setTasks(data.tasks || []);
-        
-        // Bloqueamos el botón visualmente desde el inicio si ya lo reclamó
-        if (data.gigaPubClaimed) {
-          setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
-        }
+        if (data.gigaPubClaimed) setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
       }
-    } catch (e) {} finally { setLoadingTasks(false); } // 🔥 El loading false ocurre hasta el final
+    } catch (e) {} finally { setLoadingTasks(false); }
   };
-
-  const stepsFlow = taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'];
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const currentStepId = stepsFlow[currentStepIndex];
-  const totalSteps = stepsFlow.length;
-
-  const nextStep = () => setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
-  const prevStep = () => setCurrentStepIndex(prev => Math.max(prev - 1, 0));
-
-  const handleVerifyUrl = async () => {
-    let val = targetUrl.trim();
-    if (!val) return toast.error("Ingrese un enlace válido para continuar.");
-
-    if (taskType === 'channel' || taskType === 'bot') {
-      const isTelegramLink = val.startsWith('@') || val.startsWith('t.me/') || val.startsWith('https://t.me/');
-      if (!isTelegramLink) return toast.error("El formato del enlace debe comenzar con @, t.me/ o https://t.me/.");
-    }
-
-    if (taskType === 'channel') {
-      if (val.includes('+') || val.includes('joinchat')) return toast.error("Los enlaces de invitación privados no están autorizados.");
-      setIsVerifying(true);
-      const tid = toast.loading("Validando privilegios administrativos...");
-      try {
-        const res = await fetch('/api', {
-          method: 'POST', headers: apiHeaders,
-          body: JSON.stringify({ action: 'verify-admin', url: val })
-        });
-        const data = await res.json();
-        if (data.success) { 
-          toast.success("Privilegios administrativos confirmados.", { id: tid }); 
-          nextStep(); 
-        } else { 
-          toast.error(data.error || "Se requieren permisos de administrador en la comunidad.", { id: tid }); 
-        }
-      } catch (e) { toast.error("Error al verificar el enlace proporcionado.", { id: tid }); } finally { setIsVerifying(false); }
-    } else {
-      if (!val.startsWith('http') && !val.startsWith('@')) val = 'https://' + val;
-      setTargetUrl(val); nextStep();
-    }
-  };
-
-  const handleCreateTaskWithVault = async () => {
-    setIsGenerating(true);
-    const tid = toast.loading("Procesando inversión y desplegando campaña...");
-    const fixedTitle = TASK_TYPES.find(t => t.id === taskType)?.autoName || 'Nueva Campaña';
-    const rewardForDb = rewardPerGema / 1000;
-
-    try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ 
-          creator_id: userData?.id, 
-          action: 'create-task', 
-          type: taskType, 
-          title: fixedTitle, 
-          url: targetUrl, 
-          bot_token: botToken || null, 
-          completions_total: completions, 
-          reward: rewardForDb,
-          validation_code: validationCode || null
-        })
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
-      toast.success("La campaña publicitaria se ha activado exitosamente.", { id: tid });
-
-      setTaskType(null); setTargetUrl(''); setBotToken(''); setValidationCode(''); 
-      setCompletions(100); setCurrentStepIndex(0); setRecharging(false); setView('activity');
-    } catch (err) { toast.error(err.message || "Se ha producido un error durante el procesamiento.", { id: tid }); } finally { setIsGenerating(false); }
-  };
-
-  const handleStartRecharge = async () => {
-    setIsGenerating(true);
-    const tid = toast.loading("Estableciendo conexión segura con la red blockchain...");
-    try {
-      const actionRoute = rechargeMethod === 'usdt' ? 'generate-usdt-wallet' : 'generate-payment-wallet';
-      const amountToSend = rechargeMethod === 'usdt' ? rechargeAmount : gramRechargePrice;
-
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: actionRoute, userId: userData.id, packageId: 0, price: amountToSend, clicks: rechargeAmount })
-      });
-      const data = await res.json();
-      if (data.success) { 
-        setTempWallet(data.wallet); 
-        setIntentId(data.intentId); 
-        toast.dismiss(tid); 
-        setCheckoutView(true); 
-      }
-    } catch (e) { toast.error("No se pudo establecer conexión con la red.", { id: tid }); } finally { setIsGenerating(false); }
-  };
-
-  const copyWallet = (wallet) => { navigator.clipboard.writeText(wallet); toast.success("Dirección copiada al portapapeles."); };
-  const openTonkeeper = () => { try { WebApp.openLink(`ton://transfer/${tempWallet}?amount=${gramRechargePrice * 1e9}`); } catch (e) { toast.error("Aplicación de billetera no detectada en el dispositivo."); } };
-
-  const handleVerifyPayment = async () => {
-    const tid = toast.loading("Verificando transacción en la red...");
-    const verifyRoute = rechargeMethod === 'usdt' ? 'verify-usdt-payment' : 'verify-crypto-payment';
-
-    try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: verifyRoute, userId: userData.id, intentId: intentId, clicks: rechargeAmount })
-      });
-      const data = await res.json();
-      if (data.success) { 
-        toast.success(`Depósito de $${rechargeAmount} USDT acreditado exitosamente en su bóveda.`, { id: tid }); 
-        if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
-        setCheckoutView(false); setRecharging(false); setTempWallet(''); setIntentId(null);
-      }
-      else throw new Error(data.error);
-    } catch (e) { toast.error(e.message || "Transacción no detectada. Por favor, espere unos segundos e intente nuevamente.", { id: tid, duration: 6000 }); }
-  };
-
-  const cancelCheckout = () => { setCheckoutView(false); setRecharging(false); setIntentId(null); setTempWallet(''); };
 
   const handleStartTask = (task) => {
     try {
@@ -339,217 +570,135 @@ export default function AdsTab({ userData, setUserData, t }) {
       else if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`;
       if (finalUrl.includes('t.me') || finalUrl.includes('telegram.me')) WebApp.openTelegramLink(finalUrl);
       else WebApp.openLink(finalUrl, { try_instant_view: true });
-
       setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting_for_redirect' }));
-    } catch (e) { toast.error("Error al procesar la redirección del enlace."); }
+    } catch (e) { toast.error("Error redirección."); }
   };
 
   const handlePlayGigaPub = () => {
-    if (!window.showGiga) {
-      toast.error("El servidor de anuncios no está disponible. Desactiva tu bloqueador de anuncios.");
-      return;
-    }
-    
-    setPlayingAd(true);
-    const tid = toast.loading("Cargando anuncio...");
-
-    window.showGiga()
-      .then(async () => {
-        toast.loading("Validando recompensa...", { id: tid });
-        try {
-          const res = await fetch('/api', {
-            method: 'POST', 
-            headers: apiHeaders,
-            body: JSON.stringify({ action: 'claim-gigapub-daily', userId: userData.id })
-          });
-          const data = await res.json();
-          if (data.success) {
-            toast.success(`+${data.earned_gemas} 💎 Recompensa Diaria Obtenida`, { id: tid });
-            if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
-            setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
-          } else {
-            toast.error(data.error || "Error al reclamar la recompensa.", { id: tid });
-          }
-        } catch (e) {
-          toast.error("Error de conexión con el servidor.", { id: tid });
-        } finally {
-          setPlayingAd(false);
-        }
-      })
-      .catch((e) => {
-        console.error("GigaPub Error:", e);
-        toast.error("Debes ver el anuncio completo para recibir la recompensa.", { id: tid });
-        setPlayingAd(false);
-      });
+    if (!window.showGiga) return toast.error("Servidor inactivo.");
+    setPlayingAd(true); const tid = toast.loading("Cargando anuncio...");
+    window.showGiga().then(async () => {
+      toast.loading("Validando...", { id: tid });
+      try {
+        const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'claim-gigapub-daily', userId: userData.id }) });
+        const data = await res.json();
+        if (data.success) {
+          toast.success(`+${data.earned_gemas} 💎 Recompensa Obtenida`, { id: tid });
+          if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+          setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
+        } else { toast.error(data.error || "Error.", { id: tid }); }
+      } catch (e) { toast.error("Error servidor.", { id: tid }); } finally { setPlayingAd(false); }
+    }).catch(() => { toast.error("Debes ver completo.", { id: tid }); setPlayingAd(false); });
   };
 
   const handleCheckTask = async (task) => {
     const tid = toast.loading(t('ads_btn_verifying'));
     setTaskStatus(prev => ({ ...prev, [task.id]: 'verifying' }));
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ 
-          action: 'complete-task', 
-          userId: userData.id, 
-          taskId: task.id,
-          validation_code_input: verifyInputs[task.id] || ''
-        })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'complete-task', userId: userData.id, taskId: task.id, validation_code_input: verifyInputs[task.id] || '' }) });
       const data = await res.json();
       if (data.success) {
-        if (data.is_rejoin) {
-          toast.success("Suscripción verificada y restaurada.", { id: tid });
-        } else {
-          const earnedGemas = Number((Number(data.reward) * 1000).toFixed(2));
-          toast.success(`+${earnedGemas} 💎`, { id: tid });
-          if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
-        }
-        setTaskStatus(prev => ({ ...prev, [task.id]: 'completed' }));
-        fetchTasks();
-      } else {
-        toast.error(data.error || "Error", { id: tid });
-        setTaskStatus(prev => ({ ...prev, [task.id]: 'ready' }));
-        if (data.error && data.error.includes('pausada')) fetchTasks();
-      }
-    } catch (e) { toast.error("Error de conexión con el servidor.", { id: tid }); setTaskStatus(prev => ({ ...prev, [task.id]: 'ready' })); } 
-  };
-
-  const handleDeleteTask = async (taskId) => {
-    if (!window.confirm("¿Confirma la eliminación de esta campaña? El presupuesto no consumido será reembolsado a su bóveda.")) return;
-    const tid = toast.loading("Eliminando campaña y procesando reembolso...");
-    try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'delete-task', taskId: taskId, requestingUserId: userData.id, isAdminAction: false })
-      });
-      const data = await res.json();
-      if (data.success) { toast.success("Campaña eliminada permanentemente.", { id: tid }); fetchTasks(); } 
-      else { throw new Error(data.error); }
-    } catch (err) { toast.error(err.message || "Se produjo un error al intentar eliminar la campaña.", { id: tid }); }
+        toast.success(`+${Number((Number(data.reward) * 1000).toFixed(2))} 💎`, { id: tid });
+        if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+        setTaskStatus(prev => ({ ...prev, [task.id]: 'completed' })); fetchTasks();
+      } else { toast.error(data.error || "Error", { id: tid }); setTaskStatus(prev => ({ ...prev, [task.id]: 'ready' })); }
+    } catch (e) { toast.error("Error servidor.", { id: tid }); setTaskStatus(prev => ({ ...prev, [task.id]: 'ready' })); } 
   };
 
   const handleToggleStatus = async (task) => {
-    const isPausing = task.status === 'active';
-    const tid = toast.loading(isPausing ? "Suspendiendo ejecución de la campaña..." : "Reanudando ejecución de la campaña...");
+    const isPausing = task.status === 'active'; const tid = toast.loading(isPausing ? "Pausando..." : "Reanudando...");
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'toggle-task-status', taskId: task.id, requestingUserId: userData.id })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'toggle-task-status', taskId: task.id, requestingUserId: userData.id }) });
       const data = await res.json();
-      if (data.success) { 
-        toast.success(isPausing ? "Ejecución de campaña suspendida." : "Ejecución de campaña reanudada.", { id: tid }); 
-        fetchTasks(); 
-      } else { throw new Error(data.error); }
-    } catch (err) { toast.error(err.message || "Error al modificar el estado de la campaña.", { id: tid }); }
+      if (data.success) { toast.success("Éxito.", { id: tid }); fetchTasks(); } else { throw new Error(data.error); }
+    } catch (err) { toast.error(err.message || "Error.", { id: tid }); }
   };
 
-  const handleOpenEdit = (task) => { 
-    setEditingTask({ 
-      id: task.id, 
-      title: task.title, 
-      url: task.url,
-      reward: Number(task.reward) || 0.001,
-      logo: task.logo || 'crypto',
-      addCompletions: 0
-    }); 
-    setShowEditModal(true); 
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm("¿Eliminar campaña y reembolsar saldo?")) return;
+    const tid = toast.loading("Eliminando...");
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'delete-task', taskId: taskId, requestingUserId: userData.id }) });
+      const data = await res.json();
+      if (data.success) { toast.success("Eliminada.", { id: tid }); fetchTasks(); } else { throw new Error(data.error); }
+    } catch (err) { toast.error(err.message || "Error.", { id: tid }); }
   };
+
+  const handleOpenEdit = (task) => { setEditingTask({ id: task.id, title: task.title, url: task.url, reward: Number(task.reward)||0.001, logo: task.logo||'crypto', addCompletions: 0 }); setShowEditModal(true); };
 
   const handleSaveEdit = async () => {
     const extraCost = Number((editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4));
-    
-    if (editingTask.addCompletions > 0 && depositBalanceUsdt < extraCost) {
-      return toast.error(`Capital insuficiente. Requieres ${extraCost.toFixed(2)} USDT en Bóveda para inyectar estos cupos.`);
-    }
-
-    const tid = toast.loading("Aplicando modificaciones tácticas...");
+    if (editingTask.addCompletions > 0 && depositBalanceUsdt < extraCost) return toast.error(`Capital insuficiente.`);
+    const tid = toast.loading("Aplicando...");
     try {
-      const res = await fetch('/api', {
-        method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ 
-          action: 'edit-task', 
-          taskId: editingTask.id, 
-          requestingUserId: userData.id, 
-          newTitle: editingTask.title, 
-          newUrl: editingTask.url, 
-          addCompletions: editingTask.addCompletions,
-          newReward: editingTask.reward,
-          newLogo: editingTask.logo,
-          isAdminAction: false 
-        })
-      });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'edit-task', taskId: editingTask.id, requestingUserId: userData.id, newTitle: editingTask.title, newUrl: editingTask.url, addCompletions: editingTask.addCompletions, newReward: editingTask.reward, newLogo: editingTask.logo }) });
       const data = await res.json();
       if (data.success) { 
-        toast.success(data.message || "Configuración de campaña actualizada.", { id: tid }); 
-        
-        if (editingTask.addCompletions > 0) {
-           setUserData(prev => ({...prev, deposit_balance: Math.max(0, prev.deposit_balance - extraCost)}));
-        }
-        
-        setShowEditModal(false); 
-        fetchTasks(); 
-      } 
-      else { throw new Error(data.error); }
-    } catch (err) { toast.error(err.message || "No se pudieron aplicar los cambios.", { id: tid }); }
+        toast.success("Actualizada.", { id: tid }); 
+        if (editingTask.addCompletions > 0) setUserData(p => ({...p, deposit_balance: Math.max(0, p.deposit_balance - extraCost)}));
+        setShowEditModal(false); fetchTasks(); 
+      } else { throw new Error(data.error); }
+    } catch (err) { toast.error("Error.", { id: tid }); }
   };
 
-  const getTaskLabel = (type) => {
-    if (type === 'publish_group') return 'Red Comunitaria';
-    switch (type) {
-      case 'group':
-      case 'channel': return t('ads_type_group');
-      case 'bot': return t('ads_type_bot');
-      case 'promo': return t('ads_type_promo');
-      default: return 'Tarea';
-    }
+  const handleVerifyUrl = async () => {
+    let val = targetUrl.trim(); if (!val) return toast.error("Enlace vacío.");
+    if (taskType === 'channel' || taskType === 'bot') { if (!val.startsWith('@') && !val.startsWith('t.me/') && !val.startsWith('https://t.me/')) return toast.error("Formato inválido."); }
+    if (taskType === 'channel') {
+      setIsVerifying(true); const tid = toast.loading("Validando admin...");
+      try {
+        const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'verify-admin', url: val }) });
+        const data = await res.json();
+        if (data.success) { toast.success("Confirmado.", { id: tid }); setCurrentStepIndex(p => p+1); } 
+        else { toast.error(data.error || "Falta admin.", { id: tid }); }
+      } catch (e) { toast.error("Error servidor.", { id: tid }); } finally { setIsVerifying(false); }
+    } else { if (!val.startsWith('http') && !val.startsWith('@')) val = 'https://' + val; setTargetUrl(val); setCurrentStepIndex(p => p+1); }
   };
 
-  const getTaskIconType = (task) => {
-    if (task.logo) return task.logo;
-    if (task.type === 'publish_group') return 'channel';
-    return task.type;
+  const handleCreateTaskWithVault = async () => {
+    setIsGenerating(true); const tid = toast.loading("Desplegando...");
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ creator_id: userData?.id, action: 'create-task', type: taskType, title: TASK_TYPES.find(t=>t.id===taskType)?.autoName, url: targetUrl, bot_token: botToken, completions_total: completions, reward: rewardPerGema/1000, validation_code: validationCode }) });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      if (data.deposit_balance !== undefined) setUserData(p => ({ ...p, deposit_balance: data.deposit_balance }));
+      toast.success("Activada exitosamente.", { id: tid });
+      setTaskType(null); setTargetUrl(''); setBotToken(''); setValidationCode(''); setCompletions(100); setCurrentStepIndex(0); setRecharging(false); setView('activity');
+    } catch (err) { toast.error(err.message || "Error.", { id: tid }); } finally { setIsGenerating(false); }
   };
 
-  const myTasks = tasks.filter(t => t.creator_id === String(userData?.id));
-  const communityTasks = tasks.filter(t => t.status === 'active')
-    .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
+  const handleStartRecharge = async () => {
+    setIsGenerating(true); const tid = toast.loading("Conectando blockchain...");
+    try {
+      const amt = rechargeMethod === 'usdt' ? rechargeAmount : (rechargeAmount/liveGramUsd).toFixed(2);
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: rechargeMethod === 'usdt' ? 'generate-usdt-wallet' : 'generate-payment-wallet', userId: userData.id, price: amt, clicks: rechargeAmount }) });
+      const data = await res.json();
+      if (data.success) { setTempWallet(data.wallet); setIntentId(data.intentId); toast.dismiss(tid); setCheckoutView(true); }
+    } catch (e) { toast.error("Error de red.", { id: tid }); } finally { setIsGenerating(false); }
+  };
 
-  const renderTaskButton = (task) => {
-    if (String(task.creator_id) === String(userData?.id)) {
-       return <button disabled style={{...neon.taskButtonDisabled, background: 'rgba(255,255,255,0.05)', color: '#666', borderColor: '#444'}}>TU CAMPAÑA 🛡️</button>;
-    }
+  const handleVerifyPayment = async () => {
+    const tid = toast.loading("Verificando en blockchain...");
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: rechargeMethod === 'usdt' ? 'verify-usdt-payment' : 'verify-crypto-payment', userId: userData.id, intentId, clicks: rechargeAmount }) });
+      const data = await res.json();
+      if (data.success) { 
+        toast.success(`Acreditado exitosamente.`, { id: tid }); 
+        if (data.deposit_balance !== undefined) setUserData(p => ({ ...p, deposit_balance: data.deposit_balance }));
+        setCheckoutView(false); setRecharging(false); setTempWallet(''); setIntentId(null);
+      } else throw new Error(data.error);
+    } catch (e) { toast.error(e.message || "No detectado aún.", { id: tid, duration: 6000 }); }
+  };
 
-    const status = taskStatus[task.id];
-    const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
-
-    if (task.needs_rejoin) return <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR ACCESO</button>;
-    if (task.is_completed || status === 'completed') return <button disabled style={neon.taskButtonDisabled}>{t('ads_completed')}</button>;
-
-    if (status === 'waiting_for_redirect') return <button disabled style={neon.taskButtonDisabled}>⏳ SAL DE LA APP 8 SEG</button>;
-    if (status === 'away') return <button disabled style={neon.taskButtonDisabled}>⏳ VERIFICANDO...</button>;
-    if (status === 'verifying') return <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button>;
-
-    if (status === 'ready_to_claim') {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-          {task.validation_code && (
-            <input
-              style={{ ...neon.input, padding: '8px', fontSize: '12px', width: '130px', textAlign: 'center', background: 'rgba(0,0,0,0.5)' }}
-              placeholder="Escribe el código..."
-              value={verifyInputs[task.id] || ''}
-              onChange={(e) => setVerifyInputs({ ...verifyInputs, [task.id]: e.target.value })}
-            />
-          )}
-          <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '130px' : 'auto'}}>
-            {TaskIcons.check} ✅ YA LO HICE (RECLAMAR)
-          </button>
-        </div>
-      );
-    }
-
-    return <button onClick={() => handleStartTask(task)} style={neon.taskButton}>{`+${displayGemas} 💎`}</button>;
+  // Props inyectados a los subcomponentes
+  const sharedProps = { 
+    tasks, userData, taskStatus, verifyInputs, setVerifyInputs, handleStartTask, handleCheckTask, loadingTasks, setView, fetchTasks, t, gigaReady, playingAd, handlePlayGigaPub,
+    handleToggleStatus, handleOpenEdit, handleDeleteTask, 
+    currentStepIndex, totalSteps: taskType === 'bot' ? 4 : 3, stepsFlow: taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'], currentStepId: (taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'])[currentStepIndex],
+    taskType, setTaskType, targetUrl, setTargetUrl, botToken, setBotToken, validationCode, setValidationCode, completions, setCompletions, rewardPerGema, setRewardPerGema, isVerifying, handleVerifyUrl, 
+    depositBalanceUsdt, campaignCostUsdt: ((completions * rewardPerGema) * 1.3)/1000, baseCostGemas: completions * rewardPerGema, referralFeeGemas: Math.floor((completions * rewardPerGema)*0.20), adminFeeGemas: Math.floor((completions * rewardPerGema)*0.10), totalGemasCost: (completions * rewardPerGema) + Math.floor((completions * rewardPerGema)*0.20) + Math.floor((completions * rewardPerGema)*0.10),
+    handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, nextStep: () => setCurrentStepIndex(p => p+1), prevStep: () => setCurrentStepIndex(p => Math.max(p - 1, 0)), TASK_TYPES,
+    recharging, rechargeMethod, setRechargeMethod, rechargeAmount, checkoutView, tempWallet, intentId, liveGramUsd, handleStartRecharge, handleVerifyPayment, cancelCheckout: () => { setCheckoutView(false); setRecharging(false); }
   };
 
   return (
@@ -557,476 +706,32 @@ export default function AdsTab({ userData, setUserData, t }) {
       <Toaster containerStyle={{ zIndex: 9999999 }} />
 
       {(view === 'list' || view === 'activity') && (
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-          <button onClick={() => setView('list')}
-            style={{ flex: 1, padding: '12px', borderRadius: '16px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.2s', background: view === 'list' ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'rgba(255,255,255,0.05)', color: view === 'list' ? '#050214' : '#00f0ff', boxShadow: view === 'list' ? '0 4px 15px rgba(0,240,255,0.3)' : 'none', letterSpacing: '0.5px' }}>
-            {t('ads_tab_market')}
-          </button>
-          <button onClick={() => setView('activity')}
-            style={{ flex: 1, padding: '12px', borderRadius: '16px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.2s', background: view === 'activity' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'rgba(255,255,255,0.05)', color: view === 'activity' ? '#fff' : '#ff41b4', boxShadow: view === 'activity' ? '0 4px 15px rgba(255,20,147,0.3)' : 'none', letterSpacing: '0.5px' }}>
-            {t('ads_tab_my_ads')}
-          </button>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+          <button onClick={() => setView('list')} style={{ flex: 1, padding: '12px', borderRadius: '16px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.2s', background: view === 'list' ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'rgba(255,255,255,0.05)', color: view === 'list' ? '#050214' : '#00f0ff', boxShadow: view === 'list' ? '0 4px 15px rgba(0,240,255,0.3)' : 'none', letterSpacing: '0.5px' }}>{t('ads_tab_market') || 'MERCADO'}</button>
+          <button onClick={() => setView('activity')} style={{ flex: 1, padding: '12px', borderRadius: '16px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.2s', background: view === 'activity' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'rgba(255,255,255,0.05)', color: view === 'activity' ? '#fff' : '#ff41b4', boxShadow: view === 'activity' ? '0 4px 15px rgba(255,20,147,0.3)' : 'none', letterSpacing: '0.5px' }}>{t('ads_tab_my_ads') || 'MIS CAMPAÑAS'}</button>
         </div>
       )}
 
-      {view === 'list' && (
-        <div className="fade-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
-            <h4 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_explore')}</h4>
-            <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update')}</button>
-          </div>
+      {view === 'list' && <AdsMarket props={sharedProps} />}
+      {view === 'activity' && <AdsActivity props={sharedProps} />}
+      {view === 'wizard' && <AdsWizard props={sharedProps} />}
 
-          <div style={{ ...neon.taskCard, borderColor: '#00ffaa', background: 'linear-gradient(145deg, rgba(0, 255, 170, 0.1), rgba(26, 11, 51, 0.9))' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ ...neon.taskIconBox, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.1)' }}>
-                  {TaskIcons.daily('#00ffaa')}
-                </div>
-                <div>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>🎁 Bono Diario (Check-in)</div>
-                  <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>Patrocinado por GigaPub</div>
-                </div>
-              </div>
-              {/* 🔥 BOTÓN DEL CHECK-IN BLINDADO CON LOADING VISUAL */}
-              {loadingTasks ? (
-                 <button disabled style={{...neon.taskButtonDisabled, background: 'rgba(0, 255, 170, 0.1)', borderColor: '#00ffaa', color: '#00ffaa', opacity: 0.6}}>CARGANDO...</button>
-              ) : taskStatus['gigapub_daily'] === 'completed' ? (
-                 <button disabled style={neon.taskButtonDisabled}>VUELVE MAÑANA</button>
-              ) : (
-                 <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
-                   {playingAd ? 'CARGANDO...' : '+1.00 💎'}
-                 </button>
-              )}
-            </div>
-          </div>
-
-          {loadingTasks ? (
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div style={{ color: '#00f0ff', fontSize: '14px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                <style>{`@keyframes pulseTasks { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
-                <div style={{ animation: 'pulseTasks 1.5s infinite' }}>Cargando Misiones...</div>
-              </div>
-            </div>
-          ) : communityTasks.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-              <p style={{ color: '#ff99dd', fontSize: '13px', fontWeight: 'bold', margin: 0, lineHeight: '1.5' }}>{t('ads_empty_market')}</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {communityTasks.map((task) => {
-                const iconType = getTaskIconType(task);
-                const isChannelOrGroup = task.type === 'channel' || task.type === 'group';
-                return (
-                <div key={task.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={neon.taskIconBox}>{TaskIcons[iconType] ? TaskIcons[iconType]('#00f0ff') : TaskIcons.promo('#00f0ff')}</div>
-                      <div>
-                        <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>{task.title}</div>
-                        <div style={{ color: '#00f0ff', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>
-                          {getTaskLabel(task.type)} {task.type !== 'publish_group' && `• ${task.completions_done} / ${task.completions_total}`}
-                        </div>
-                        {isChannelOrGroup && (
-                          <div style={{ color: '#ffe600', fontSize: '9px', fontWeight: '900', marginTop: '4px', textTransform: 'uppercase' }}>
-                            🛡️ Permanencia requerida: 24h (Anti Hit&Run)
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {renderTaskButton(task)}
-                  </div>
-                </div>
-              )})}
-            </div>
-          )}
-
-          <div style={{ marginTop: '20px' }}>
-            <button onClick={() => setView('wizard')} style={neon.btnSecondary}>{t('ads_btn_create')}</button>
-          </div>
-        </div>
-      )}
-
-      {view === 'activity' && (
-        <div className="fade-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
-            <h4 style={{ margin: 0, color: '#ff41b4', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_your_campaigns')}</h4>
-            <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update')}</button>
-          </div>
-
-          {loadingTasks ? (
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div style={{ color: '#ff41b4', fontSize: '14px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                <style>{`@keyframes pulseMyAds { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
-                <div style={{ animation: 'pulseMyAds 1.5s infinite' }}>Buscando tus Campañas...</div>
-              </div>
-            </div>
-          ) : myTasks.length === 0 ? (
-            <div style={{...neon.card, textAlign: 'center', padding: '30px 20px', borderColor: '#ff1493' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-                <div style={{ padding: '16px', background: 'rgba(255, 20, 147, 0.1)', borderRadius: '16px' }}>{TaskIcons.promo('#ff1493')}</div>
-              </div>
-              <p style={{ color: '#ff99dd', fontSize: '13px', lineHeight: '1.5', margin: '0 0 20px 0' }}>{t('ads_empty_my_ads')}</p>
-              <button onClick={() => setView('wizard')} style={{...neon.btnPrimary, background: 'linear-gradient(180deg, #ff1493, #d80073)', boxShadow: '0 4px 15px rgba(255, 20, 147, 0.4)'}}>{t('ads_btn_create_first')}</button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {myTasks.map((task) => {
-                const percent = Math.floor((task.completions_done / task.completions_total) * 100);
-                const isPaused = task.status === 'paused';
-                const isCompleted = task.status === 'completed' || task.completions_done >= task.completions_total;
-                const iconType = getTaskIconType(task);
-
-                return (
-                  <div key={task.id} style={{...neon.taskCard, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4', opacity: (isPaused || isCompleted) ? 0.7 : 1}}>
-                    <div style={{ width: '100%' }}>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
-                        <div style={{...neon.taskIconBox, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493', background: isCompleted ? 'rgba(0, 255, 170, 0.1)' : isPaused ? 'rgba(255, 170, 0, 0.1)' : 'rgba(255, 20, 147, 0.1)'}}>
-                          {TaskIcons[iconType] ? TaskIcons[iconType](isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493') : TaskIcons.promo(isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff1493')}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900' }}>
-                            {task.title} 
-                            {isPaused && <span style={{ color: '#ffaa00', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_paused')})</span>}
-                            {isCompleted && <span style={{ color: '#00ffaa', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_completed')})</span>}
-                          </div>
-                          <div style={{ color: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff99dd', fontSize: '11px', marginTop: '4px', fontWeight: 'bold', fontFamily: 'monospace' }}>{task.url.substring(0, 25)}...</div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>
-                        <span style={{ color: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4' }}>{t('ads_progress')}</span>
-                        <span style={{ color: '#fff' }}>{task.completions_done} / {task.completions_total} usuarios asignados</span>
-                      </div>
-                      <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', marginBottom: '12px' }}>
-                        <div style={{ width: `${percent}%`, height: '100%', background: isCompleted ? 'linear-gradient(90deg, #00ffaa, #00bb77)' : isPaused ? 'linear-gradient(90deg, #ffaa00, #ffe600)' : 'linear-gradient(90deg, #ff1493, #ff66cc)', boxShadow: isCompleted ? '0 0 10px #00ffaa' : isPaused ? '0 0 10px #ffaa00' : '0 0 10px #ff1493', transition: 'width 0.3s ease' }}></div>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                        {!isCompleted && (
-                          <button onClick={() => handleToggleStatus(task)} style={{ background: isPaused ? '#00ffaa' : '#ffaa00', color: '#050214', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {isPaused ? TaskIcons.play : TaskIcons.pause} {isPaused ? t('ads_btn_resume') : t('ads_btn_pause')}
-                          </button>
-                        )}
-
-                        <button onClick={() => handleOpenEdit(task)} style={{ background: '#00f0ff', color: '#050214', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {TaskIcons.edit} {t('ads_btn_edit')}
-                        </button>
-
-                        {!isCompleted && (
-                          <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#ff1493', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {TaskIcons.trash} {t('ads_btn_delete')}
-                          </button>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {view === 'wizard' && recharging && (
-        <div className="fade-in">
-           {checkoutView ? (
-              <div className="fade-in" style={neon.calcContainer}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '900', color: '#00f0ff', textTransform: 'uppercase' }}>Pasarela de Pago Segura</h3>
-                  <button onClick={cancelCheckout} style={{ background: 'rgba(255, 65, 180, 0.2)', border: '1px solid #ff1493', borderRadius: '10px', width: '30px', height: '30px', color: '#ff99dd', fontWeight: '900', cursor: 'pointer' }}>✕</button>
-                </div>
-
-                {rechargeMethod === 'gram' && (
-                  <>
-                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Transfiera el monto exacto de</div>
-                      <div style={{ fontSize: '36px', fontWeight: '900', color: '#00f0ff', margin: '8px 0', textShadow: '0 0 15px rgba(0,240,255,0.5)' }}>{gramRechargePrice} GRAM</div>
-                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#ffffff' }}>A la dirección criptográfica asignada para esta operación:</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.4)', padding: '16px', borderRadius: '16px', border: '1px dashed #ff1493', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '13px', fontWeight: 'bold', marginBottom: '20px', color: '#ffffff' }}>
-                      {tempWallet}
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                      <button onClick={() => copyWallet(tempWallet)} style={{ flex: 1, padding: '14px', background: 'rgba(0, 240, 255, 0.1)', color: '#00f0ff', border: '2px solid #00f0ff', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer' }}>COPIAR DIRECCIÓN</button>
-                      <button onClick={openTonkeeper} style={{ flex: 1, padding: '14px', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,240,255,0.4)' }}>TONKEEPER</button>
-                    </div>
-                    <button onClick={handleVerifyPayment} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      {TaskIcons.check} CONFIRMAR TRANSFERENCIA
-                    </button>
-                  </>
-                )}
-
-                {rechargeMethod === 'usdt' && (
-                  <>
-                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', textTransform: 'uppercase' }}>Transfiera el monto exacto (Red BSC/BEP20)</div>
-                      <div style={{ fontSize: '36px', fontWeight: '900', color: '#00ffaa', margin: '8px 0', textShadow: '0 0 15px rgba(0,255,170,0.5)' }}>${rechargeAmount.toFixed(2)} USDT</div>
-                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#ffffff' }}>A la dirección de contrato inteligente generada:</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.4)', padding: '16px', borderRadius: '16px', border: '1px dashed #00ffaa', wordBreak: 'break-all', textAlign: 'center', fontFamily: 'monospace', fontSize: '13px', fontWeight: 'bold', marginBottom: '16px', color: '#ffffff' }}>
-                      {tempWallet}
-                    </div>
-                    <button onClick={() => copyWallet(tempWallet)} style={{ width: '100%', padding: '12px', background: 'rgba(0, 255, 170, 0.1)', color: '#00ffaa', border: '1px solid #00ffaa', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', marginBottom: '20px' }}>📋 COPIAR DIRECCIÓN BEP20</button>
-
-                    <button onClick={handleVerifyPayment} disabled={isGenerating} style={{ width: '100%', padding: '16px', background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', boxShadow: '0 6px 0 #007744', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      {isGenerating ? 'VERIFICANDO TRANSACCIÓN...' : <>{TaskIcons.check} VALIDAR PAGO EN BLOCKCHAIN</>}
-                    </button>
-                  </>
-                )}
-              </div>
-           ) : (
-            <div className="fade-in">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <button onClick={() => setRecharging(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>◀ REGRESAR</button>
-                <div style={{ fontSize: '12px', fontWeight: '900', color: '#00f0ff', letterSpacing: '1px' }}>GESTIÓN DE FONDOS</div>
-              </div>
-              <div style={neon.calcContainer}>
-                <h2 style={{ margin: '0 0 10px 0', fontSize: '20px', fontWeight: '900', letterSpacing: '-0.5px', color: '#ffffff', textAlign: 'center' }}>
-                  Aprovisionamiento de Bóveda Publicitaria
-                </h2>
-                <div style={{ textAlign: 'center', marginBottom: '20px', color: '#aaa', fontSize: '12px' }}>
-                  El balance operativo actual es de <b style={{color:'#00ffaa'}}>${depositBalanceUsdt.toFixed(2)} USDT</b>. Este capital es de uso exclusivo para la contratación de volumen publicitario dentro de la plataforma (No retirable).
-                </div>
-
-                <span style={neon.label}>Volumen de aprovisionamiento (USDT)</span>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                  <button onClick={() => setRechargeAmount(p => Math.max(5, p - 5))} style={neon.btnActionCalc}>-</button>
-                  <input type="number" value={rechargeAmount} onChange={(e) => setRechargeAmount(Number(e.target.value) || 0)} style={neon.inputCalc} />
-                  <button onClick={() => setRechargeAmount(p => p + 5)} style={neon.btnActionCalc}>+</button>
-                </div>
-
-                <span style={neon.label}>Protocolo de transferencia</span>
-                <div style={{ display: 'flex', background: 'rgba(15, 5, 28, 0.8)', borderRadius: '12px', border: '2px solid #8a2be2', overflow: 'hidden', marginBottom: '20px' }}>
-                  <button onClick={() => setRechargeMethod('gram')} style={{ flex: 1, padding: '12px', border: 'none', background: rechargeMethod === 'gram' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: rechargeMethod === 'gram' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>GRAM (TON)</button>
-                  <button onClick={() => setRechargeMethod('usdt')} style={{ flex: 1, padding: '12px', borderLeft: '1px solid #8a2be2', border: 'none', background: rechargeMethod === 'usdt' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: rechargeMethod === 'usdt' ? '#ffffff' : '#ff99dd', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>USDT (BEP20)</button>
-                </div>
-
-                <div style={neon.summaryBox}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>MONTO TOTAL DE LA ORDEN:</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: '900', fontSize: '20px', color: '#00f0ff' }}>
-                      {rechargeMethod === 'gram' ? `${gramRechargePrice} GRAM` : `$${rechargeAmount.toFixed(2)} USDT`}
-                    </div>
-                  </div>
-                </div>
-
-                <button onClick={handleStartRecharge} disabled={isGenerating} style={neon.actionBtn}>{isGenerating ? 'INICIALIZANDO PROTOCOLO...' : 'PROCESAR DEPÓSITO'}</button>
-              </div>
-            </div>
-           )}
-        </div>
-      )}
-
-      {view === 'wizard' && !recharging && (
-        <div className="fade-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            {currentStepIndex > 0 ? (
-              <button onClick={prevStep} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>◀</button>
-            ) : <div />}
-            <div style={{ fontSize: '12px', fontWeight: '900', color: '#00f0ff', letterSpacing: '1px' }}>PASO {currentStepIndex + 1} DE {totalSteps}</div>
-            <button onClick={() => { setView('list'); setTaskType(null); setCurrentStepIndex(0); setCompletions(100); setValidationCode(''); }} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>✕</button>
-          </div>
-          <div style={neon.progressBox}>{stepsFlow.map((step, idx) => <div key={idx} style={neon.progressStep(idx <= currentStepIndex)} />)}</div>
-
-          {currentStepId === 'type' && (
-            <div className="fade-in">
-              <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#ffe600', marginBottom: '16px', textTransform: 'uppercase' }}>Seleccione el objetivo de su campaña</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {TASK_TYPES.map((type) => (
-                  <div key={type.id} onClick={() => { setTaskType(type.id); nextStep(); }}
-                    style={{ ...neon.cardInteractive, borderColor: taskType === type.id ? type.color : '#8a2be2', background: taskType === type.id ? `linear-gradient(135deg, ${type.color}22, rgba(18, 7, 36, 0.9))` : neon.cardInteractive.background }}>
-                    <div style={{ width: '44px', height: '44px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{type.icon}</div>
-                    <div>
-                      <div style={{ color: '#fff', fontSize: '15px', fontWeight: '900', lineHeight: '1.2' }}>{type.title}</div>
-                      <div style={{ color: '#ff99dd', fontSize: '11px', fontWeight: 'bold', marginTop: '4px' }}>{type.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {currentStepId === 'url' && (
-            <div className="fade-in">
-              <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#ffe600', marginBottom: '16px', textTransform: 'uppercase' }}>Configuración de Enlace Destino</h3>
-              <div style={neon.card}>
-                <p style={{ color: '#ff99dd', fontSize: '13px', marginBottom: '16px', lineHeight: '1.4', fontWeight: 'bold' }}>
-                  {taskType === 'bot' && t('ads_url_desc_bot')}
-                  {taskType === 'channel' && t('ads_url_desc_channel')}
-                  {taskType === 'promo' && (
-                    <>
-                      {t('ads_url_desc_promo')}
-                      <span style={{ display: 'block', marginTop: '8px', color: '#00f0ff', fontSize: '11px', background: 'rgba(0, 240, 255, 0.1)', padding: '6px', borderRadius: '8px', border: '1px solid rgba(0, 240, 255, 0.3)' }}>
-                        💡 <b>Nota Táctica:</b> Debes ocultar el "Código de Validación" dentro de tu web o video, e indicar a los usuarios dónde buscarlo desde el Título de tu campaña.
-                      </span>
-                    </>
-                  )}
-                </p>
-                <input style={neon.input} placeholder="https://t.me/..." value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} />
-
-                {taskType === 'promo' && (
-                  <div style={{ marginTop: '16px', borderTop: '1px dashed #8a2be2', paddingTop: '16px' }}>
-                    <label style={neon.label}>Código de Validación (Opcional)</label>
-                    <input 
-                      style={{...neon.input, background: 'rgba(0,0,0,0.4)', borderColor: '#00f0ff'}} 
-                      placeholder="Ej: MIBOT2026" 
-                      value={validationCode} 
-                      onChange={(e) => setValidationCode(e.target.value)} 
-                    />
-                    <p style={{ fontSize: '11px', color: '#00f0ff', marginTop: '6px', fontWeight: 'bold' }}>
-                      Los usuarios deberán escribir este código para poder reclamar la recompensa de esta campaña.
-                    </p>
-                  </div>
-                )}
-              </div>
-              <button onClick={handleVerifyUrl} disabled={isVerifying} style={neon.btnPrimary}>{isVerifying ? 'VERIFICANDO ACCESO...' : 'VALIDAR ➔'}</button>
-            </div>
-          )}
-
-          {currentStepId === 'token' && (
-            <div className="fade-in">
-              <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#ffe600', marginBottom: '16px', textTransform: 'uppercase' }}>Autenticación del Bot (Token API)</h3>
-              <div style={{...neon.card, borderColor: '#ff41b4'}}>
-                <input style={{...neon.input, borderColor: '#ff41b4'}} placeholder="Ingrese el token provisto por @BotFather" value={botToken} onChange={(e) => setBotToken(e.target.value)} />
-              </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button onClick={nextStep} style={{...neon.btnSecondary, flex: 1, border: '1px solid #8a2be2', color: '#8a2be2'}}>OMITIR (OPCIONAL)</button>
-                <button onClick={nextStep} style={{...neon.btnPrimary, flex: 1}}>CONTINUAR ➔</button>
-              </div>
-            </div>
-          )}
-
-          {currentStepId === 'budget' && (
-            <div className="fade-in" style={neon.calcContainer}>
-              <h2 style={{ margin: '0 0 10px 0', fontSize: '22px', fontWeight: '900', letterSpacing: '-0.5px', color: '#ffffff' }}>Configuración de Volumen y Presupuesto</h2>
-
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                <button onClick={() => setCompletions(100)} style={neon.pillButton(completions === 100)}>100</button>
-                <button onClick={() => setCompletions(500)} style={neon.pillButton(completions === 500)}>500</button>
-                <button onClick={() => setCompletions(1000)} style={neon.pillButton(completions === 1000)}>1K</button>
-                <button onClick={() => setCompletions(5000)} style={neon.pillButton(completions === 5000)}>5K</button>
-              </div>
-
-              <span style={neon.label}>Volumen de interacciones (Usuarios)</span>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                <button onClick={() => setCompletions(p => Math.max(10, p - 10))} style={neon.btnActionCalc}>-</button>
-                <input type="number" value={completions} onChange={(e) => setCompletions(Number(e.target.value) || 0)} style={neon.inputCalc} />
-                <button onClick={() => setCompletions(p => p + 10)} style={neon.btnActionCalc}>+</button>
-              </div>
-
-                         <span style={neon.label}>Incentivo base por interacción (Gemas)</span>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                <button onClick={() => setRewardPerGema(p => Math.max(1, p - 0.5))} style={neon.btnActionCalc}>-</button>
-                <input 
-                  type="number" 
-                  step="0.5" 
-                  max="2.5"
-                  value={rewardPerGema} 
-                  onChange={(e) => {
-                    let val = Number(e.target.value) || 0;
-                    if (val > 2.5) val = 2.5; // 🔥 TOPE MÁXIMO 2.5 GEMAS
-                    setRewardPerGema(val);
-                  }} 
-                  style={neon.inputCalc} 
-                />
-                <button onClick={() => setRewardPerGema(p => Math.min(2.5, p + 0.5))} style={neon.btnActionCalc}>+</button>
-              </div>
-
-              <div style={neon.summaryBox}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>1. Asignación directa a usuarios: {baseCostGemas} 💎</div>
-                  <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>2. Distribución a red de afiliados: {referralFeeGemas} 💎</div>
-                  <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '6px' }}>3. Comisión operativa de plataforma: {adminFeeGemas} 💎</div>
-                  <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>INVERSIÓN TOTAL REQUERIDA:</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: '900', fontSize: '20px', color: '#00f0ff' }}>{totalGemasCost} 💎</div>
-                  <div style={{ fontSize: '12px', color: '#00f0ff', opacity: 0.8 }}>${campaignCostUsdt.toFixed(2)} USDT</div>
-                </div>
-              </div>
-
-              {depositBalanceUsdt >= campaignCostUsdt ? (
-                <button onClick={handleCreateTaskWithVault} disabled={isGenerating} style={neon.actionBtn}>
-                  {isGenerating ? 'PROCESANDO CAMPAÑA...' : '✔️ CONFIRMAR Y ACTIVAR CAMPAÑA'}
-                </button>
-              ) : (
-                <>
-                  <div style={{ textAlign: 'center', marginBottom: '12px', fontSize: '12px', color: '#ff4b4b', fontWeight: 'bold' }}>
-                    Capital insuficiente en Bóveda publicitaria: ${depositBalanceUsdt.toFixed(2)} USDT
-                  </div>
-                  <button onClick={() => { setRechargeAmount(Math.ceil(campaignCostUsdt)); setRecharging(true); }} style={neon.actionBtnDanger}>
-                    GESTIONAR FONDOS (BÓVEDA USDT)
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* MODAL DE EDICIÓN (Global) */}
       {showEditModal && editingTask && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100000, backdropFilter: 'blur(5px)' }}>
           <div style={{ ...neon.card, width: '100%', maxWidth: '340px', marginBottom: 0, borderColor: '#ffe600', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 14px 0', color: '#ffe600', fontSize: '17px', fontWeight: '900' }}>{t('ads_edit_title')}</h3>
-            
-            <div style={{ marginBottom: '10px' }}>
-              <label style={neon.label}>{t('ads_label_title')}</label>
-              <input style={neon.input} value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} />
-            </div>
-            
-            <div style={{ marginBottom: '10px' }}>
-              <label style={neon.label}>{t('ads_label_url')}</label>
-              <input style={neon.input} value={editingTask.url} onChange={(e) => setEditingTask({ ...editingTask, url: e.target.value })} />
-            </div>
-
+            <div style={{ marginBottom: '10px' }}><label style={neon.label}>{t('ads_label_title')}</label><input style={neon.input} value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} /></div>
+            <div style={{ marginBottom: '10px' }}><label style={neon.label}>{t('ads_label_url')}</label><input style={neon.input} value={editingTask.url} onChange={(e) => setEditingTask({ ...editingTask, url: e.target.value })} /></div>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-                            <div style={{ flex: 1 }}>
-                <label style={neon.label}>PAGO (USDT)</label>
-                <input 
-                  type="number" 
-                  step="0.001" 
-                  max="0.0025"
-                  style={{...neon.input, padding: '10px'}} 
-                  value={editingTask.reward} 
-                  onChange={(e) => {
-                    let val = Number(e.target.value) || 0.001;
-                    if (val > 0.0025) val = 0.0025; // 🔥 TOPE MÁXIMO 0.0025 USDT (2.5 Gemas)
-                    setEditingTask({ ...editingTask, reward: val });
-                  }} 
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={neon.label}>ICONO 3D</label>
-                <select style={{...neon.input, padding: '10px', backgroundColor: 'rgba(0,0,0,0.8)'}} value={editingTask.logo} onChange={(e) => setEditingTask({ ...editingTask, logo: e.target.value })}>
-                  <option value="crypto">💎 Criptomoneda</option>
-                  <option value="game">🎮 Juego Web3</option>
-                  <option value="money">💵 Dinero / Cash</option>
-                  <option value="web3">🌐 Nodos Web3</option>
-                  <option value="bot">🤖 Bot de Telegram</option>
-                  <option value="channel">📢 Canal / Comunidad</option>
-                </select>
-              </div>
+              <div style={{ flex: 1 }}><label style={neon.label}>PAGO (USDT)</label><input type="number" step="0.001" max="0.0025" style={{...neon.input, padding: '10px'}} value={editingTask.reward} onChange={(e) => setEditingTask({ ...editingTask, reward: Math.min(0.0025, Number(e.target.value)||0.001) })} /></div>
+              <div style={{ flex: 1 }}><label style={neon.label}>ICONO 3D</label><select style={{...neon.input, padding: '10px', backgroundColor: 'rgba(0,0,0,0.8)'}} value={editingTask.logo} onChange={(e) => setEditingTask({ ...editingTask, logo: e.target.value })}><option value="crypto">💎 Criptomoneda</option><option value="game">🎮 Juego Web3</option><option value="money">💵 Dinero / Cash</option><option value="web3">🌐 Nodos Web3</option><option value="bot">🤖 Bot de Telegram</option><option value="channel">📢 Canal / Comunidad</option></select></div>
             </div>
-
             <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed #00f0ff' }}>
               <label style={{...neon.label, color: '#00f0ff'}}>INYECCIÓN DE CUPOS EXTRA (OPCIONAL)</label>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                <button onClick={() => setEditingTask(prev => ({...prev, addCompletions: Math.max(0, prev.addCompletions - 10)}))} style={{...neon.btnActionCalc, width: '35px', height: '35px', fontSize: '18px'}}>-</button>
-                <input type="number" style={{...neon.inputCalc, padding: '5px', fontSize: '16px'}} value={editingTask.addCompletions} onChange={(e) => setEditingTask(prev => ({...prev, addCompletions: Number(e.target.value) || 0}))} />
-                <button onClick={() => setEditingTask(prev => ({...prev, addCompletions: prev.addCompletions + 10}))} style={{...neon.btnActionCalc, width: '35px', height: '35px', fontSize: '18px'}}>+</button>
-              </div>
-              
-              {editingTask.addCompletions > 0 && (
-                 <div style={{ fontSize: '11px', color: depositBalanceUsdt >= (editingTask.addCompletions * editingTask.reward * 1.30) ? '#00ffaa' : '#ff4b4b', marginTop: '10px', fontWeight: 'bold' }}>
-                   Costo táctico: -${(editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4)} USDT de Bóveda
-                 </div>
-              )}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}><button onClick={() => setEditingTask(prev => ({...prev, addCompletions: Math.max(0, prev.addCompletions - 10)}))} style={{...neon.btnActionCalc, width: '35px', height: '35px', fontSize: '18px'}}>-</button><input type="number" style={{...neon.inputCalc, padding: '5px', fontSize: '16px'}} value={editingTask.addCompletions} onChange={(e) => setEditingTask(prev => ({...prev, addCompletions: Number(e.target.value) || 0}))} /><button onClick={() => setEditingTask(prev => ({...prev, addCompletions: prev.addCompletions + 10}))} style={{...neon.btnActionCalc, width: '35px', height: '35px', fontSize: '18px'}}>+</button></div>
+              {editingTask.addCompletions > 0 && <div style={{ fontSize: '11px', color: depositBalanceUsdt >= (editingTask.addCompletions * editingTask.reward * 1.30) ? '#00ffaa' : '#ff4b4b', marginTop: '10px', fontWeight: 'bold' }}>Costo táctico: -${(editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4)} USDT de Bóveda</div>}
             </div>
-
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setShowEditModal(false)} style={{ ...neon.btnSecondary, flex: 1 }}>{t('ads_btn_cancel')}</button>
               <button onClick={handleSaveEdit} style={{ ...neon.btnPrimary, flex: 2, background: 'linear-gradient(180deg, #ffe600, #ffaa00)', color: '#050214', boxShadow: '0 6px 0 #cc8800' }}>{t('ads_btn_update')}</button>
