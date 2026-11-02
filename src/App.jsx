@@ -22,6 +22,18 @@ const neonTheme = {
   btnRetry: { marginTop: '20px', padding: '12px 28px', background: 'linear-gradient(180deg, #00f0ff 0%, #0099ff 100%)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '14px', letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 4px 0 #0066aa, 0 8px 18px rgba(0, 240, 255, 0.45)' }
 };
 
+// 🔥 FUNCIÓN SEGURA PARA LOCALSTORAGE
+const safeStorage = {
+  get: (key) => {
+    try { return localStorage.getItem(key); } 
+    catch (e) { return null; }
+  },
+  set: (key, value) => {
+    try { localStorage.setItem(key, value); } 
+    catch (e) { console.warn("LocalStorage bloqueado, usando memoria temporal."); }
+  }
+};
+
 function App() {
   const [status, setStatus] = useState('loading'); 
   const [activeTab, setActiveTab] = useState('home'); 
@@ -29,7 +41,7 @@ function App() {
   const [stats, setStats] = useState({ n1: 0, c1: "0.00" });
   const [errorMessage, setErrorMessage] = useState('');
 
-  const [lang, setLang] = useState(localStorage.getItem('click_lang') || 'es');
+  const [lang, setLang] = useState(safeStorage.get('click_lang') || 'es');
   const initialized = useRef(false);
   const t = (key) => translations[lang][key] || key;
 
@@ -47,20 +59,18 @@ function App() {
 
   const verifyUser = async (teleUser, startParam) => {
     try {
-      // 🛡️ NUEVO SISTEMA ANTI-FRAUDE (Token de Memoria Física)
-      // Generamos un ID único por celular y lo guardamos en caché. 
-      // Ningún teléfono en el mundo tendrá el mismo código.
-      let localDeviceId = localStorage.getItem('xpro_device_token');
+      // 🛡️ NUEVO SISTEMA ANTI-FRAUDE BLINDADO (Token de Memoria Física)
+      let localDeviceId = safeStorage.get('xpro_device_token');
       if (!localDeviceId) {
         localDeviceId = 'dev_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('xpro_device_token', localDeviceId);
+        safeStorage.set('xpro_device_token', localDeviceId);
       }
 
-      const storedFirstUser = localStorage.getItem('xpro_linked_user');
+      const storedFirstUser = safeStorage.get('xpro_linked_user');
       let previousAccount = null;
 
       if (!storedFirstUser) { 
-        localStorage.setItem('xpro_linked_user', String(teleUser.id)); 
+        safeStorage.set('xpro_linked_user', String(teleUser.id)); 
       } else if (storedFirstUser !== String(teleUser.id)) { 
         previousAccount = storedFirstUser; 
       }
@@ -114,10 +124,10 @@ function App() {
         const initData = WebApp.initData;
         const inviterId = WebApp.initDataUnsafe?.start_param;
 
-        if (!localStorage.getItem('click_lang') && user?.language_code) {
+        if (!safeStorage.get('click_lang') && user?.language_code) {
           const detectedLang = user.language_code.startsWith('es') ? 'es' : 'en';
           setLang(detectedLang);
-          localStorage.setItem('click_lang', detectedLang);
+          safeStorage.set('click_lang', detectedLang);
         }
 
         if (!user || !initData) { 
