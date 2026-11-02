@@ -194,12 +194,15 @@ export default function AdsWizard({ props }) {
             <button onClick={() => setRewardPerGema(p => Math.min(2.5, p + 0.5))} style={neon.btnActionCalc}>+</button>
           </div>
 
+          {/* 🔥 SECCIÓN ECONÓMICA RESTAURADA COMPLETAMENTE */}
           <div style={neon.summaryBox}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '6px' }}>Total a repartir en red: {baseCostGemas + referralFeeGemas} 💎</div>
-              <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>INVERSIÓN REQUERIDA:</div>
+              <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>1. Asignación a usuarios: {baseCostGemas} 💎</div>
+              <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '2px' }}>2. Distribución a red (20%): {referralFeeGemas} 💎</div>
+              <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '6px' }}>3. Comisión operativa (10%): {adminFeeGemas} 💎</div>
+              <div style={{ fontWeight: '900', fontSize: '13px', color: '#ffffff' }}>INVERSIÓN TOTAL REQUERIDA:</div>
             </div>
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ textAlign: 'right', paddingLeft: '10px' }}>
               <div style={{ fontWeight: '900', fontSize: '20px', color: '#00f0ff' }}>{totalGemasCost} 💎</div>
               <div style={{ fontSize: '12px', color: '#00f0ff', opacity: 0.8 }}>${campaignCostUsdt.toFixed(2)} USDT</div>
             </div>
