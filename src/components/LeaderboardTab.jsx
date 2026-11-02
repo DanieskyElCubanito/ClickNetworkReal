@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
 const neon = {
-  container: { color: '#ffffff', paddingBottom: '20px' },
+  container: { color: '#ffffff', paddingBottom: '20px' }, 
   title: { fontSize: '22px', fontWeight: '900', textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase', margin: '10px 0 20px 0', color: '#00f0ff', textShadow: '0 0 15px rgba(0, 240, 255, 0.4)' },
   eventCard: { background: 'linear-gradient(135deg, rgba(255, 230, 0, 0.15), rgba(255, 170, 0, 0.25))', border: '2px solid #ffe600', borderRadius: '24px', padding: '20px', marginBottom: '20px', textAlign: 'center', boxShadow: '0 8px 30px rgba(255, 230, 0, 0.2)' },
   tabContainer: { display: 'flex', gap: '10px', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '20px' },
