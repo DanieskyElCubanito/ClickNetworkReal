@@ -908,11 +908,22 @@ export default function AdsTab({ userData, setUserData, t }) {
                 <button onClick={() => setCompletions(p => p + 10)} style={neon.btnActionCalc}>+</button>
               </div>
 
-              <span style={neon.label}>Incentivo base por interacción (Gemas)</span>
+                         <span style={neon.label}>Incentivo base por interacción (Gemas)</span>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <button onClick={() => setRewardPerGema(p => Math.max(1, p - 0.5))} style={neon.btnActionCalc}>-</button>
-                <input type="number" step="0.5" value={rewardPerGema} onChange={(e) => setRewardPerGema(Number(e.target.value) || 0)} style={neon.inputCalc} />
-                <button onClick={() => setRewardPerGema(p => p + 10)} style={neon.btnActionCalc}>+</button>
+                <input 
+                  type="number" 
+                  step="0.5" 
+                  max="2.5"
+                  value={rewardPerGema} 
+                  onChange={(e) => {
+                    let val = Number(e.target.value) || 0;
+                    if (val > 2.5) val = 2.5; // 🔥 TOPE MÁXIMO 2.5 GEMAS
+                    setRewardPerGema(val);
+                  }} 
+                  style={neon.inputCalc} 
+                />
+                <button onClick={() => setRewardPerGema(p => Math.min(2.5, p + 0.5))} style={neon.btnActionCalc}>+</button>
               </div>
 
               <div style={neon.summaryBox}>
@@ -963,9 +974,20 @@ export default function AdsTab({ userData, setUserData, t }) {
             </div>
 
             <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ flex: 1 }}>
+                            <div style={{ flex: 1 }}>
                 <label style={neon.label}>PAGO (USDT)</label>
-                <input type="number" step="0.001" style={{...neon.input, padding: '10px'}} value={editingTask.reward} onChange={(e) => setEditingTask({ ...editingTask, reward: Number(e.target.value) || 0.001 })} />
+                <input 
+                  type="number" 
+                  step="0.001" 
+                  max="0.0025"
+                  style={{...neon.input, padding: '10px'}} 
+                  value={editingTask.reward} 
+                  onChange={(e) => {
+                    let val = Number(e.target.value) || 0.001;
+                    if (val > 0.0025) val = 0.0025; // 🔥 TOPE MÁXIMO 0.0025 USDT (2.5 Gemas)
+                    setEditingTask({ ...editingTask, reward: val });
+                  }} 
+                />
               </div>
               <div style={{ flex: 1 }}>
                 <label style={neon.label}>ICONO 3D</label>
