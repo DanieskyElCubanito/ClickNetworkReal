@@ -15,8 +15,10 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [verifyInputs, setVerifyInputs] = useState({}); 
   const [taskStartTimes, setTaskStartTimes] = useState({});
 
-  // Estados del Wizard y Recarga
+  // 🔥 RESTAURADO: Estados del Wizard y los Pasos
   const [taskType, setTaskType] = useState(null);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0); // Memoria del paso actual
+
   const [targetUrl, setTargetUrl] = useState('');
   const [botToken, setBotToken] = useState('');
   const [validationCode, setValidationCode] = useState(''); 
@@ -48,6 +50,14 @@ export default function AdsTab({ userData, setUserData, t }) {
     { id: 'channel', icon: TaskIcons.channel('#00ffaa'), title: t('ads_type_group') || 'Canal', desc: 'Miembros reales', color: '#00ffaa', autoName: 'Campaña Comunidad' },
     { id: 'promo', icon: TaskIcons.promo('#ff1493'), title: t('ads_type_promo') || 'Tráfico', desc: 'Visitas web o referidos', color: '#ff1493', autoName: 'Campaña Tráfico' }
   ];
+
+  // 🔥 RESTAURADO: Lógica matemática de los pasos
+  const stepsFlow = taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'];
+  const totalSteps = stepsFlow.length;
+  const currentStepId = stepsFlow[currentStepIndex];
+
+  const nextStep = () => setCurrentStepIndex(prev => Math.min(prev + 1, totalSteps - 1));
+  const prevStep = () => setCurrentStepIndex(prev => Math.max(prev - 1, 0));
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -203,10 +213,10 @@ export default function AdsTab({ userData, setUserData, t }) {
       try {
         const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'verify-admin', url: val }) });
         const data = await res.json();
-        if (data.success) { toast.success("Confirmado.", { id: tid }); setCurrentStepIndex(p => p+1); } 
+        if (data.success) { toast.success("Confirmado.", { id: tid }); nextStep(); } 
         else { toast.error(data.error || "Falta admin.", { id: tid }); }
       } catch (e) { toast.error("Error servidor.", { id: tid }); } finally { setIsVerifying(false); }
-    } else { if (!val.startsWith('http') && !val.startsWith('@')) val = 'https://' + val; setTargetUrl(val); setCurrentStepIndex(p => p+1); }
+    } else { if (!val.startsWith('http') && !val.startsWith('@')) val = 'https://' + val; setTargetUrl(val); nextStep(); }
   };
 
   const handleCreateTaskWithVault = async () => {
@@ -244,16 +254,21 @@ export default function AdsTab({ userData, setUserData, t }) {
     } catch (e) { toast.error(e.message || "No detectado aún.", { id: tid, duration: 6000 }); }
   };
 
+  const closeWizard = () => {
+    setView('list'); 
+    setTaskType(null); 
+    setCurrentStepIndex(0); // Reinicia los pasos al salir
+    setCompletions(100); 
+    setValidationCode(''); 
+  };
+
   const sharedProps = { 
     tasks, userData, taskStatus, verifyInputs, setVerifyInputs, handleStartTask, handleCheckTask, loadingTasks, setView, fetchTasks, t, gigaReady, playingAd, handlePlayGigaPub,
     handleToggleStatus, handleOpenEdit, handleDeleteTask, 
-    currentStepIndex: taskType ? (taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget']).indexOf(taskType) : 0, 
-    totalSteps: taskType === 'bot' ? 4 : 3, 
-    stepsFlow: taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'], 
-    currentStepId: (taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'])[taskType ? (taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget']).indexOf(taskType) : 0],
+    currentStepIndex, totalSteps, stepsFlow, currentStepId,
     taskType, setTaskType, targetUrl, setTargetUrl, botToken, setBotToken, validationCode, setValidationCode, completions, setCompletions, rewardPerGema, setRewardPerGema, isVerifying, handleVerifyUrl, 
     depositBalanceUsdt, campaignCostUsdt: ((completions * rewardPerGema) * 1.3)/1000, baseCostGemas: completions * rewardPerGema, referralFeeGemas: Math.floor((completions * rewardPerGema)*0.20), adminFeeGemas: Math.floor((completions * rewardPerGema)*0.10), totalGemasCost: (completions * rewardPerGema) + Math.floor((completions * rewardPerGema)*0.20) + Math.floor((completions * rewardPerGema)*0.10),
-    handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, nextStep: () => {}, prevStep: () => {}, TASK_TYPES,
+    handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, nextStep, prevStep, closeWizard, TASK_TYPES,
     recharging, rechargeMethod, setRechargeMethod, rechargeAmount, checkoutView, tempWallet, intentId, liveGramUsd, handleStartRecharge, handleVerifyPayment, cancelCheckout: () => { setCheckoutView(false); setRecharging(false); }
   };
 
