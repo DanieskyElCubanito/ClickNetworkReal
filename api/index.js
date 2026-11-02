@@ -304,7 +304,6 @@ async function runRetentionAudit(userId) {
           if (!isStillMember) {
             const penaltyAmount = Number(t.reward || 0);
 
-SIN RPC (Fix Penalidad e Inflación)
             const { data: pUser } = await supabase.from('users').select('balance, total_earnings').eq('id', userId).single();
             if (pUser) {
               const newBal = Math.max(0, Number(pUser.balance) - penaltyAmount);
