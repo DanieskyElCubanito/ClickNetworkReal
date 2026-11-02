@@ -1,7 +1,7 @@
 import React from 'react';
 import toast from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
-import { neon, TaskIcons } from './AdsStyles';
+import { neon, TaskIcons } from './AdsStyles.jsx';
 
 export default function AdsWizard({ props }) {
   const { 
@@ -9,7 +9,7 @@ export default function AdsWizard({ props }) {
     taskType, setTaskType, targetUrl, setTargetUrl, botToken, setBotToken, validationCode, setValidationCode,
     completions, setCompletions, rewardPerGema, setRewardPerGema, isVerifying, handleVerifyUrl, 
     depositBalanceUsdt, campaignCostUsdt, baseCostGemas, referralFeeGemas, adminFeeGemas, totalGemasCost,
-    handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, prevStep, setView, TASK_TYPES, t,
+    handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, nextStep, prevStep, closeWizard, TASK_TYPES, t,
     recharging, rechargeMethod, setRechargeMethod, rechargeAmount, checkoutView, tempWallet, intentId, liveGramUsd, handleStartRecharge, handleVerifyPayment, cancelCheckout
   } = props;
 
@@ -111,7 +111,7 @@ export default function AdsWizard({ props }) {
           <button onClick={prevStep} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>◀</button>
         ) : <div />}
         <div style={{ fontSize: '12px', fontWeight: '900', color: '#00f0ff', letterSpacing: '1px' }}>PASO {currentStepIndex + 1} DE {totalSteps}</div>
-        <button onClick={() => { setView('list'); setTaskType(null); }} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>✕</button>
+        <button onClick={closeWizard} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '6px 12px', color: '#fff', fontWeight: '900', cursor: 'pointer' }}>✕</button>
       </div>
       <div style={neon.progressBox}>{stepsFlow.map((step, idx) => <div key={idx} style={neon.progressStep(idx <= currentStepIndex)} />)}</div>
 
@@ -120,7 +120,7 @@ export default function AdsWizard({ props }) {
           <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#ffe600', marginBottom: '16px', textTransform: 'uppercase' }}>Seleccione el objetivo</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {TASK_TYPES.map((type) => (
-              <div key={type.id} onClick={() => { setTaskType(type.id); props.nextStep(); }}
+              <div key={type.id} onClick={() => { setTaskType(type.id); nextStep(); }}
                 style={{ ...neon.cardInteractive, borderColor: taskType === type.id ? type.color : '#8a2be2', background: taskType === type.id ? `linear-gradient(135deg, ${type.color}22, rgba(18, 7, 36, 0.9))` : neon.cardInteractive.background }}>
                 <div style={{ width: '44px', height: '44px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{type.icon}</div>
                 <div>
@@ -163,8 +163,8 @@ export default function AdsWizard({ props }) {
             <input style={{...neon.input, borderColor: '#ff41b4'}} placeholder="Token de @BotFather" value={botToken} onChange={(e) => setBotToken(e.target.value)} />
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={props.nextStep} style={{...neon.btnSecondary, flex: 1, border: '1px solid #8a2be2', color: '#8a2be2'}}>OMITIR</button>
-            <button onClick={props.nextStep} style={{...neon.btnPrimary, flex: 1}}>CONTINUAR ➔</button>
+            <button onClick={nextStep} style={{...neon.btnSecondary, flex: 1, border: '1px solid #8a2be2', color: '#8a2be2'}}>OMITIR</button>
+            <button onClick={nextStep} style={{...neon.btnPrimary, flex: 1}}>CONTINUAR ➔</button>
           </div>
         </div>
       )}
