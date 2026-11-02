@@ -1258,14 +1258,47 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed });
     }
 
+        // 🔥 NUEVO: Recompensa diaria ahora usando Giga Pub con Racha (Streak) Serverless
     if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
-      const earnedGemas = 1.00; 
-      const rewardForDb = earnedGemas / 1000;
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const now = new Date();
       
-      const { data: recentLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).like('description', '%[GigaPubDaily]%').gte('created_at', yesterday).maybeSingle();
-      if (recentLog) return res.status(400).json({ success: false, error: 'Ya reclamaste tu bono hoy. Vuelve mañana.' });
+      // Calculamos el inicio de hoy y de ayer (Corte exacto a la medianoche UTC)
+      const startOfToday = new Date(now);
+      startOfToday.setUTCHours(0, 0, 0, 0);
+      const startOfYesterday = new Date(startOfToday.getTime() - 86400000);
+
+      // 1️⃣ Buscamos el último check-in de este usuario en el historial
+      const { data: lastLog } = await supabase
+        .from('history_logs')
+        .select('created_at, description')
+        .eq('user_id', targetId)
+        .like('description', '%[GigaPubDaily]%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let currentStreak = 1;
+
+      if (lastLog) {
+        const logDate = new Date(lastLog.created_at);
+        
+        if (logDate >= startOfToday) {
+          return res.status(400).json({ success: false, error: 'Ya reclamaste tu bono hoy. Vuelve a partir de la medianoche (UTC).' });
+        } 
+        else if (logDate >= startOfYesterday) {
+          // 2️⃣ Reclamó ayer, leemos su racha anterior y le sumamos 1
+          const match = lastLog.description.match(/\[Streak:(\d+)\]/);
+          if (match) {
+            currentStreak = Math.min(Number(match[1]) + 1, 7); // Tope máximo de 7 días
+          }
+        }
+        // Si fue antes de ayer, currentStreak se queda en 1 (Racha perdida)
+      }
+
+      // 3️⃣ El pago es proporcional al día de la racha (Día 1 = 1 Gema, Día 7 = 7 Gemas)
+      const earnedGemas = currentStreak; 
+      const rewardForDb = earnedGemas / 1000;
 
       const { data: dbUser } = await supabase.from('users').select('balance, total_earnings, referred_by, is_human').eq('id', targetId).single();
       
@@ -1276,10 +1309,11 @@ export default async function handler(req, res) {
 
       await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
 
+      // 🛡️ 4️⃣ Guardamos la etiqueta táctica [Streak:X] para que el sistema la lea mañana
       await supabase.from('history_logs').insert([{ 
         user_id: targetId, 
-        title: '🎁 Bono Diario (Check-in)', 
-        description: `Anuncio completado [GigaPubDaily] | +${earnedGemas.toFixed(2)} Gemas`, 
+        title: `🎁 Bono Diario (Día ${currentStreak})`, 
+        description: `Anuncio completado [GigaPubDaily] [Streak:${currentStreak}] | +${earnedGemas.toFixed(2)} Gemas`, 
         amount: rewardForDb 
       }]);
 
@@ -1304,6 +1338,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance });
     }
+
 
     if (action === 'complete-task') {
       const { taskId, validation_code_input } = req.body; 
