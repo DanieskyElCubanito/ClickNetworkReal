@@ -23,8 +23,9 @@ export default function ProfileHeader({ userData, t, lang, setLang }) {
   const [historyLogs, setHistoryLogs] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
-  // 🛠️ NUEVO ESTADO: Estadísticas Globales
+  // 🛠️ ESTADOS PARA ESTADÍSTICAS GLOBALES
   const [globalStats, setGlobalStats] = useState({ users: 0, withdrawn: 0, deposited: 0, daysOnline: 1 });
+  const [loadingStats, setLoadingStats] = useState(true); // 🔥 Nuevo estado de carga
 
   const photoUrl = WebApp.initDataUnsafe?.user?.photo_url;
   const avatarLetter = userData?.username ? userData.username.charAt(0).toUpperCase() : 'U';
@@ -43,6 +44,8 @@ export default function ProfileHeader({ userData, t, lang, setLang }) {
         }
       } catch (e) {
         console.error("Error cargando stats globales");
+      } finally {
+        setLoadingStats(false); // 🔥 Oculta el cargando cuando termina
       }
     };
     fetchGlobalStats();
@@ -159,46 +162,51 @@ export default function ProfileHeader({ userData, t, lang, setLang }) {
         </div>
       </div>
 
-      {/* 🚀 NUEVO: MINI DASHBOARD DE ESTADÍSTICAS GLOBALES */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-        
-        {/* Tarjeta 1: Usuarios */}
-        <div style={{ background: 'rgba(0, 240, 255, 0.05)', border: '1px solid rgba(0, 240, 255, 0.3)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ background: 'rgba(0, 240, 255, 0.15)', color: '#00f0ff', padding: '6px', borderRadius: '10px' }}>{Icons.users}</div>
-          <div>
-            <div style={{ color: '#aaa', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>Usuarios</div>
-            <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900' }}>{formatNumber(globalStats.users)}</div>
+      {/* 🚀 MINI DASHBOARD DE ESTADÍSTICAS GLOBALES */}
+      {loadingStats ? (
+        <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(0, 240, 255, 0.05)', borderRadius: '16px', border: '1px dashed rgba(0, 240, 255, 0.3)', color: '#00f0ff', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '16px' }}>
+          <style>{`@keyframes pulseStats { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
+          <div style={{ animation: 'pulseStats 1.5s infinite' }}>Sincronizando Sistema...</div>
+        </div>
+      ) : (
+        <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+          {/* Tarjeta 1: Usuarios */}
+          <div style={{ background: 'rgba(0, 240, 255, 0.05)', border: '1px solid rgba(0, 240, 255, 0.3)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ background: 'rgba(0, 240, 255, 0.15)', color: '#00f0ff', padding: '6px', borderRadius: '10px' }}>{Icons.users}</div>
+            <div>
+              <div style={{ color: '#aaa', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>Usuarios</div>
+              <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900' }}>{formatNumber(globalStats.users)}</div>
+            </div>
+          </div>
+
+          {/* Tarjeta 2: Retiros */}
+          <div style={{ background: 'rgba(0, 255, 170, 0.05)', border: '1px solid rgba(0, 255, 170, 0.3)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ background: 'rgba(0, 255, 170, 0.15)', color: '#00ffaa', padding: '6px', borderRadius: '10px' }}>{Icons.gem}</div>
+            <div>
+              <div style={{ color: '#aaa', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>Retirado</div>
+              <div style={{ color: '#00ffaa', fontSize: '14px', fontWeight: '900' }}>{formatNumber(globalStats.withdrawn)}</div>
+            </div>
+          </div>
+
+          {/* Tarjeta 3: Depósitos USDT */}
+          <div style={{ background: 'rgba(255, 20, 147, 0.05)', border: '1px solid rgba(255, 20, 147, 0.3)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ background: 'rgba(255, 20, 147, 0.15)', color: '#ff1493', padding: '6px', borderRadius: '10px' }}>{Icons.lightning}</div>
+            <div>
+              <div style={{ color: '#aaa', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>Fondos Bóveda</div>
+              <div style={{ color: '#ff99dd', fontSize: '14px', fontWeight: '900' }}>${formatNumber(globalStats.deposited)}</div>
+            </div>
+          </div>
+
+          {/* Tarjeta 4: Días en línea */}
+          <div style={{ background: 'rgba(255, 230, 0, 0.05)', border: '1px solid rgba(255, 230, 0, 0.3)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ background: 'rgba(255, 230, 0, 0.15)', color: '#ffe600', padding: '6px', borderRadius: '10px' }}>{Icons.calendar}</div>
+            <div>
+              <div style={{ color: '#aaa', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>Días en Línea</div>
+              <div style={{ color: '#ffe600', fontSize: '14px', fontWeight: '900' }}>{globalStats.daysOnline}</div>
+            </div>
           </div>
         </div>
-
-        {/* Tarjeta 2: Retiros */}
-        <div style={{ background: 'rgba(0, 255, 170, 0.05)', border: '1px solid rgba(0, 255, 170, 0.3)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ background: 'rgba(0, 255, 170, 0.15)', color: '#00ffaa', padding: '6px', borderRadius: '10px' }}>{Icons.gem}</div>
-          <div>
-            <div style={{ color: '#aaa', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>Retirado</div>
-            <div style={{ color: '#00ffaa', fontSize: '14px', fontWeight: '900' }}>{formatNumber(globalStats.withdrawn)}</div>
-          </div>
-        </div>
-
-        {/* Tarjeta 3: Depósitos USDT */}
-        <div style={{ background: 'rgba(255, 20, 147, 0.05)', border: '1px solid rgba(255, 20, 147, 0.3)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ background: 'rgba(255, 20, 147, 0.15)', color: '#ff1493', padding: '6px', borderRadius: '10px' }}>{Icons.lightning}</div>
-          <div>
-            <div style={{ color: '#aaa', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>Fondos Bóveda</div>
-            <div style={{ color: '#ff99dd', fontSize: '14px', fontWeight: '900' }}>${formatNumber(globalStats.deposited)}</div>
-          </div>
-        </div>
-
-        {/* Tarjeta 4: Días en línea */}
-        <div style={{ background: 'rgba(255, 230, 0, 0.05)', border: '1px solid rgba(255, 230, 0, 0.3)', borderRadius: '16px', padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ background: 'rgba(255, 230, 0, 0.15)', color: '#ffe600', padding: '6px', borderRadius: '10px' }}>{Icons.calendar}</div>
-          <div>
-            <div style={{ color: '#aaa', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>Días en Línea</div>
-            <div style={{ color: '#ffe600', fontSize: '14px', fontWeight: '900' }}>{globalStats.daysOnline}</div>
-          </div>
-        </div>
-
-      </div>
+      )}
 
       {showHistoryModal && (
         <div style={modalStyles.overlay}>
@@ -229,12 +237,7 @@ export default function ProfileHeader({ userData, t, lang, setLang }) {
                           </span>
                         </div>
 
-
-<div 
-  style={{ fontSize: '11px', color: '#aaa', lineHeight: '1.4' }} 
-  dangerouslySetInnerHTML={{ __html: log.description }} 
-/>
-
+                        <div style={{ fontSize: '11px', color: '#aaa', lineHeight: '1.4' }} dangerouslySetInnerHTML={{ __html: log.description }} />
 
                         <div style={{ fontSize: '9px', color: '#666', marginTop: '6px', textAlign: 'right', fontWeight: 'bold' }}>
                           {new Date(log.created_at).toLocaleString()}
