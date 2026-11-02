@@ -51,7 +51,7 @@ export const translations = {
     home_invite_desc: "Perciba 10% + 5 Gemas automáticas por cada misión completada por su red.",
     home_btn_affiliates: "ACCEDER AL RADAR DE RECLUTAS ➔",
 
-    // AdsTab (Mercado / Tareas)
+    // AdsTab (Mercado / Tareas / Categorías)
     ads_tab_market: "🌐 EXPLORAR MISIONES",
     ads_tab_my_ads: "📊 GESTIÓN DE CAMPAÑAS",
     ads_explore: "Radar de Tráfico",
@@ -89,6 +89,11 @@ export const translations = {
     ads_url_desc_bot: "Dirección de acceso al Bot o Mini App (Ej: t.me/AppBot?start=...)",
     ads_url_desc_channel: "Identificador público de su comunidad en Telegram (Ej: @CanalOficial)",
     ads_url_desc_promo: "URL de destino para redirección de tráfico o enlace de conversión.",
+
+    // Categorías de Misiones
+    ads_cat_pagadas: "Pagadas",
+    ads_cat_diarias: "Diarias",
+    ads_cat_partners: "Partners",
 
     // PublishTab (Crear Campaña)
     pub_title: "CENTRO DE DESPLIEGUE",
@@ -332,7 +337,7 @@ export const translations = {
     home_invite_desc: "Earn an automatic 10% + 5 Gems for every mission completed by your squad.",
     home_btn_affiliates: "ACCESS RECRUITMENT RADAR ➔",
 
-    // AdsTab (Mercado / Tareas)
+    // AdsTab (Mercado / Tareas / Categorías)
     ads_tab_market: "🌐 EXPLORE MISSIONS",
     ads_tab_my_ads: "📊 CAMPAIGN MANAGEMENT",
     ads_explore: "Traffic Radar",
@@ -370,6 +375,11 @@ export const translations = {
     ads_url_desc_bot: "Access link to the Bot or Mini App (e.g., t.me/AppBot?start=...)",
     ads_url_desc_channel: "Public identifier of your Telegram community (e.g., @OfficialChannel)",
     ads_url_desc_promo: "Target URL for traffic redirection or conversion link.",
+
+    // Categorías de Misiones
+    ads_cat_pagadas: "Paid",
+    ads_cat_diarias: "Daily",
+    ads_cat_partners: "Partners",
 
     // PublishTab (Crear Campaña)
     pub_title: "DEPLOYMENT CENTER",
