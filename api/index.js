@@ -1467,8 +1467,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    if (action === 'edit-task') {
-      const { taskId, requestingUserId, newTitle, newUrl, addCompletions, isAdminAction } = req.body;
+        if (action === 'edit-task') {
+      const { taskId, requestingUserId, newTitle, newUrl, addCompletions, newReward, newLogo, isAdminAction } = req.body;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task) return res.status(400).json({ success: false, error: 'Campaña no encontrada.' });
 
@@ -1477,29 +1477,51 @@ export default async function handler(req, res) {
       }
 
       const updates = { title: newTitle, url: newUrl };
+      if (newLogo !== undefined) updates.logo = newLogo;
 
-      // 🔥 Inyección de capital (Agregar más cupos a la tarea)
+      let netCost = 0;
+      let logMessages = [];
+      const remainingCompletions = task.completions_total - (task.completions_done || 0);
+
+      // 1. Modificación de Recompensa (Ajuste de presupuesto)
+      if (newReward && Number(newReward) !== Number(task.reward) && remainingCompletions > 0) {
+        const oldBudget = remainingCompletions * task.reward * 1.30;
+        const newBudget = remainingCompletions * Number(newReward) * 1.30;
+        const diff = newBudget - oldBudget; // Si es positivo, debe pagar. Si es negativo, se le reembolsa.
+        netCost += diff;
+        updates.reward = Number(newReward);
+        logMessages.push(`Pago actualizado a ${newReward} USDT. Ajuste: ${diff > 0 ? '-' : '+'}$${Math.abs(diff).toFixed(4)} USDT.`);
+      }
+
+      // 2. Inyección de nuevos cupos
+      let addedCompletions = 0;
       if (addCompletions && Number(addCompletions) > 0) {
-        const extraCompletions = Number(addCompletions);
-        const extraCost = Number((extraCompletions * task.reward * 1.30).toFixed(4));
+        addedCompletions = Number(addCompletions);
+        const currentRewardRate = updates.reward || task.reward;
+        const extraCost = addedCompletions * currentRewardRate * 1.30;
+        netCost += extraCost;
+        updates.completions_total = task.completions_total + addedCompletions;
+        updates.status = 'active'; 
+        logMessages.push(`+${addedCompletions} cupos añadidos.`);
+      }
 
+      // 3. Procesar cobro o reembolso en la Bóveda
+      if (netCost !== 0) {
         const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
-        if (!cUser || Number(cUser.deposit_balance) < extraCost) {
-           return res.status(400).json({ success: false, error: `Se requieren ${extraCost} USDT en Bóveda para añadir ${extraCompletions} cupos.` });
+        
+        if (netCost > 0 && (!cUser || Number(cUser.deposit_balance) < netCost)) {
+           return res.status(400).json({ success: false, error: `Bóveda insuficiente. Faltan $${netCost.toFixed(4)} USDT para aplicar estos cambios.` });
         }
         
-        // Descontar saldo y actualizar tarea
-        const newVaultBalance = Number((Number(cUser.deposit_balance) - extraCost).toFixed(4));
+        const newVaultBalance = Number((Number(cUser.deposit_balance) - netCost).toFixed(4));
         await supabase.from('users').update({ deposit_balance: newVaultBalance }).eq('id', task.creator_id);
         
-        updates.completions_total = task.completions_total + extraCompletions;
-        updates.status = 'active'; // Se reactiva automáticamente si estaba pausada por falta de cupos
-
+        const actionTitle = netCost > 0 ? '🔋 Campaña Actualizada' : '💰 Reembolso por Ajuste';
         await supabase.from('history_logs').insert([{ 
           user_id: task.creator_id, 
-          title: '🔋 Campaña Recargada', 
-          description: `+${extraCompletions} cupos añadidos a "${newTitle}". Costo: -$${extraCost.toFixed(2)} USDT.`, 
-          amount: -extraCost 
+          title: actionTitle, 
+          description: logMessages.join(" "), 
+          amount: -netCost 
         }]);
       }
 
