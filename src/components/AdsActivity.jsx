@@ -1,4 +1,3 @@
-// AdsActivity.jsx
 import React from 'react';
 import { neon, TaskIcons } from './AdsStyles';
 
@@ -11,8 +10,8 @@ export default function AdsActivity({ props }) {
   return (
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
-        <h4 style={{ margin: 0, color: '#ff41b4', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_your_campaigns')}</h4>
-        <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update')}</button>
+        <h4 style={{ margin: 0, color: '#ff41b4', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_your_campaigns') || 'MIS CAMPAÑAS'}</h4>
+        <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update') || 'ACTUALIZAR'}</button>
       </div>
 
       {loadingTasks ? (
@@ -27,7 +26,7 @@ export default function AdsActivity({ props }) {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
             <div style={{ padding: '16px', background: 'rgba(255, 20, 147, 0.1)', borderRadius: '16px' }}>{TaskIcons.promo('#ff1493')}</div>
           </div>
-          <p style={{ color: '#ff99dd', fontSize: '13px', lineHeight: '1.5', margin: '0 0 20px 0' }}>{t('ads_empty_my_ads')}</p>
+          <p style={{ color: '#ff99dd', fontSize: '13px', lineHeight: '1.5', margin: '0 0 20px 0' }}>{t('ads_empty_my_ads') || 'Aún no has creado campañas.'}</p>
           <button onClick={() => setView('wizard')} style={{...neon.btnPrimary, background: 'linear-gradient(180deg, #ff1493, #d80073)', boxShadow: '0 4px 15px rgba(255, 20, 147, 0.4)'}}>CREAR MI PRIMERA CAMPAÑA</button>
         </div>
       ) : (
@@ -48,8 +47,8 @@ export default function AdsActivity({ props }) {
                     <div style={{ flex: 1 }}>
                       <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900' }}>
                         {task.title} 
-                        {isPaused && <span style={{ color: '#ffaa00', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_paused')})</span>}
-                        {isCompleted && <span style={{ color: '#00ffaa', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_completed')})</span>}
+                        {isPaused && <span style={{ color: '#ffaa00', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_paused') || 'PAUSADA'})</span>}
+                        {isCompleted && <span style={{ color: '#00ffaa', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_completed') || 'COMPLETADA'})</span>}
                       </div>
                       <div style={{ color: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff99dd', fontSize: '11px', marginTop: '4px', fontWeight: 'bold', fontFamily: 'monospace' }}>{task.url.substring(0, 25)}...</div>
                     </div>
