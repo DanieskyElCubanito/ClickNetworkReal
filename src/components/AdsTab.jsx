@@ -1,4 +1,3 @@
-//AdsTab.jsx
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
@@ -147,7 +146,7 @@ export default function AdsTab({ userData, setUserData, t }) {
   };
 
   const handleCheckTask = async (task) => {
-    const tid = toast.loading(t('ads_btn_verifying'));
+    const tid = toast.loading(t('ads_btn_verifying') || 'Verificando...');
     setTaskStatus(prev => ({ ...prev, [task.id]: 'verifying' }));
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'complete-task', userId: userData.id, taskId: task.id, validation_code_input: verifyInputs[task.id] || '' }) });
@@ -270,12 +269,13 @@ export default function AdsTab({ userData, setUserData, t }) {
       {view === 'activity' && <AdsActivity props={sharedProps} />}
       {view === 'wizard' && <AdsWizard props={sharedProps} />}
 
+      {/* MODAL DE EDICIÓN (Global) */}
       {showEditModal && editingTask && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100000, backdropFilter: 'blur(5px)' }}>
           <div style={{ ...neon.card, width: '100%', maxWidth: '340px', marginBottom: 0, borderColor: '#ffe600', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ margin: '0 0 14px 0', color: '#ffe600', fontSize: '17px', fontWeight: '900' }}>{t('ads_edit_title')}</h3>
-            <div style={{ marginBottom: '10px' }}><label style={neon.label}>{t('ads_label_title')}</label><input style={neon.input} value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} /></div>
-            <div style={{ marginBottom: '10px' }}><label style={neon.label}>{t('ads_label_url')}</label><input style={neon.input} value={editingTask.url} onChange={(e) => setEditingTask({ ...editingTask, url: e.target.value })} /></div>
+            <h3 style={{ margin: '0 0 14px 0', color: '#ffe600', fontSize: '17px', fontWeight: '900' }}>{t('ads_edit_title') || 'EDITAR CAMPAÑA'}</h3>
+            <div style={{ marginBottom: '10px' }}><label style={neon.label}>{t('ads_label_title') || 'TÍTULO'}</label><input style={neon.input} value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} /></div>
+            <div style={{ marginBottom: '10px' }}><label style={neon.label}>{t('ads_label_url') || 'ENLACE'}</label><input style={neon.input} value={editingTask.url} onChange={(e) => setEditingTask({ ...editingTask, url: e.target.value })} /></div>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
               <div style={{ flex: 1 }}><label style={neon.label}>PAGO (USDT)</label><input type="number" step="0.001" max="0.0025" style={{...neon.input, padding: '10px'}} value={editingTask.reward} onChange={(e) => setEditingTask({ ...editingTask, reward: Math.min(0.0025, Number(e.target.value)||0.001) })} /></div>
               <div style={{ flex: 1 }}><label style={neon.label}>ICONO 3D</label><select style={{...neon.input, padding: '10px', backgroundColor: 'rgba(0,0,0,0.8)'}} value={editingTask.logo} onChange={(e) => setEditingTask({ ...editingTask, logo: e.target.value })}><option value="crypto">💎 Criptomoneda</option><option value="game">🎮 Juego Web3</option><option value="money">💵 Dinero / Cash</option><option value="web3">🌐 Nodos Web3</option><option value="bot">🤖 Bot de Telegram</option><option value="channel">📢 Canal / Comunidad</option></select></div>
@@ -286,8 +286,8 @@ export default function AdsTab({ userData, setUserData, t }) {
               {editingTask.addCompletions > 0 && <div style={{ fontSize: '11px', color: depositBalanceUsdt >= (editingTask.addCompletions * editingTask.reward * 1.30) ? '#00ffaa' : '#ff4b4b', marginTop: '10px', fontWeight: 'bold' }}>Costo táctico: -${(editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4)} USDT de Bóveda</div>}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setShowEditModal(false)} style={{ ...neon.btnSecondary, flex: 1 }}>{t('ads_btn_cancel')}</button>
-              <button onClick={handleSaveEdit} style={{ ...neon.btnPrimary, flex: 2, background: 'linear-gradient(180deg, #ffe600, #ffaa00)', color: '#050214', boxShadow: '0 6px 0 #cc8800' }}>{t('ads_btn_update')}</button>
+              <button onClick={() => setShowEditModal(false)} style={{ ...neon.btnSecondary, flex: 1 }}>{t('ads_btn_cancel') || 'CANCELAR'}</button>
+              <button onClick={handleSaveEdit} style={{ ...neon.btnPrimary, flex: 2, background: 'linear-gradient(180deg, #ffe600, #ffaa00)', color: '#050214', boxShadow: '0 6px 0 #cc8800' }}>{t('ads_btn_update') || 'GUARDAR'}</button>
             </div>
           </div>
         </div>
