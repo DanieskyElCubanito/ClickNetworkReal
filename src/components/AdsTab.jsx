@@ -33,6 +33,10 @@ const TaskIcons = {
   bot: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" /></svg>,
   promo: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>,
   daily: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+  crypto: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l10 6.5v7L12 22 2 15.5v-7L12 2z"/><path d="M12 22v-6.5"/><path d="M22 8.5l-10 7-10-7"/><path d="M2 15.5l10-7 10 7"/></svg>,
+  game: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><path d="M6 12h4"></path><path d="M8 10v4"></path><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line></svg>,
+  money: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>,
+  web3: (color) => <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>,
   play: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
   pause: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>,
   edit: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
@@ -442,19 +446,20 @@ export default function AdsTab({ userData, setUserData, t }) {
     } catch (err) { toast.error(err.message || "Error al modificar el estado de la campaña.", { id: tid }); }
   };
 
-  // 🔥 NUEVO: Función para abrir modal e inyectar cupos extra
+  // 🔥 NUEVO: Función para abrir modal e inyectar cupos extra, recompensa e icono
   const handleOpenEdit = (task) => { 
     setEditingTask({ 
       id: task.id, 
       title: task.title, 
       url: task.url,
-      reward: Number(task.reward), // Requerido para la calculadora
-      addCompletions: 0 // Valor inicial para cupos nuevos
+      reward: Number(task.reward) || 0.001,
+      logo: task.logo || 'crypto',
+      addCompletions: 0
     }); 
     setShowEditModal(true); 
   };
 
-  // 🔥 NUEVO: Función que guarda los cambios y procesa la inyección de saldo
+  // 🔥 NUEVO: Función que guarda los cambios (incluye icono y pago) y procesa inyección de saldo
   const handleSaveEdit = async () => {
     const extraCost = Number((editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4));
     
@@ -473,6 +478,8 @@ export default function AdsTab({ userData, setUserData, t }) {
           newTitle: editingTask.title, 
           newUrl: editingTask.url, 
           addCompletions: editingTask.addCompletions,
+          newReward: editingTask.reward,
+          newLogo: editingTask.logo,
           isAdminAction: false 
         })
       });
@@ -480,7 +487,6 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (data.success) { 
         toast.success(data.message || "Configuración de campaña actualizada.", { id: tid }); 
         
-        // Descontamos visualmente el saldo para no tener que recargar toda la app
         if (editingTask.addCompletions > 0) {
            setUserData(prev => ({...prev, deposit_balance: Math.max(0, prev.deposit_balance - extraCost)}));
         }
@@ -503,18 +509,17 @@ export default function AdsTab({ userData, setUserData, t }) {
     }
   };
 
-  const getTaskIconType = (type) => {
-    if (type === 'publish_group') return 'channel';
-    return type;
+  const getTaskIconType = (task) => {
+    if (task.logo) return task.logo;
+    if (task.type === 'publish_group') return 'channel';
+    return task.type;
   };
 
   const myTasks = tasks.filter(t => t.creator_id === String(userData?.id));
-  // 🔥 NUEVO: Las tareas en el radar ya no excluyen al creador, para que pueda ver la suya en la lista
   const communityTasks = tasks.filter(t => t.status === 'active')
     .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
 
   const renderTaskButton = (task) => {
-    // 🔥 NUEVO: Bloqueo visual de campaña propia
     if (String(task.creator_id) === String(userData?.id)) {
        return <button disabled style={{...neon.taskButtonDisabled, background: 'rgba(255,255,255,0.05)', color: '#666', borderColor: '#444'}}>TU CAMPAÑA 🛡️</button>;
     }
@@ -604,7 +609,7 @@ export default function AdsTab({ userData, setUserData, t }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {communityTasks.map((task) => {
-                const iconType = getTaskIconType(task.type);
+                const iconType = getTaskIconType(task);
                 const isChannelOrGroup = task.type === 'channel' || task.type === 'group';
                 return (
                 <div key={task.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch' }}>
@@ -659,7 +664,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                 const percent = Math.floor((task.completions_done / task.completions_total) * 100);
                 const isPaused = task.status === 'paused';
                 const isCompleted = task.status === 'completed' || task.completions_done >= task.completions_total;
-                const iconType = getTaskIconType(task.type);
+                const iconType = getTaskIconType(task);
 
                 return (
                   <div key={task.id} style={{...neon.taskCard, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4', opacity: (isPaused || isCompleted) ? 0.7 : 1}}>
@@ -952,12 +957,29 @@ export default function AdsTab({ userData, setUserData, t }) {
               <input style={neon.input} value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} />
             </div>
             
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: '10px' }}>
               <label style={neon.label}>{t('ads_label_url')}</label>
               <input style={neon.input} value={editingTask.url} onChange={(e) => setEditingTask({ ...editingTask, url: e.target.value })} />
             </div>
 
-            {/* 🔥 NUEVO: Panel de Inyección de Cupos */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={neon.label}>PAGO (USDT)</label>
+                <input type="number" step="0.001" style={{...neon.input, padding: '10px'}} value={editingTask.reward} onChange={(e) => setEditingTask({ ...editingTask, reward: Number(e.target.value) || 0.001 })} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={neon.label}>ICONO 3D</label>
+                <select style={{...neon.input, padding: '10px', backgroundColor: 'rgba(0,0,0,0.8)'}} value={editingTask.logo} onChange={(e) => setEditingTask({ ...editingTask, logo: e.target.value })}>
+                  <option value="crypto">💎 Criptomoneda</option>
+                  <option value="game">🎮 Juego Web3</option>
+                  <option value="money">💵 Dinero / Cash</option>
+                  <option value="web3">🌐 Nodos Web3</option>
+                  <option value="bot">🤖 Bot de Telegram</option>
+                  <option value="channel">📢 Canal / Comunidad</option>
+                </select>
+              </div>
+            </div>
+
             <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed #00f0ff' }}>
               <label style={{...neon.label, color: '#00f0ff'}}>INYECCIÓN DE CUPOS EXTRA (OPCIONAL)</label>
               <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
@@ -966,18 +988,13 @@ export default function AdsTab({ userData, setUserData, t }) {
                 <button onClick={() => setEditingTask(prev => ({...prev, addCompletions: prev.addCompletions + 10}))} style={{...neon.btnActionCalc, width: '35px', height: '35px', fontSize: '18px'}}>+</button>
               </div>
               
-                            {editingTask.addCompletions > 0 && (
-                 <div style={{ 
-                   fontSize: '11px', 
-                   color: depositBalanceUsdt >= (editingTask.addCompletions * editingTask.reward * 1.30) ? '#00ffaa' : '#ff4b4b', 
-                   marginTop: '10px', 
-                   fontWeight: 'bold' 
-                 }}>
+              {editingTask.addCompletions > 0 && (
+                 <div style={{ fontSize: '11px', color: depositBalanceUsdt >= (editingTask.addCompletions * editingTask.reward * 1.30) ? '#00ffaa' : '#ff4b4b', marginTop: '10px', fontWeight: 'bold' }}>
                    Costo táctico: -${(editingTask.addCompletions * editingTask.reward * 1.30).toFixed(4)} USDT de Bóveda
                  </div>
               )}
+            </div>
 
-</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setShowEditModal(false)} style={{ ...neon.btnSecondary, flex: 1 }}>{t('ads_btn_cancel')}</button>
               <button onClick={handleSaveEdit} style={{ ...neon.btnPrimary, flex: 2, background: 'linear-gradient(180deg, #ffe600, #ffaa00)', color: '#050214', boxShadow: '0 6px 0 #cc8800' }}>{t('ads_btn_update')}</button>
