@@ -610,11 +610,33 @@ export default async function handler(req, res) {
         }
       } catch (e) { console.error("Error en topTasks:", e); }
 
-      let topReferrers = [];
+            let topReferrers = [];
       try {
-        const { data: tr } = await supabase.from('users').select('id, username, referral_earnings').order('referral_earnings', { ascending: false }).limit(10);
-        topReferrers = tr || [];
+        // Obtenemos a los líderes base
+        const { data: tr } = await supabase.from('users')
+          .select('id, username, referral_earnings')
+          .order('referral_earnings', { ascending: false })
+          .limit(10);
+          
+        if (tr) {
+          for (const u of tr) {
+            // 🔥 Contamos EXACTAMENTE cuántos referidos ACTIVOS tienen (superaron las 5 Gemas)
+            const { count: activosCount } = await supabase.from('users')
+              .select('id', { count: 'exact', head: true })
+              .eq('referred_by', u.id)
+              .gte('total_earnings', 0.005);
+
+            topReferrers.push({
+              id: u.id,
+              username: u.username || 'Usuario',
+              score: activosCount || 0 // Pasamos la cantidad real
+            });
+          }
+          // Ordenamos de mayor a menor por cantidad de referidos activos
+          topReferrers.sort((a, b) => b.score - a.score);
+        }
       } catch (e) { console.error("Error en topReferrers:", e); }
+
 
       let pastEventsPublic = [];
       try {
