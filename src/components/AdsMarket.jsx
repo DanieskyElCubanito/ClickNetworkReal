@@ -1,4 +1,3 @@
-// AdsMarket.jsx
 import React, { useState } from 'react';
 import { neon, TaskIcons } from './AdsStyles';
 
@@ -27,9 +26,9 @@ export default function AdsMarket({ props }) {
   const getTaskLabel = (type) => {
     if (type === 'partner') return 'Alianza Estratégica';
     if (type === 'publish_group') return 'Red Comunitaria';
-    if (type === 'group' || type === 'channel') return t('ads_type_group');
-    if (type === 'bot') return t('ads_type_bot');
-    if (type === 'promo') return t('ads_type_promo');
+    if (type === 'group' || type === 'channel') return t('ads_type_group') || 'Comunidad';
+    if (type === 'bot') return t('ads_type_bot') || 'Bot';
+    if (type === 'promo') return t('ads_type_promo') || 'Tráfico';
     return 'Tarea';
   };
 
@@ -61,10 +60,10 @@ export default function AdsMarket({ props }) {
           </div>
           
           {task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR</button> :
-           isCompleted ? <button disabled style={neon.taskButtonDisabled}>{t('ads_completed')}</button> :
+           isCompleted ? <button disabled style={neon.taskButtonDisabled}>{t('ads_completed') || 'COMPLETADO'}</button> :
            status === 'waiting_for_redirect' ? <button disabled style={neon.taskButtonDisabled}>⏳ 8 SEG</button> :
            status === 'away' ? <button disabled style={neon.taskButtonDisabled}>⏳ REVISANDO...</button> :
-           status === 'verifying' ? <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying')}</button> :
+           status === 'verifying' ? <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying') || 'VERIFICANDO...'}</button> :
            status === 'ready_to_claim' ? (
              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
                {task.validation_code && (
@@ -95,8 +94,8 @@ export default function AdsMarket({ props }) {
       </button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
-        <h4 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_explore')}</h4>
-        <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update')}</button>
+        <h4 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_explore') || 'EXPLORAR'}</h4>
+        <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update') || 'ACTUALIZAR'}</button>
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '16px' }}>
