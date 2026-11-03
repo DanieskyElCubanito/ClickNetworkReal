@@ -244,7 +244,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ color: '#00f0ff', fontSize: '11px', fontWeight: 'bold', marginTop: '2px' }}>{t('bank_live_desc') || "Comprueba los pagos a la blockchain"}</div>
         </div>
         <button 
-          onClick={() => WebApp.openTelegramLink('https://t.me/CryptoWeb3Pay')} 
+          onClick={() => WebApp.openTelegramLink('https://t.me/PagosEnCrypto')} 
           style={{ 
             background: 'linear-gradient(180deg, #00f0ff, #0088ff)', 
             color: '#050214', 
