@@ -227,7 +227,6 @@ export default async function handler(req, res) {
       const { data: completedRows } = await supabase.from('user_completed_tasks').select('task_id').eq('user_id', targetId);
       const completedIds = new Set((completedRows || []).map(r => String(r.task_id)));
 
-      // 🔥 SOLUCIÓN A LA RACHA DIARIA (STREAK): Extraemos y mandamos el número al Frontend
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: historyLogs } = await supabase.from('history_logs').select('created_at, description').eq('user_id', targetId).order('created_at', { ascending: false }).limit(20);
       
@@ -246,11 +245,10 @@ export default async function handler(req, res) {
             startOfToday.setUTCHours(0, 0, 0, 0);
             
             if (logDate >= startOfToday) {
-               gigaPubClaimed = true; // Reclamó hoy
+               gigaPubClaimed = true; 
             } else if (logDate < new Date(startOfToday.getTime() - 86400000)) {
-               currentStreak = 1; // Racha perdida (no reclamó ayer)
+               currentStreak = 1; 
             } else if (!gigaPubClaimed) {
-               // Reclamó ayer, pero no hoy, entonces su próximo clic sumará 1
                currentStreak = Math.min(currentStreak + 1, 7);
             }
          }
@@ -269,7 +267,6 @@ export default async function handler(req, res) {
         return { ...t, reward: (t.reward || 1), is_completed: isDaily ? completedDailyIds.has(String(t.id)) : completedIds.has(String(t.id)) };
       });
 
-      // ¡Aquí el Frontend por fin recibe la racha!
       return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed, streakCount: currentStreak });
     }
 
@@ -311,7 +308,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance });
     }
 
-        if (action === 'complete-task') {
+    if (action === 'complete-task') {
       const { taskId, validation_code_input } = req.body; 
       const targetId = String(userId);
 
@@ -328,7 +325,7 @@ export default async function handler(req, res) {
       if (String(task.creator_id) === targetId) return res.status(400).json({ success: false, error: 'Comando denegado: No puedes cobrar tu propia misión.' });
       if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) return res.status(400).json({ success: false, error: 'Código de validación incorrecto.' });
 
-      // 🛡️ 3. Lógica de Tareas Diarias (1 vez al día)
+      // 🛡️ 3. Lógica de Tareas Diarias (1 vez al día) vs Normales
       const isDaily = task.type.startsWith('daily_');
       if (isDaily) {
          const startOfToday = new Date(); 
@@ -338,14 +335,12 @@ export default async function handler(req, res) {
              return res.status(400).json({ success: false, error: 'Misión diaria ya completada. Vuelve mañana a partir del corte UTC.' });
          }
       } else {
-         // Tareas normales y partners (Se hacen solo 1 vez en la vida)
          const { data: alreadyDone } = await supabase.from('user_completed_tasks').select('id').eq('task_id', taskId).eq('user_id', targetId).maybeSingle();
          if (alreadyDone) return res.status(400).json({ success: false, error: 'Ya has completado esta misión táctica.' });
       }
 
       // 🛡️ 4. Validación Externa (Telegram vs Web)
       if (task.type === 'group' || task.type === 'channel' || task.type === 'partner' || task.type === 'daily_channel') {
-        // 🔥 VALIDACIÓN ESTRICTA TELEGRAM: El usuario debe estar en el canal y el bot debe ser admin
         const chatId = extractTelegramUsername(task.url);
         if (chatId) {
           const isJoined = await checkMembership(targetId, chatId);
@@ -361,12 +356,11 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, error: 'Enlace de comunidad inválido.' });
         }
       } else if (task.type === 'bot' && task.bot_token) {
-        // 🔥 VALIDACIÓN BOT: Intentamos hacerle un "sendChatAction" para ver si el usuario lo inició
         try { await axios.post(`https://api.telegram.org/bot${task.bot_token}/sendChatAction`, { chat_id: targetId, action: 'typing' }); } 
         catch (e) { return res.status(400).json({ success: false, error: 'Validación fallida: Debes iniciar el bot externo presionando /start primero.' }); }
       }
 
-      // 💰 INSERCIÓN Y PAGO (El resto de la función se mantiene igual)
+      // 💰 INSERCIÓN Y PAGO
       if (!isDaily) await supabase.from('user_completed_tasks').insert([{ task_id: taskId, user_id: targetId }]);
 
       const rewardAmount = Number(task.reward || 1);
@@ -403,11 +397,29 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
     }
 
-
     if (action === 'create-task') {
       const { creator_id, type, title, url, bot_token, completions_total, reward, validation_code } = req.body;
       const targetId = String(creator_id || userId);
-      const totalCost = Number((Number(completions_total || 100) * Number(reward || 0.001) * 1.30).toFixed(4));
+
+      // 🛡️ REGLA 1: Bots y Mini Apps DEBEN tener "bot" en la URL
+      if (type === 'bot' && !url.toLowerCase().includes('bot')) {
+        return res.status(400).json({ success: false, error: 'Enlace inválido. Las URLs de Bots o Mini Apps deben contener la palabra "bot".' });
+      }
+      // 🛡️ REGLA 2: Si es web/promo, exigir código de validación obligatoriamente
+      if (type === 'promo' && (!validation_code || String(validation_code).trim() === '')) {
+        return res.status(400).json({ success: false, error: 'Las misiones web requieren obligatoriamente un Código de Validación para evitar fraudes.' });
+      }
+      // 🛡️ REGLA 3: Si es canal/grupo, el bot DEBE ser admin antes de guardar
+      if (type === 'group' || type === 'channel') {
+        const chatId = extractTelegramUsername(url);
+        if (!chatId) return res.status(400).json({ success: false, error: 'Formato de enlace de Telegram inválido.' });
+        const adminCheck = await checkAdminStatusDetailed(chatId);
+        if (!adminCheck.isAdmin) return res.status(400).json({ success: false, error: adminCheck.error });
+      }
+
+      const count = Number(completions_total || 100); 
+      const rew = Number(reward || 0.001); 
+      const totalCost = Number((count * rew * 1.30).toFixed(4));
 
       const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).single();
       if (!cUser || Number(cUser.deposit_balance) < totalCost) return res.status(400).json({ success: false, error: 'Bóveda insuficiente.' });
@@ -415,7 +427,7 @@ export default async function handler(req, res) {
       const newVaultBalance = Number((Number(cUser.deposit_balance) - totalCost).toFixed(4));
       await supabase.from('users').update({ deposit_balance: newVaultBalance }).eq('id', targetId);
 
-      const { data: newTask, error } = await supabase.from('tasks').insert([{ creator_id: targetId, type, title, url, bot_token: bot_token || null, completions_total: Number(completions_total || 100), completions_done: 0, reward: Number(reward || 0.001), total_cost: totalCost, status: 'active', validation_code: validation_code || null, current_clicks: 0, target_clicks: Number(completions_total || 100) }]).select().single();
+      const { data: newTask, error } = await supabase.from('tasks').insert([{ creator_id: targetId, type, title, url, bot_token: bot_token || null, completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active', validation_code: validation_code || null, current_clicks: 0, target_clicks: count }]).select().single();
       if (error || !newTask) {
         await supabase.from('users').update({ deposit_balance: newVaultBalance + totalCost }).eq('id', targetId);
         return res.status(400).json({ success: false, error: `Fallo BD.` });
@@ -458,6 +470,17 @@ export default async function handler(req, res) {
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task) return res.status(400).json({ success: false, error: 'No encontrada.' });
       if (task.creator_id !== String(requestingUserId) && !isAdminAction) return res.status(403).json({ success: false, error: 'Sin permisos.' });
+
+      if (task.type === 'bot' && !newUrl.toLowerCase().includes('bot')) {
+        return res.status(400).json({ success: false, error: 'Las URLs de Bots o Mini Apps deben contener la palabra "bot".' });
+      }
+
+      if ((task.type === 'group' || task.type === 'channel') && newUrl !== task.url) {
+        const chatId = extractTelegramUsername(newUrl);
+        if (!chatId) return res.status(400).json({ success: false, error: 'Enlace de Telegram inválido.' });
+        const adminCheck = await checkAdminStatusDetailed(chatId);
+        if (!adminCheck.isAdmin) return res.status(400).json({ success: false, error: adminCheck.error });
+      }
 
       const updates = { title: newTitle, url: newUrl };
       if (newLogo !== undefined) updates.logo = newLogo;
@@ -509,7 +532,7 @@ export default async function handler(req, res) {
       const { data: recentTasks } = await supabase.from('user_completed_tasks').select('task_id, tasks(type, url, reward)').eq('user_id', targetId).order('created_at', { ascending: false }).limit(5); 
       if (recentTasks) {
         for (const item of recentTasks) {
-          if (['group', 'channel', 'partner'].includes(item.tasks?.type)) {
+          if (['group', 'channel', 'partner', 'daily_channel'].includes(item.tasks?.type)) {
             const chatId = extractTelegramUsername(item.tasks.url);
             if (chatId && !(await checkMembership(targetId, chatId))) {
               penaltyAmount += Number(item.tasks.reward || 0);
@@ -640,21 +663,21 @@ export default async function handler(req, res) {
         else await supabase.from('events').update({ status: 'completed' }).eq('id', req.body.eventId);
         return res.status(200).json({ success: true });
       }
-            if (action === 'admin-create-master-task') {
+      
+      if (action === 'admin-create-master-task') {
         const { title, url, type, reward } = req.body;
-        // 9999999 cupos para que sea ilimitada, costo 0.
+        
+        if ((type === 'partner' || type === 'daily_channel') && !url.toLowerCase().includes('bot')) {
+           const chatId = extractTelegramUsername(url);
+           if (!chatId) return res.status(400).json({ success: false, error: 'Enlace de Telegram inválido.' });
+           const adminCheck = await checkAdminStatusDetailed(chatId);
+           if (!adminCheck.isAdmin) return res.status(400).json({ success: false, error: adminCheck.error });
+        }
+
         const { data, error } = await supabase.from('tasks').insert([{
-          creator_id: adminId, 
-          title: title, 
-          url: url, 
-          type: type, 
-          reward: Number(reward), 
-          completions_total: 9999999, 
-          completions_done: 0, 
-          total_cost: 0, 
-          status: 'active',
-          current_clicks: 0,
-          target_clicks: 9999999
+          creator_id: adminId, title, url, type, reward: Number(reward), 
+          completions_total: 9999999, completions_done: 0, total_cost: 0, 
+          status: 'active', current_clicks: 0, target_clicks: 9999999
         }]).select().single();
 
         if (error) return res.status(400).json({ success: false, error: error.message });
