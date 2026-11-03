@@ -10,10 +10,13 @@ export default function AdsMarket({ props }) {
   
   const [category, setCategory] = useState('pagadas'); // pagadas | diarias | partners
 
-  const communityTasks = tasks.filter(t => t.status === 'active' && t.creator_id !== String(userData?.id))
-    .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
+  // 🔥 SOLUCIÓN: Hacemos visibles las misiones maestras para el creador (Admin), 
+  // pero ocultamos las campañas normales para que los usuarios no hagan sus propias tareas.
+  const communityTasks = tasks.filter(t => 
+    t.status === 'active' && 
+    (t.creator_id !== String(userData?.id) || ['daily_promo', 'daily_channel', 'partner'].includes(t.type))
+  ).sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
 
-  // 🔥 NUEVO FILTRADO: Ajustado a las misiones maestras
   const pagadas = communityTasks.filter(t => !t.type.includes('daily') && t.type !== 'partner');
   const partners = communityTasks.filter(t => t.type === 'partner');
   const diarias = communityTasks.filter(t => t.type.includes('daily'));
@@ -42,6 +45,7 @@ export default function AdsMarket({ props }) {
     const status = taskStatus[task.id];
     const isCompleted = task.is_completed || status === 'completed';
     const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
+    const isCreator = task.creator_id === String(userData?.id); // Detectamos si eres el creador
     
     // Verificación de permanencia
     const requiresRetention = ['channel', 'group', 'partner', 'daily_channel'].includes(task.type);
@@ -103,7 +107,8 @@ export default function AdsMarket({ props }) {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-            {task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={{...neon.taskButtonRejoin, boxShadow: '0 0 10px rgba(0, 255, 170, 0.4)'}}>RESTAURAR</button> :
+            {isCreator ? <button disabled style={neon.taskButtonDisabled}>TU MISIÓN</button> :
+             task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={{...neon.taskButtonRejoin, boxShadow: '0 0 10px rgba(0, 255, 170, 0.4)'}}>RESTAURAR</button> :
              isCompleted ? <button disabled style={neon.taskButtonDisabled}>{t('ads_completed') || 'COMPLETADO'}</button> :
              status === 'waiting_for_redirect' ? <button disabled style={{...neon.taskButtonDisabled, color: '#ffaa00', borderColor: '#ffaa00'}}>⏳ 8 SEG</button> :
              status === 'away' ? <button disabled style={{...neon.taskButtonDisabled, color: '#00f0ff', borderColor: '#00f0ff'}}>⏳ REVISANDO...</button> :
