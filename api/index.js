@@ -152,7 +152,7 @@ export default async function handler(req, res) {
       const { data: deposits } = await supabase.from('users').select('deposit_balance');
       const totalDeposited = deposits ? deposits.reduce((sum, u) => sum + Number(u.deposit_balance), 0) : 0;
       const { data: statsRow } = await supabase.from('platform_stats').select('total_global_clicks').eq('id', 1).maybeSingle();
-      const daysOnline = Math.max(1, Math.floor((Date.now() - new Date("2026-10-01T00:00:00Z").getTime()) / 86400000));
+      const daysOnline = Math.max(1, Math.floor((Date.now() - new Date("2026-10-25T00:00:00Z").getTime()) / 86400000));
       return res.status(200).json({ success: true, stats: { users: totalUsers || 0, withdrawn: totalWithdrawnUsdt * 1000, deposited: totalDeposited, globalClicks: statsRow?.total_global_clicks || 0, daysOnline } });
     }
 
