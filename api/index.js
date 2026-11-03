@@ -306,46 +306,62 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance });
     }
 
-    if (action === 'complete-task') {
+        if (action === 'complete-task') {
       const { taskId, validation_code_input } = req.body; 
       const targetId = String(userId);
 
+      // 🛡️ 1. Anti-Spam: Bloqueo de ráfagas (5 segundos)
       const { data: lastLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).eq('title', '✅ Tarea Completada').order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (lastLog && (Date.now() - new Date(lastLog.created_at).getTime() < 5000)) { 
-        notifyAdmin(`🤖 <b>Alerta Anti-Spam</b>\nUsuario <code>${targetId}</code> clickeando muy rápido.`);
-        return res.status(400).json({ success: false, error: 'Espera unos segundos entre tareas.' });
+        notifyAdmin(`🤖 <b>Alerta Anti-Spam / Bot</b>\nEl usuario <code>${targetId}</code> intentó completar tareas en ráfaga.`);
+        return res.status(400).json({ success: false, error: 'Por favor, espera unos segundos entre cada tarea.' });
       }
 
+      // 🛡️ 2. Validación de Estado de la Misión
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
-      if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Misión inactiva.' });
-      if (String(task.creator_id) === targetId) return res.status(400).json({ success: false, error: 'No puedes cobrar tu propia misión.' });
-      if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) return res.status(400).json({ success: false, error: 'Código incorrecto.' });
+      if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Misión inactiva o finalizada.' });
+      if (String(task.creator_id) === targetId) return res.status(400).json({ success: false, error: 'Comando denegado: No puedes cobrar tu propia misión.' });
+      if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) return res.status(400).json({ success: false, error: 'Código de validación incorrecto.' });
 
-      const isDaily = task.type.startsWith('daily_') || task.type === 'daily';
+      // 🛡️ 3. Lógica de Tareas Diarias (1 vez al día)
+      const isDaily = task.type.startsWith('daily_');
       if (isDaily) {
-         const startOfToday = new Date(); startOfToday.setUTCHours(0,0,0,0);
+         const startOfToday = new Date(); 
+         startOfToday.setUTCHours(0,0,0,0);
          const { data: recentLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).like('description', `%[Daily:${taskId}]%`).order('created_at', { ascending: false }).limit(1).maybeSingle();
-         if (recentLog && new Date(recentLog.created_at) >= startOfToday) return res.status(400).json({ success: false, error: 'Vuelve mañana (UTC).' });
+         if (recentLog && new Date(recentLog.created_at) >= startOfToday) {
+             return res.status(400).json({ success: false, error: 'Misión diaria ya completada. Vuelve mañana a partir del corte UTC.' });
+         }
       } else {
+         // Tareas normales y partners (Se hacen solo 1 vez en la vida)
          const { data: alreadyDone } = await supabase.from('user_completed_tasks').select('id').eq('task_id', taskId).eq('user_id', targetId).maybeSingle();
-         if (alreadyDone) return res.status(400).json({ success: false, error: 'Ya completaste esta tarea.' });
+         if (alreadyDone) return res.status(400).json({ success: false, error: 'Ya has completado esta misión táctica.' });
       }
 
-      const baseType = isDaily ? task.type.replace('daily_', '') : task.type;
-      if (baseType === 'group' || baseType === 'channel' || baseType === 'partner') {
+      // 🛡️ 4. Validación Externa (Telegram vs Web)
+      if (task.type === 'group' || task.type === 'channel' || task.type === 'partner' || task.type === 'daily_channel') {
+        // 🔥 VALIDACIÓN ESTRICTA TELEGRAM: El usuario debe estar en el canal y el bot debe ser admin
         const chatId = extractTelegramUsername(task.url);
         if (chatId) {
           const isJoined = await checkMembership(targetId, chatId);
           if (!isJoined) {
             const isBotStillAdmin = await checkAdminStatus(chatId);
-            if (!isBotStillAdmin) { await supabase.from('tasks').update({ status: 'paused' }).eq('id', taskId); return res.status(400).json({ success: false, error: 'Bot sin privilegios en el canal.' }); }
-            return res.status(400).json({ success: false, error: 'No te has unido al canal.' });
+            if (!isBotStillAdmin) { 
+              await supabase.from('tasks').update({ status: 'paused' }).eq('id', taskId); 
+              return res.status(400).json({ success: false, error: 'Error táctico: El bot ha perdido los privilegios de administrador en esa comunidad. Misión pausada automáticamente.' }); 
+            }
+            return res.status(400).json({ success: false, error: 'Validación fallida: No detectamos tu membresía en el canal requerido. Únete para reclamar.' });
           }
+        } else {
+          return res.status(400).json({ success: false, error: 'Enlace de comunidad inválido.' });
         }
-      } else if (baseType === 'bot' && task.bot_token) {
-        try { await axios.post(`https://api.telegram.org/bot${task.bot_token}/sendChatAction`, { chat_id: targetId, action: 'typing' }); } catch (e) {}
+      } else if (task.type === 'bot' && task.bot_token) {
+        // 🔥 VALIDACIÓN BOT: Intentamos hacerle un "sendChatAction" para ver si el usuario lo inició
+        try { await axios.post(`https://api.telegram.org/bot${task.bot_token}/sendChatAction`, { chat_id: targetId, action: 'typing' }); } 
+        catch (e) { return res.status(400).json({ success: false, error: 'Validación fallida: Debes iniciar el bot externo presionando /start primero.' }); }
       }
 
+      // 💰 INSERCIÓN Y PAGO (El resto de la función se mantiene igual)
       if (!isDaily) await supabase.from('user_completed_tasks').insert([{ task_id: taskId, user_id: targetId }]);
 
       const rewardAmount = Number(task.reward || 1);
@@ -381,6 +397,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ success: true, reward: rewardAmount, balance: newBalance });
     }
+
 
     if (action === 'create-task') {
       const { creator_id, type, title, url, bot_token, completions_total, reward, validation_code } = req.body;
