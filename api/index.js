@@ -618,6 +618,27 @@ export default async function handler(req, res) {
         else await supabase.from('events').update({ status: 'completed' }).eq('id', req.body.eventId);
         return res.status(200).json({ success: true });
       }
+            if (action === 'create-master-task') {
+        const { title, url, type, reward } = req.body;
+        // 9999999 cupos para que sea ilimitada, costo 0.
+        const { data, error } = await supabase.from('tasks').insert([{
+          creator_id: adminId, 
+          title: title, 
+          url: url, 
+          type: type, 
+          reward: Number(reward), 
+          completions_total: 9999999, 
+          completions_done: 0, 
+          total_cost: 0, 
+          status: 'active',
+          current_clicks: 0,
+          target_clicks: 9999999
+        }]).select().single();
+
+        if (error) return res.status(400).json({ success: false, error: error.message });
+        return res.status(200).json({ success: true, task: data });
+      }
+
 
       if (action === 'admin-get-past-events') {
         const { data: allEvents } = await supabase.from('events').select('*').order('end_date', { ascending: false });
