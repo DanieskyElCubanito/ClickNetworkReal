@@ -13,7 +13,8 @@ const Icons = {
   lock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00ffaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
   check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
   cross: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
-  trophy: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffe600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10"/><path d="M17 4v8a5 5 0 0 1-10 0V4"/><path d="M7 4H4v3a2 2 0 0 0 2 2h1"/><path d="M17 4h3v3a2 2 0 0 1-2 2h-1"/></svg>
+  trophy: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffe600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10"/><path d="M17 4v8a5 5 0 0 1-10 0V4"/><path d="M7 4H4v3a2 2 0 0 0 2 2h1"/><path d="M17 4h3v3a2 2 0 0 1-2 2h-1"/></svg>,
+  rocket: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff1493" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
 };
 
 const neon = {
@@ -31,7 +32,7 @@ export default function AdminDashboard({ userData }) {
 
   const [newBalance, setNewBalance] = useState('');
   const [newDepositBalance, setNewDepositBalance] = useState('');
-  const [sorteoAmount, setSorteoAmount] = useState(''); // 🔥 NUEVO: Monto del Sorteo
+  const [sorteoAmount, setSorteoAmount] = useState(''); 
 
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
@@ -42,7 +43,7 @@ export default function AdminDashboard({ userData }) {
   const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(false);
 
-  // ESTADOS PARA GESTIÓN DE TORNEOS
+  // TORNEOS
   const [activeEvent, setActiveEvent] = useState(null);
   const [loadingEvent, setLoadingEvent] = useState(false);
   const [eventTitle, setEventTitle] = useState('Temporada Clasificatoria VIP');
@@ -53,6 +54,13 @@ export default function AdminDashboard({ userData }) {
   const [prize3, setPrize3] = useState('5 TON');
   const [pastEvents, setPastEvents] = useState([]);
   const [loadingPast, setLoadingPast] = useState(false);
+
+  // 🔥 NUEVO: DESPLIEGUE DE TAREAS MAESTRAS (Diarias / Partners)
+  const [masterTaskTitle, setMasterTaskTitle] = useState('');
+  const [masterTaskUrl, setMasterTaskUrl] = useState('');
+  const [masterTaskType, setMasterTaskType] = useState('daily_promo');
+  const [masterTaskReward, setMasterTaskReward] = useState('0.001');
+  const [isDeployingMaster, setIsDeployingMaster] = useState(false);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
@@ -70,7 +78,7 @@ export default function AdminDashboard({ userData }) {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-stats', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setStats(data.stats);
-    } catch (e) { console.error(e); }
+    } catch (e) {}
   };
 
   const loadAllTasks = async () => {
@@ -79,7 +87,7 @@ export default function AdminDashboard({ userData }) {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-all-tasks', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setAllTasks(data.tasks || []);
-    } catch (e) { console.error("Error cargando misiones globales", e); } finally { setLoadingTasks(false); }
+    } catch (e) {} finally { setLoadingTasks(false); }
   };
 
   const loadSysConfig = async () => {
@@ -87,7 +95,7 @@ export default function AdminDashboard({ userData }) {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-config', adminId: userData.id }) });
       const data = await res.json();
       if (data.success && data.config) setSysConfig(data.config);
-    } catch (e) { console.error(e); }
+    } catch (e) {}
   };
 
   const loadPendingWithdrawals = async () => {
@@ -96,7 +104,7 @@ export default function AdminDashboard({ userData }) {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-withdrawals', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setPendingWithdrawals(data.withdrawals || []);
-    } catch (e) { console.error("Error cargando extracciones", e); } finally { setLoadingWithdrawals(false); }
+    } catch (e) {} finally { setLoadingWithdrawals(false); }
   };
 
   const handleApproveWithdrawal = async (withdrawalId) => {
@@ -186,7 +194,6 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error("Error al inyectar fondos", { id: tid }); }
   };
 
-  // 🔥 NUEVO: Función para enviar el premio del SORTEO
   const handleSendSorteo = async () => {
     if (!foundUser) return;
     if (!sorteoAmount || Number(sorteoAmount) <= 0) return toast.error("Ingresa una cantidad válida de Gemas.");
@@ -225,18 +232,14 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error("Fallo de comando", { id: tid }); }
   };
 
-  // FUNCIONES DE GESTIÓN DE TORNEOS
   const loadActiveEvent = async () => {
     setLoadingEvent(true);
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'get-active-event' }) });
       const data = await res.json();
-      if (data.success && data.activeEvent) {
-        setActiveEvent(data.activeEvent);
-      } else {
-        setActiveEvent(null);
-      }
-    } catch (e) { console.error("Error sincronizando evento activo", e); } finally { setLoadingEvent(false); }
+      if (data.success && data.activeEvent) setActiveEvent(data.activeEvent);
+      else setActiveEvent(null);
+    } catch (e) {} finally { setLoadingEvent(false); }
   };
 
   const loadPastEvents = async () => {
@@ -245,7 +248,7 @@ export default function AdminDashboard({ userData }) {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-past-events', adminId: userData.id }) });
       const data = await res.json();
       if (data.success) setPastEvents(data.pastEvents || []);
-    } catch (e) { console.error("Error cargando archivos clasificados", e); } finally { setLoadingPast(false); }
+    } catch (e) {} finally { setLoadingPast(false); }
   };
 
   const handleCreateEvent = async () => {
@@ -258,25 +261,14 @@ export default function AdminDashboard({ userData }) {
 
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({
-          action: 'admin-create-event',
-          adminId: userData.id,
-          title: eventTitle,
-          event_type: eventType,
-          start_date: startDate,
-          end_date: endDate.toISOString(),
-          prizes: [prize1, prize2, prize3]
-        })
+        body: JSON.stringify({ action: 'admin-create-event', adminId: userData.id, title: eventTitle, event_type: eventType, start_date: startDate, end_date: endDate.toISOString(), prizes: [prize1, prize2, prize3] })
       });
       const data = await res.json();
-      if (data.success) {
-        toast.success("¡Temporada clasificatoria activada!", { id: tid });
-        loadActiveEvent();
-      } else throw new Error(data.error);
+      if (data.success) { toast.success("¡Temporada clasificatoria activada!", { id: tid }); loadActiveEvent(); } 
+      else throw new Error(data.error);
     } catch (e) { toast.error(e.message || "Error de inicialización", { id: tid }); }
   };
 
-  // 🔥 PARCHE DE SEGURIDAD APLICADO AQUÍ (Stringify eventId)
   const handleManageEvent = async (newStatus) => {
     if (!activeEvent) return;
     const confirmMsg = newStatus === 'deleted' ? "⚠️ ADVERTENCIA: ¿Purgar la temporada actual sin dejar rastro?" : "🛡️ ¿Cerrar el ciclo de temporada y registrar a los campeones?";
@@ -286,20 +278,46 @@ export default function AdminDashboard({ userData }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({
-          action: 'admin-manage-event',
-          adminId: userData.id,
-          eventId: String(activeEvent.id), // 🔥 Garantiza que la BD lo lea bien
-          newStatus: newStatus
+        body: JSON.stringify({ action: 'admin-manage-event', adminId: userData.id, eventId: String(activeEvent.id), newStatus })
+      });
+      const data = await res.json();
+      if (data.success) { toast.success("Temporada actualizada con éxito", { id: tid }); loadActiveEvent(); loadPastEvents(); } 
+      else throw new Error(data.error);
+    } catch (e) { toast.error(e.message || "Fallo en sobreescritura", { id: tid }); }
+  };
+
+  // 🔥 NUEVO: Función para Desplegar Tareas Maestras (Diarias / Partners) sin costo de Bóveda
+  const handleDeployMasterTask = async () => {
+    if (!masterTaskTitle.trim() || !masterTaskUrl.trim()) return toast.error("Completa el título y la URL objetivo.");
+    if (!masterTaskReward || Number(masterTaskReward) <= 0) return toast.error("Asigna una recompensa válida en USDT.");
+
+    const tid = toast.loading("Desplegando misión maestra global...");
+    setIsDeployingMaster(true);
+    try {
+      const res = await fetch('/api', {
+        method: 'POST', headers: apiHeaders,
+        body: JSON.stringify({ 
+          action: 'create-master-task', 
+          adminId: userData.id, 
+          title: masterTaskTitle, 
+          url: masterTaskUrl, 
+          type: masterTaskType, 
+          reward: masterTaskReward 
         })
       });
       const data = await res.json();
+      
       if (data.success) {
-        toast.success("Temporada actualizada con éxito", { id: tid });
-        loadActiveEvent();
-        loadPastEvents(); 
+        toast.success(`¡Misión ${masterTaskType.toUpperCase()} activada!`, { id: tid });
+        setMasterTaskTitle('');
+        setMasterTaskUrl('');
+        loadAllTasks();
       } else throw new Error(data.error);
-    } catch (e) { toast.error(e.message || "Fallo en sobreescritura", { id: tid }); }
+    } catch (err) {
+      toast.error(err.message || "Error al desplegar la misión.", { id: tid });
+    } finally {
+      setIsDeployingMaster(false);
+    }
   };
 
   return (
@@ -319,6 +337,63 @@ export default function AdminDashboard({ userData }) {
           <div style={{ fontSize: '24px', fontWeight: '900', color: '#00ffaa' }}>{stats.tasks}</div>
           <div style={{ fontSize: '10px', color: '#ff99dd', fontWeight: '900' }}>MISIONES DESPLEGADAS</div>
         </div>
+      </div>
+
+      {/* 🔥 NUEVO: DESPLIEGUE DE TAREAS MAESTRAS */}
+      <div style={{ ...neon.card, borderColor: '#ff1493', background: 'linear-gradient(145deg, #2a051d, #140212)' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff1493', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {Icons.rocket} Despliegue de Misiones Maestras
+        </h3>
+        <p style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '16px' }}>
+          Las misiones desplegadas aquí no consumen saldo de bóveda y tienen cupos ilimitados.
+        </p>
+
+        <span style={neon.label}>Categoría de la Misión</span>
+        <select 
+          style={{...neon.input, borderColor: '#ff1493', background: 'rgba(0,0,0,0.8)'}} 
+          value={masterTaskType} 
+          onChange={(e) => setMasterTaskType(e.target.value)}
+        >
+          <option value="daily_promo">🎁 Diaria (Web / YouTube / App)</option>
+          <option value="daily_channel">🎁 Diaria (Unirse a Canal)</option>
+          <option value="partner">🤝 Alianza Estratégica (Partner Channel)</option>
+        </select>
+
+        <span style={neon.label}>Título Público</span>
+        <input 
+          type="text" 
+          placeholder="Ej. Check-in YouTube / Suscríbete a Sponsor" 
+          style={{ ...neon.input, borderColor: '#ff1493' }} 
+          value={masterTaskTitle} 
+          onChange={(e) => setMasterTaskTitle(e.target.value)} 
+        />
+
+        <span style={neon.label}>URL Objetivo</span>
+        <input 
+          type="text" 
+          placeholder="https://..." 
+          style={{ ...neon.input, borderColor: '#ff1493' }} 
+          value={masterTaskUrl} 
+          onChange={(e) => setMasterTaskUrl(e.target.value)} 
+        />
+
+        <span style={neon.label}>Recompensa (USDT) (1.0 = 1000 Gemas)</span>
+        <input 
+          type="number" 
+          step="0.001"
+          placeholder="0.001" 
+          style={{ ...neon.input, borderColor: '#ff1493' }} 
+          value={masterTaskReward} 
+          onChange={(e) => setMasterTaskReward(e.target.value)} 
+        />
+
+        <button 
+          onClick={handleDeployMasterTask} 
+          disabled={isDeployingMaster} 
+          style={{ ...neon.btn, background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#fff', marginTop: '8px' }}
+        >
+          {isDeployingMaster ? 'PROCESANDO...' : '🚀 LANZAR MISIÓN GLOBAL'}
+        </button>
       </div>
 
       {/* GESTIÓN DE TORNEOS */}
@@ -363,7 +438,7 @@ export default function AdminDashboard({ userData }) {
             <div style={{ display: 'flex', gap: '10px' }}>
               <div style={{ flex: 2 }}>
                 <span style={neon.label}>Modo de Competencia</span>
-                <select style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0, padding: '11px'}} value={eventType} onChange={e => setEventType(e.target.value)}>
+                <select style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0, padding: '11px', background: 'rgba(0,0,0,0.8)'}} value={eventType} onChange={e => setEventType(e.target.value)}>
                   <option value="referral">👥 Reclutamiento Masivo</option>
                   <option value="task_completion">🔥 Completar Misiones</option>
                 </select>
@@ -488,50 +563,29 @@ export default function AdminDashboard({ userData }) {
               </span>
             </div>
 
-            {/* CONTROL 1: BÓVEDA USDT */}
             <div style={{ marginBottom: '14px' }}>
               <span style={{ ...neon.label, color: '#00ffaa' }}>Bóveda Táctica (USDT - Solo Misiones)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#00ffaa' }} 
-                  value={newDepositBalance} 
-                  onChange={(e) => setNewDepositBalance(e.target.value)} 
-                />
+                <input type="number" step="0.01" style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#00ffaa' }} value={newDepositBalance} onChange={(e) => setNewDepositBalance(e.target.value)} />
                 <button onClick={handleUpdateDepositBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00ffaa, #00bb77)', color: '#050214' }}>Guardar</button>
               </div>
             </div>
 
-            {/* CONTROL 2: SALDO RETIRABLE */}
             <div style={{ marginBottom: '16px' }}>
               <span style={{ ...neon.label, color: '#00f0ff' }}>Inventario Retirable Base (1.00 = 1000 Gemas)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input 
-                  type="number" 
-                  step="0.001"
-                  style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#00f0ff' }} 
-                  value={newBalance} 
-                  onChange={(e) => setNewBalance(e.target.value)} 
-                />
+                <input type="number" step="0.001" style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#00f0ff' }} value={newBalance} onChange={(e) => setNewBalance(e.target.value)} />
                 <button onClick={handleUpdateBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214' }}>Guardar</button>
               </div>
             </div>
 
-            {/* 🔥 CONTROL 3: PREMIO DE SORTEO (HISTORIAL) 🔥 */}
             <div style={{ marginBottom: '16px', background: 'rgba(255, 20, 147, 0.1)', padding: '12px', borderRadius: '12px', border: '1px dashed #ff1493' }}>
               <span style={{ ...neon.label, color: '#ff99dd' }}>🎁 Enviar Premio de Sorteo (Gemas)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="number"
-                  placeholder="Ej: 500"
-                  style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#ff1493' }}
-                  value={sorteoAmount}
-                  onChange={(e) => setSorteoAmount(e.target.value)}
-                />
+                <input type="number" placeholder="Ej: 500" style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#ff1493' }} value={sorteoAmount} onChange={(e) => setSorteoAmount(e.target.value)} />
                 <button onClick={handleSendSorteo} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#fff' }}>Enviar</button>
               </div>
-              <div style={{ fontSize: '10px', color: '#ff99dd', marginTop: '6px' }}>* Esto sumará el saldo y creará un registro de Sorteo en el historial del usuario.</div>
+              <div style={{ fontSize: '10px', color: '#ff99dd', marginTop: '6px' }}>* Esto sumará el saldo y creará un registro de Sorteo en el historial.</div>
             </div>
 
             <button onClick={handleToggleBan} style={foundUser.is_banned ? { ...neon.btnDanger, borderColor: '#00ffaa', color: '#00ffaa' } : neon.btnDanger}>
@@ -551,7 +605,7 @@ export default function AdminDashboard({ userData }) {
         {loadingWithdrawals ? (
           <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>Rastreando peticiones...</div>
         ) : pendingWithdrawals.length === 0 ? (
-          <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>No hay solicitudes de extracción pendientes.</div>
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#aaa' }}>No hay solicitudes pendientes.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
             {pendingWithdrawals.map(w => (
@@ -560,16 +614,10 @@ export default function AdminDashboard({ userData }) {
                   <span style={{ fontSize: '12px', color: '#fff', fontWeight: 'bold' }}>User ID: {w.user_id}</span>
                   <span style={{ fontSize: '14px', color: '#ffe600', fontWeight: '900' }}>{w.amount} USDT</span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#00ffaa', marginBottom: '12px', wordBreak: 'break-all' }}>
-                  Billetera Objetivo: {w.wallet_address}
-                </div>
+                <div style={{ fontSize: '11px', color: '#00ffaa', marginBottom: '12px', wordBreak: 'break-all' }}>Billetera: {w.wallet_address}</div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => handleApproveWithdrawal(w.id)} style={{ flex: 1, background: '#00ffaa', border: 'none', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    {Icons.check} AUTORIZAR
-                  </button>
-                  <button onClick={() => handleRejectWithdrawal(w.id)} style={{ flex: 1, background: 'transparent', border: '1px solid #ff1493', color: '#ff1493', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    {Icons.cross} DENEGAR
-                  </button>
+                  <button onClick={() => handleApproveWithdrawal(w.id)} style={{ flex: 1, background: '#00ffaa', border: 'none', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>{Icons.check} AUTORIZAR</button>
+                  <button onClick={() => handleRejectWithdrawal(w.id)} style={{ flex: 1, background: 'transparent', border: '1px solid #ff1493', color: '#ff1493', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>{Icons.cross} DENEGAR</button>
                 </div>
               </div>
             ))}
@@ -594,13 +642,9 @@ export default function AdminDashboard({ userData }) {
               <div key={task.id} style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '12px', padding: '12px', border: '1px solid #00f0ff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                   <strong style={{ fontSize: '13px', color: '#fff' }}>{task.title}</strong>
-                  <span style={{ fontSize: '10px', color: task.status === 'paused' ? '#ffaa00' : '#00ffaa', fontWeight: 'bold' }}>
-                    {task.status.toUpperCase()}
-                  </span>
+                  <span style={{ fontSize: '10px', color: task.status === 'paused' ? '#ffaa00' : '#00ffaa', fontWeight: 'bold' }}>{task.status.toUpperCase()}</span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '8px', wordBreak: 'break-all' }}>
-                  {task.url}
-                </div>
+                <div style={{ fontSize: '11px', color: '#ff99dd', marginBottom: '8px', wordBreak: 'break-all' }}>{task.url}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
                   <span style={{ color: '#aaa' }}>Creador: {task.creator_id}</span>
                   <span style={{ color: '#ffe600', fontWeight: 'bold' }}>{task.completions_done}/{task.completions_total}</span>
