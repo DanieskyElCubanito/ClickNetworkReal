@@ -618,7 +618,7 @@ export default async function handler(req, res) {
         else await supabase.from('events').update({ status: 'completed' }).eq('id', req.body.eventId);
         return res.status(200).json({ success: true });
       }
-            if (action === 'create-master-task') {
+            if (action === 'admin-create-master-task') {
         const { title, url, type, reward } = req.body;
         // 9999999 cupos para que sea ilimitada, costo 0.
         const { data, error } = await supabase.from('tasks').insert([{
