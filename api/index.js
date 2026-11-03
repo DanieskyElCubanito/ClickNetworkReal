@@ -21,7 +21,6 @@ async function runRetentionAudit(userId) {
 
     for (const item of recentTasks) {
       const t = item.tasks;
-      // 🔥 Blindaje completo: Aplica a grupos, canales, partners y canales diarios
       if (t && (t.type === 'group' || t.type === 'channel' || t.type === 'partner' || t.type === 'daily_channel')) {
         const chatId = extractTelegramUsername(t.url);
         if (chatId) {
@@ -45,9 +44,7 @@ async function runRetentionAudit(userId) {
                 description: `Saliste de la comunidad antes de 24h. Sanción: -${gemasPenalidad} Gemas.`, amount: -penaltyAmount 
               }]);
               
-              // 🔥 NUEVO MENSAJE TÁCTICO CON ENLACE DE REDIRECCIÓN
               const penaltyMsg = `⚠️ <b>PENALIZACIÓN DE RED</b>\n\nHas abandonado la comunidad <b>${t.title}</b> antes de cumplir el ciclo mínimo de 24h.\n\n🔻 Se han deducido <b>${gemasPenalidad} Gemas</b> de tu balance.\n\n🔗 <a href="${t.url}">Haz clic aquí para unirte nuevamente</a> y poder reclamar la misión desde la App.`;
-              
               await notifyUser(userId, penaltyMsg);
             }
           }
@@ -312,20 +309,17 @@ export default async function handler(req, res) {
       const { taskId, validation_code_input } = req.body; 
       const targetId = String(userId);
 
-      // 🛡️ 1. Anti-Spam: Bloqueo de ráfagas (5 segundos)
       const { data: lastLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).eq('title', '✅ Tarea Completada').order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (lastLog && (Date.now() - new Date(lastLog.created_at).getTime() < 5000)) { 
         notifyAdmin(`🤖 <b>Alerta Anti-Spam / Bot</b>\nEl usuario <code>${targetId}</code> intentó completar tareas en ráfaga.`);
         return res.status(400).json({ success: false, error: 'Por favor, espera unos segundos entre cada tarea.' });
       }
 
-      // 🛡️ 2. Validación de Estado de la Misión
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
       if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Misión inactiva o finalizada.' });
       if (String(task.creator_id) === targetId) return res.status(400).json({ success: false, error: 'Comando denegado: No puedes cobrar tu propia misión.' });
       if (task.validation_code && String(task.validation_code).trim() !== String(validation_code_input || '').trim()) return res.status(400).json({ success: false, error: 'Código de validación incorrecto.' });
 
-      // 🛡️ 3. Lógica de Tareas Diarias (1 vez al día) vs Normales
       const isDaily = task.type.startsWith('daily_');
       if (isDaily) {
          const startOfToday = new Date(); 
@@ -339,7 +333,6 @@ export default async function handler(req, res) {
          if (alreadyDone) return res.status(400).json({ success: false, error: 'Ya has completado esta misión táctica.' });
       }
 
-      // 🛡️ 4. Validación Externa (Telegram vs Web)
       if (task.type === 'group' || task.type === 'channel' || task.type === 'partner' || task.type === 'daily_channel') {
         const chatId = extractTelegramUsername(task.url);
         if (chatId) {
@@ -360,7 +353,6 @@ export default async function handler(req, res) {
         catch (e) { return res.status(400).json({ success: false, error: 'Validación fallida: Debes iniciar el bot externo presionando /start primero.' }); }
       }
 
-      // 💰 INSERCIÓN Y PAGO
       if (!isDaily) await supabase.from('user_completed_tasks').insert([{ task_id: taskId, user_id: targetId }]);
 
       const rewardAmount = Number(task.reward || 1);
@@ -401,15 +393,12 @@ export default async function handler(req, res) {
       const { creator_id, type, title, url, bot_token, completions_total, reward, validation_code } = req.body;
       const targetId = String(creator_id || userId);
 
-      // 🛡️ REGLA 1: Bots y Mini Apps DEBEN tener "bot" en la URL
       if (type === 'bot' && !url.toLowerCase().includes('bot')) {
         return res.status(400).json({ success: false, error: 'Enlace inválido. Las URLs de Bots o Mini Apps deben contener la palabra "bot".' });
       }
-      // 🛡️ REGLA 2: Si es web/promo, exigir código de validación obligatoriamente
       if (type === 'promo' && (!validation_code || String(validation_code).trim() === '')) {
         return res.status(400).json({ success: false, error: 'Las misiones web requieren obligatoriamente un Código de Validación para evitar fraudes.' });
       }
-      // 🛡️ REGLA 3: Si es canal/grupo, el bot DEBE ser admin antes de guardar
       if (type === 'group' || type === 'channel') {
         const chatId = extractTelegramUsername(url);
         if (!chatId) return res.status(400).json({ success: false, error: 'Formato de enlace de Telegram inválido.' });
@@ -667,7 +656,7 @@ export default async function handler(req, res) {
       if (action === 'admin-create-master-task') {
         const { title, url, type, reward } = req.body;
         
-        if ((type === 'partner' || type === 'daily_channel') && !url.toLowerCase().includes('bot')) {
+        if (type === 'partner' || type === 'daily_channel') {
            const chatId = extractTelegramUsername(url);
            if (!chatId) return res.status(400).json({ success: false, error: 'Enlace de Telegram inválido.' });
            const adminCheck = await checkAdminStatusDetailed(chatId);
@@ -683,7 +672,6 @@ export default async function handler(req, res) {
         if (error) return res.status(400).json({ success: false, error: error.message });
         return res.status(200).json({ success: true, task: data });
       }
-
 
       if (action === 'admin-get-past-events') {
         const { data: allEvents } = await supabase.from('events').select('*').order('end_date', { ascending: false });
