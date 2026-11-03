@@ -13,22 +13,24 @@ export default function AdsMarket({ props }) {
   const communityTasks = tasks.filter(t => t.status === 'active' && t.creator_id !== String(userData?.id))
     .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
 
-  const pagadas = communityTasks.filter(t => t.type !== 'partner' && !t.type.includes('daily'));
+  // 🔥 NUEVO FILTRADO: Ajustado a las misiones maestras
+  const pagadas = communityTasks.filter(t => !t.type.includes('daily') && t.type !== 'partner');
   const partners = communityTasks.filter(t => t.type === 'partner');
   const diarias = communityTasks.filter(t => t.type.includes('daily'));
 
   const getTaskIconType = (task) => {
     if (task.logo) return task.logo;
-    if (task.type === 'publish_group' || task.type === 'partner') return 'channel';
+    if (task.type === 'publish_group' || task.type === 'partner' || task.type === 'daily_channel') return 'channel';
+    if (task.type === 'daily_promo') return 'promo';
     return task.type;
   };
 
   const getTaskLabel = (type) => {
     if (type === 'partner') return 'Alianza Estratégica';
     if (type === 'publish_group') return 'Red Comunitaria';
-    if (type === 'group' || type === 'channel') return t('ads_type_group') || 'Comunidad';
+    if (type === 'group' || type === 'channel' || type === 'daily_channel') return t('ads_type_group') || 'Comunidad';
     if (type === 'bot') return t('ads_type_bot') || 'Bot';
-    if (type === 'promo') return t('ads_type_promo') || 'Tráfico';
+    if (type === 'promo' || type === 'daily_promo') return t('ads_type_promo') || 'Tráfico';
     return 'Tarea';
   };
 
@@ -40,6 +42,9 @@ export default function AdsMarket({ props }) {
     const status = taskStatus[task.id];
     const isCompleted = task.is_completed || status === 'completed';
     const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
+    
+    // Verificación de permanencia
+    const requiresRetention = ['channel', 'group', 'partner', 'daily_channel'].includes(task.type);
 
     return (
       <div key={task.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch' }}>
@@ -49,9 +54,9 @@ export default function AdsMarket({ props }) {
             <div>
               <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>{task.title}</div>
               <div style={{ color: '#00f0ff', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>
-                {getTaskLabel(task.type)} {task.type !== 'partner' && !task.type.includes('daily') && `• ${task.completions_done} / ${task.completions_total}`}
+                {getTaskLabel(task.type)} {!task.type.includes('daily') && task.type !== 'partner' && `• ${task.completions_done} / ${task.completions_total}`}
               </div>
-              {(task.type === 'channel' || task.type === 'group' || task.type === 'partner') && (
+              {requiresRetention && (
                 <div style={{ color: '#ffe600', fontSize: '9px', fontWeight: '900', marginTop: '4px', textTransform: 'uppercase' }}>
                   🛡️ Permanencia requerida: 24h
                 </div>
