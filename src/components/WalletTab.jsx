@@ -127,7 +127,7 @@ export default function WalletTab({ userData, setUserData, t }) {
     if (gemasAmount > gemBalance) return toast.error(t('bank_err_insufficient') || "No tienes suficientes Gemas.");
 
     if (reqs.referrals < 3 && reqs.ads < 15) {
-      return toast.error("Debes cumplir uno de los requisitos para retirar (3 Referidos Activos o 15 Anuncios hoy).");
+      return toast.error(t('bank_req_error') || "Debes cumplir uno de los requisitos para retirar (3 Referidos Activos o 15 Anuncios hoy).");
     }
 
     setIsWithdrawing(true);
@@ -240,8 +240,8 @@ export default function WalletTab({ userData, setUserData, t }) {
         boxShadow: 'inset 0 0 15px rgba(0,240,255,0.1)'
       }}>
         <div>
-          <div style={{ color: '#fff', fontSize: '13px', fontWeight: '900' }}>💎 Transparencia en Vivo</div>
-          <div style={{ color: '#00f0ff', fontSize: '11px', fontWeight: 'bold', marginTop: '2px' }}>Comprueba los pagos a la blockchain</div>
+          <div style={{ color: '#fff', fontSize: '13px', fontWeight: '900' }}>{t('bank_live_title') || "💎 Transparencia en Vivo"}</div>
+          <div style={{ color: '#00f0ff', fontSize: '11px', fontWeight: 'bold', marginTop: '2px' }}>{t('bank_live_desc') || "Comprueba los pagos a la blockchain"}</div>
         </div>
         <button 
           onClick={() => WebApp.openTelegramLink('https://t.me/CryptoWeb3Pay')} 
@@ -258,7 +258,7 @@ export default function WalletTab({ userData, setUserData, t }) {
             whiteSpace: 'nowrap',
             textTransform: 'uppercase'
           }}>
-          VER CANAL ➔
+          {t('bank_live_btn') || "VER CANAL ➔"}
         </button>
       </div>
 
@@ -307,13 +307,13 @@ export default function WalletTab({ userData, setUserData, t }) {
           </div>
 
           <div style={{ background: 'linear-gradient(145deg, #10061e, #1a0b33)', border: '1.5px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '20px' }}>
-            <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>🛡️ Requisitos de Retiro (Elige uno)</h4>
+            <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>{t('bank_req_title') || "🛡️ Requisitos de Retiro (Elige uno)"}</h4>
 
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span>Opción 1: Referidos Activos</span>
-                  <span style={{ fontSize: '9px', color: '#ff99dd', marginTop: '2px', fontWeight: 'normal' }}>(Deben haber ganado al menos 5 Gemas)</span>
+                  <span>{t('bank_req_opt1') || "Opción 1: Referidos Activos"}</span>
+                  <span style={{ fontSize: '9px', color: '#ff99dd', marginTop: '2px', fontWeight: 'normal' }}>{t('bank_req_opt1_desc') || "(Deben haber ganado al menos 5 Gemas)"}</span>
                 </div>
                 <span style={{ color: reqs.referrals >= 3 ? '#00ffaa' : '#ff99dd', paddingTop: '2px' }}>{reqs.referrals} / 3</span>
               </div>
@@ -324,7 +324,7 @@ export default function WalletTab({ userData, setUserData, t }) {
 
             <div style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
-                <span>Opción 2: Anuncios de Hoy</span>
+                <span>{t('bank_req_opt2') || "Opción 2: Anuncios de Hoy"}</span>
                 <span style={{ color: reqs.ads >= 15 ? '#00ffaa' : '#ff99dd' }}>{reqs.ads} / 15</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '12px' }}>
@@ -335,7 +335,7 @@ export default function WalletTab({ userData, setUserData, t }) {
                 disabled={playingAd || reqs.ads >= 15 || reqs.referrals >= 3}
                 style={{ width: '100%', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', padding: '10px', fontWeight: '900', fontSize: '13px', cursor: (reqs.ads >= 15 || reqs.referrals >= 3) ? 'not-allowed' : 'pointer', opacity: (reqs.ads >= 15 || reqs.referrals >= 3) ? 0.5 : 1 }}
               >
-                {playingAd ? 'CARGANDO VIDEO...' : '▶ VER ANUNCIO PARA DESBLOQUEAR'}
+                {playingAd ? (t('bank_req_btn_loading') || 'CARGANDO VIDEO...') : (t('bank_req_btn_watch') || '▶ VER ANUNCIO PARA DESBLOQUEAR')}
               </button>
             </div>
           </div>
@@ -396,11 +396,10 @@ export default function WalletTab({ userData, setUserData, t }) {
             </div>
           ) : (
             <div className="fade-in">
-              {/* 🔥 PANEL PERSUASIVO TÁCTICO */}
               <div style={{ background: 'rgba(255, 20, 147, 0.1)', border: '1px dashed #ff1493', borderRadius: '14px', padding: '16px', marginBottom: '20px', textAlign: 'center' }}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#ff99dd', fontSize: '14px', fontWeight: '900', textTransform: 'uppercase' }}>🚀 Domina la Red</h4>
+                <h4 style={{ margin: '0 0 8px 0', color: '#ff99dd', fontSize: '14px', fontWeight: '900', textTransform: 'uppercase' }}>{t('bank_promo_title') || '🚀 Domina la Red'}</h4>
                 <p style={{ color: '#fff', fontSize: '12px', margin: 0, lineHeight: '1.4' }}>
-                  Convierte USDT en tráfico masivo. Cientos de usuarios listos para unirse a tu canal o interactuar con tu bot. <strong style={{color:'#00f0ff'}}>¡Impulsa tu proyecto hoy!</strong>
+                  {t('bank_promo_desc') || 'Convierte USDT en tráfico masivo. Cientos de usuarios listos para unirse a tu canal o interactuar con tu bot.'} <strong style={{color:'#00f0ff'}}>{t('bank_promo_highlight') || '¡Impulsa tu proyecto hoy!'}</strong>
                 </p>
               </div>
 
