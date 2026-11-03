@@ -297,7 +297,7 @@ export default function AdminDashboard({ userData }) {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
         body: JSON.stringify({ 
-          action: 'create-master-task', 
+          action: 'admin-create-master-task', 
           adminId: userData.id, 
           title: masterTaskTitle, 
           url: masterTaskUrl, 
