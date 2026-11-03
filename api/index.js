@@ -21,7 +21,8 @@ async function runRetentionAudit(userId) {
 
     for (const item of recentTasks) {
       const t = item.tasks;
-      if (t && (t.type === 'group' || t.type === 'channel' || t.type === 'partner')) {
+      // 🔥 Blindaje completo: Aplica a grupos, canales, partners y canales diarios
+      if (t && (t.type === 'group' || t.type === 'channel' || t.type === 'partner' || t.type === 'daily_channel')) {
         const chatId = extractTelegramUsername(t.url);
         if (chatId) {
           const isStillMember = await checkMembership(userId, chatId);
@@ -43,7 +44,11 @@ async function runRetentionAudit(userId) {
                 user_id: userId, title: '⚠️ Penalidad de Permanencia', 
                 description: `Saliste de la comunidad antes de 24h. Sanción: -${gemasPenalidad} Gemas.`, amount: -penaltyAmount 
               }]);
-              await notifyUser(userId, `⚠️ <b>PENALIZACIÓN DE RED</b>\nHas abandonado la comunidad <b>${t.title}</b> antes de 24h.\nSe han deducido <b>${gemasPenalidad} Gemas</b>.`);
+              
+              // 🔥 NUEVO MENSAJE TÁCTICO CON ENLACE DE REDIRECCIÓN
+              const penaltyMsg = `⚠️ <b>PENALIZACIÓN DE RED</b>\n\nHas abandonado la comunidad <b>${t.title}</b> antes de cumplir el ciclo mínimo de 24h.\n\n🔻 Se han deducido <b>${gemasPenalidad} Gemas</b> de tu balance.\n\n🔗 <a href="${t.url}">Haz clic aquí para unirte nuevamente</a> y poder reclamar la misión desde la App.`;
+              
+              await notifyUser(userId, penaltyMsg);
             }
           }
         }
