@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 export const translations = {
   es: {
     // App & BottomNav
@@ -61,6 +63,7 @@ export const translations = {
     ads_btn_loading: "Sincronizando...",
     ads_syncing: "Buscando misiones disponibles en la red...",
     ads_empty_market: "No hay misiones de tráfico detectadas en este momento.",
+    ads_empty_category: "No hay misiones disponibles en esta categoría. Vuelve más tarde.",
     ads_btn_create: "+ DESPLEGAR NUEVA CAMPAÑA",
     ads_your_campaigns: "Panel de Anunciante",
     ads_empty_my_ads: "No dispone de campañas publicitarias activas en el servidor.",
@@ -82,13 +85,17 @@ export const translations = {
     ads_type_bot: "🤖 Interacción con Bots/Mini Apps",
     ads_type_promo: "⚡ Tráfico y Exploración Web",
     ads_type_daily: "🎁 Recompensa Diaria (24h)",
+    ads_type_partner: "🤝 Alianza Estratégica",
     ads_btn_wait_tomorrow: "⏳ CICLO COMPLETADO",
     ads_btn_waiting: "VALIDANDO SEGUIMIENTO",
     ads_btn_check: "✅ RECLAMAR BOTÍN",
-    ads_btn_verifying: "AUDITANDO...",
+    ads_btn_verifying: "AUDITING...",
     ads_url_desc_bot: "Dirección de acceso al Bot o Mini App (Ej: t.me/AppBot?start=...)",
     ads_url_desc_channel: "Identificador público de su comunidad en Telegram (Ej: @CanalOficial)",
     ads_url_desc_promo: "URL de destino para redirección de tráfico o enlace de conversión.",
+    ads_daily_streak: "🎁 Racha Diaria (Día {day})",
+    ads_daily_sponsor: "Patrocinado por GigaPub",
+    ads_daily_come_back: "VUELVE MAÑANA",
 
     // Categorías de Misiones
     ads_cat_pagadas: "Pagadas",
@@ -220,6 +227,21 @@ export const translations = {
     bank_dp_method_usdt: "USDT (BEP20)",
     bank_btn_connecting: "ESTABLECIENDO CONEXIÓN...",
     bank_btn_proceed: "PROCEDER AL SUMINISTRO",
+    
+    // Novedades de WalletTab (Requisitos y persuasión)
+    bank_req_title: "🛡️ Requisitos de Retiro (Elige uno)",
+    bank_req_opt1: "Opción 1: Referidos Activos",
+    bank_req_opt1_desc: "(Deben haber ganado al menos 5 Gemas)",
+    bank_req_opt2: "Opción 2: Anuncios de Hoy",
+    bank_req_btn_watch: "▶ VER ANUNCIO PARA DESBLOQUEAR",
+    bank_req_btn_loading: "CARGANDO VIDEO...",
+    bank_req_error: "Debes cumplir uno de los requisitos para retirar (3 Referidos Activos o 15 Anuncios hoy).",
+    bank_promo_title: "🚀 Domina la Red",
+    bank_promo_desc: "Convierte USDT en tráfico masivo. Cientos de usuarios listos para unirse a tu canal o interactuar con tu bot.",
+    bank_promo_highlight: "¡Impulsa tu proyecto hoy!",
+    bank_live_title: "💎 Transparencia en Vivo",
+    bank_live_desc: "Comprueba los pagos a la blockchain",
+    bank_live_btn: "VER CANAL ➔",
 
     // AdminTab & Withdrawals
     admin_title: "Comando Central",
@@ -347,6 +369,7 @@ export const translations = {
     ads_btn_loading: "Syncing...",
     ads_syncing: "Scanning for available missions...",
     ads_empty_market: "No traffic missions detected at this time.",
+    ads_empty_category: "No missions available in this category. Come back later.",
     ads_btn_create: "+ DEPLOY NEW CAMPAIGN",
     ads_your_campaigns: "Advertiser Panel",
     ads_empty_my_ads: "No active advertising campaigns found on the server.",
@@ -368,6 +391,7 @@ export const translations = {
     ads_type_bot: "🤖 Bot/Mini App Interaction",
     ads_type_promo: "⚡ Traffic & Web Exploration",
     ads_type_daily: "🎁 Daily Reward (24h)",
+    ads_type_partner: "🤝 Strategic Alliance",
     ads_btn_wait_tomorrow: "⏳ CYCLE COMPLETED",
     ads_btn_waiting: "VALIDATING TRACKING",
     ads_btn_check: "✅ CLAIM LOOT",
@@ -375,6 +399,9 @@ export const translations = {
     ads_url_desc_bot: "Access link to the Bot or Mini App (e.g., t.me/AppBot?start=...)",
     ads_url_desc_channel: "Public identifier of your Telegram community (e.g., @OfficialChannel)",
     ads_url_desc_promo: "Target URL for traffic redirection or conversion link.",
+    ads_daily_streak: "🎁 Daily Streak (Day {day})",
+    ads_daily_sponsor: "Sponsored by GigaPub",
+    ads_daily_come_back: "COME BACK TOMORROW",
 
     // Categorías de Misiones
     ads_cat_pagadas: "Paid",
@@ -506,6 +533,21 @@ export const translations = {
     bank_dp_method_usdt: "USDT (BEP20)",
     bank_btn_connecting: "ESTABLISHING CONNECTION...",
     bank_btn_proceed: "PROCEED TO SUPPLY",
+    
+    // Novedades de WalletTab (Requisitos y persuasión)
+    bank_req_title: "🛡️ Withdrawal Requirements (Choose one)",
+    bank_req_opt1: "Option 1: Active Referrals",
+    bank_req_opt1_desc: "(Must have earned at least 5 Gems)",
+    bank_req_opt2: "Option 2: Today's Ads",
+    bank_req_btn_watch: "▶ WATCH AD TO UNLOCK",
+    bank_req_btn_loading: "LOADING VIDEO...",
+    bank_req_error: "You must meet one of the requirements to withdraw (3 Active Referrals or 15 Ads today).",
+    bank_promo_title: "🚀 Dominate the Network",
+    bank_promo_desc: "Convert USDT into massive traffic. Hundreds of users ready to join your channel or interact with your bot.",
+    bank_promo_highlight: "Boost your project today!",
+    bank_live_title: "💎 Live Transparency",
+    bank_live_desc: "Verify payments to the blockchain",
+    bank_live_btn: "VIEW CHANNEL ➔",
 
     // AdminTab & Withdrawals
     admin_title: "Command Center",
