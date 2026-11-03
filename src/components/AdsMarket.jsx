@@ -45,38 +45,78 @@ export default function AdsMarket({ props }) {
     
     // Verificación de permanencia
     const requiresRetention = ['channel', 'group', 'partner', 'daily_channel'].includes(task.type);
+    
+    // Barra de progreso de cupos (solo para pagadas)
+    const isLimited = !task.type.includes('daily') && task.type !== 'partner';
+    const fillPercent = isLimited ? Math.min((task.completions_done / task.completions_total) * 100, 100) : 0;
+    const isAlmostFull = fillPercent > 85;
+
+    // Etiqueta de rareza/dificultad gamificada
+    let badgeText = "OP NORMAL";
+    let badgeColor = "#ffaa00";
+    if (task.type === 'partner') { badgeText = "OP ÉLITE"; badgeColor = "#ff1493"; }
+    if (task.type.includes('daily')) { badgeText = "OP FLASH"; badgeColor = "#00ffaa"; }
 
     return (
-      <div key={task.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch' }}>
+      <div key={task.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch', position: 'relative', overflow: 'hidden' }}>
+        
+        {/* Efecto de borde brilloso si está casi llena la tarea */}
+        {isLimited && isAlmostFull && !isCompleted && (
+           <div style={{ position: 'absolute', top: 0, right: 0, padding: '2px 8px', background: '#ff1414', color: '#fff', fontSize: '9px', fontWeight: '900', borderBottomLeftRadius: '10px' }}>
+              ⚠️ CUPOS CRÍTICOS
+           </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={neon.taskIconBox}>{TaskIcons[iconType] ? TaskIcons[iconType]('#00f0ff') : TaskIcons.promo('#00f0ff')}</div>
-            <div>
-              <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>{task.title}</div>
-              <div style={{ color: '#00f0ff', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>
-                {getTaskLabel(task.type)} {!task.type.includes('daily') && task.type !== 'partner' && `• ${task.completions_done} / ${task.completions_total}`}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, paddingRight: '10px' }}>
+            <div style={{...neon.taskIconBox, borderColor: badgeColor, boxShadow: `0 0 10px ${badgeColor}40`}}>
+               {TaskIcons[iconType] ? TaskIcons[iconType](badgeColor) : TaskIcons.promo(badgeColor)}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                 <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>{task.title}</div>
+                 <div style={{ fontSize: '8px', background: `${badgeColor}20`, color: badgeColor, padding: '2px 6px', borderRadius: '4px', fontWeight: '900', border: `1px solid ${badgeColor}50` }}>{badgeText}</div>
               </div>
+              <div style={{ color: '#00f0ff', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>
+                {getTaskLabel(task.type)}
+              </div>
+              
+              {/* Barra de progreso de la misión (cupos) */}
+              {isLimited && (
+                <div style={{ marginTop: '6px', width: '100%', maxWidth: '180px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#aaa', fontWeight: 'bold', marginBottom: '2px' }}>
+                    <span>CUPOS CUBIERTOS</span>
+                    <span style={{ color: isAlmostFull ? '#ff1414' : '#00f0ff'}}>{task.completions_done} / {task.completions_total}</span>
+                  </div>
+                  <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${fillPercent}%`, background: isAlmostFull ? '#ff1414' : '#00f0ff', transition: 'width 0.3s' }}></div>
+                  </div>
+                </div>
+              )}
+
               {requiresRetention && (
-                <div style={{ color: '#ffe600', fontSize: '9px', fontWeight: '900', marginTop: '4px', textTransform: 'uppercase' }}>
-                  🛡️ Permanencia requerida: 24h
+                <div style={{ color: '#ffe600', fontSize: '9px', fontWeight: '900', marginTop: '6px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  🛡️ Permanencia de red: 24H
                 </div>
               )}
             </div>
           </div>
           
-          {task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={neon.taskButtonRejoin}>RESTAURAR</button> :
-           isCompleted ? <button disabled style={neon.taskButtonDisabled}>{t('ads_completed') || 'COMPLETADO'}</button> :
-           status === 'waiting_for_redirect' ? <button disabled style={neon.taskButtonDisabled}>⏳ 8 SEG</button> :
-           status === 'away' ? <button disabled style={neon.taskButtonDisabled}>⏳ REVISANDO...</button> :
-           status === 'verifying' ? <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying') || 'VERIFICANDO...'}</button> :
-           status === 'ready_to_claim' ? (
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-               {task.validation_code && (
-                 <input style={{ ...neon.input, padding: '8px', fontSize: '12px', width: '130px', textAlign: 'center', background: 'rgba(0,0,0,0.5)' }} placeholder="Escribe el código..." value={verifyInputs[task.id] || ''} onChange={(e) => setVerifyInputs({ ...verifyInputs, [task.id]: e.target.value })} />
-               )}
-               <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '130px' : 'auto'}}>{TaskIcons.check} RECLAMAR</button>
-             </div>
-           ) : <button onClick={() => handleStartTask(task)} style={neon.taskButton}>{`+${displayGemas} 💎`}</button>}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+            {task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={{...neon.taskButtonRejoin, boxShadow: '0 0 10px rgba(0, 255, 170, 0.4)'}}>RESTAURAR</button> :
+             isCompleted ? <button disabled style={neon.taskButtonDisabled}>{t('ads_completed') || 'COMPLETADO'}</button> :
+             status === 'waiting_for_redirect' ? <button disabled style={{...neon.taskButtonDisabled, color: '#ffaa00', borderColor: '#ffaa00'}}>⏳ 8 SEG</button> :
+             status === 'away' ? <button disabled style={{...neon.taskButtonDisabled, color: '#00f0ff', borderColor: '#00f0ff'}}>⏳ REVISANDO...</button> :
+             status === 'verifying' ? <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying') || 'VERIFICANDO...'}</button> :
+             status === 'ready_to_claim' ? (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
+                 {task.validation_code && (
+                   <input style={{ ...neon.input, padding: '6px', fontSize: '11px', width: '120px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', borderColor: '#00ffaa' }} placeholder="Código..." value={verifyInputs[task.id] || ''} onChange={(e) => setVerifyInputs({ ...verifyInputs, [task.id]: e.target.value })} />
+                 )}
+                 <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '120px' : 'auto', background: 'linear-gradient(90deg, #00ffaa, #00bb77)', color: '#050214', border: 'none'}}>{TaskIcons.check} RECLAMAR</button>
+               </div>
+             ) : <button onClick={() => handleStartTask(task)} style={{...neon.taskButton, background: `linear-gradient(180deg, ${badgeColor}, ${badgeColor}aa)`, color: '#050214', border: 'none', boxShadow: `0 4px 0 ${badgeColor}60`}}>{`+${displayGemas} 💎`}</button>}
+          </div>
         </div>
       </div>
     );
