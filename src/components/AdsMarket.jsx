@@ -26,7 +26,7 @@ export default function AdsMarket({ props }) {
   };
 
   const getTaskLabel = (type) => {
-    if (type === 'partner') return 'Alianza Estratégica';
+    if (type === 'partner') return t('ads_type_partner') || 'Alianza Estratégica';
     if (type === 'publish_group') return 'Red Comunitaria';
     if (type === 'group' || type === 'channel' || type === 'daily_channel') return t('ads_type_group') || 'Comunidad';
     if (type === 'bot') return t('ads_type_bot') || 'Bot';
@@ -95,7 +95,7 @@ export default function AdsMarket({ props }) {
         marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px'
       }}>
         <span style={{ fontSize: '24px', fontWeight: '900', lineHeight: 1 }}>+</span> 
-        Crear Nueva Campaña
+        {t('ads_btn_create')}
       </button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
@@ -104,9 +104,9 @@ export default function AdsMarket({ props }) {
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '16px' }}>
-        <button onClick={() => setCategory('pagadas')} style={neon.subTabBtn(category === 'pagadas')}>Pagadas</button>
-        <button onClick={() => setCategory('diarias')} style={neon.subTabBtn(category === 'diarias')}>Diarias</button>
-        <button onClick={() => setCategory('partners')} style={neon.subTabBtn(category === 'partners')}>Partners</button>
+        <button onClick={() => setCategory('pagadas')} style={neon.subTabBtn(category === 'pagadas')}>{t('ads_cat_pagadas')}</button>
+        <button onClick={() => setCategory('diarias')} style={neon.subTabBtn(category === 'diarias')}>{t('ads_cat_diarias')}</button>
+        <button onClick={() => setCategory('partners')} style={neon.subTabBtn(category === 'partners')}>{t('ads_cat_partners')}</button>
       </div>
 
       {category === 'diarias' && (
@@ -134,14 +134,16 @@ export default function AdsMarket({ props }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               <div style={{ ...neon.taskIconBox, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.1)' }}>{TaskIcons.daily('#00ffaa')}</div>
               <div>
-                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>🎁 Racha Diaria (Día {streakCount})</div>
-                <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>Patrocinado por GigaPub</div>
+                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>
+                  {t('ads_daily_streak') ? t('ads_daily_streak').replace('{day}', streakCount) : `🎁 Racha Diaria (Día ${streakCount})`}
+                </div>
+                <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>{t('ads_daily_sponsor') || 'Patrocinado por GigaPub'}</div>
               </div>
             </div>
             {loadingTasks ? (
                <button disabled style={{...neon.taskButtonDisabled, background: 'rgba(0, 255, 170, 0.1)', borderColor: '#00ffaa', color: '#00ffaa', opacity: 0.6}}>CARGANDO...</button>
             ) : gigaClaimed ? (
-               <button disabled style={neon.taskButtonDisabled}>VUELVE MAÑANA</button>
+               <button disabled style={neon.taskButtonDisabled}>{t('ads_daily_come_back') || 'VUELVE MAÑANA'}</button>
             ) : (
                <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
                  {playingAd ? 'CARGANDO...' : `+${streakCount}.00 💎`}
@@ -155,13 +157,13 @@ export default function AdsMarket({ props }) {
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
           <div style={{ color: '#00f0ff', fontSize: '14px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
             <style>{`@keyframes pulseTasks { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
-            <div style={{ animation: 'pulseTasks 1.5s infinite' }}>Buscando Misiones...</div>
+            <div style={{ animation: 'pulseTasks 1.5s infinite' }}>{t('ads_btn_loading') || 'Sincronizando...'}</div>
           </div>
         </div>
       ) : currentList.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px dashed rgba(255,255,255,0.1)' }}>
           <p style={{ color: '#ff99dd', fontSize: '13px', fontWeight: 'bold', margin: 0, lineHeight: '1.5' }}>
-             No hay misiones disponibles en esta categoría. Vuelve más tarde.
+             {t('ads_empty_category') || 'No hay misiones disponibles en esta categoría. Vuelve más tarde.'}
           </p>
         </div>
       ) : (
