@@ -15,11 +15,15 @@ export const translations = {
     nav_admin: "Comando",
     share_text: "Únete a mi escuadrón en la principal red Web3 de Telegram. ¡Completa misiones y gana recompensas en USDT real!",
 
-    // ProfileHeader
+    // ProfileHeader & Stats
     profile_global: "Rendimiento Global",
     profile_earned: "Capital Generado",
     operator: "Jugador Estratégico Web3",
     verified: "IDENTIDAD VERIFICADA",
+    stats_users: "Usuarios",
+    stats_withdrawn: "Retirado",
+    stats_vault: "Fondos Bóveda",
+    stats_days: "Días en Línea",
     support_tab: "SOPORTE TÉCNICO",
     about_tab: "PLATAFORMA",
     terms_tab: "LEGAL",
@@ -89,7 +93,7 @@ export const translations = {
     ads_btn_wait_tomorrow: "⏳ CICLO COMPLETADO",
     ads_btn_waiting: "VALIDANDO SEGUIMIENTO",
     ads_btn_check: "✅ RECLAMAR BOTÍN",
-    ads_btn_verifying: "AUDITING...",
+    ads_btn_verifying: "AUDITANDO...",
     ads_url_desc_bot: "Dirección de acceso al Bot o Mini App (Ej: t.me/AppBot?start=...)",
     ads_url_desc_channel: "Identificador público de su comunidad en Telegram (Ej: @CanalOficial)",
     ads_url_desc_promo: "URL de destino para redirección de tráfico o enlace de conversión.",
@@ -321,11 +325,15 @@ export const translations = {
     nav_admin: "Command",
     share_text: "Join my squad on the premier Web3 network on Telegram. Complete missions and earn real USDT rewards!",
 
-    // ProfileHeader
+    // ProfileHeader & Stats
     profile_global: "Global Yield",
     profile_earned: "Generated Capital",
     operator: "Web3 Tactical Partner",
     verified: "IDENTITY VERIFIED",
+    stats_users: "Users",
+    stats_withdrawn: "Withdrawn",
+    stats_vault: "Vault Funds",
+    stats_days: "Days Online",
     support_tab: "TECH SUPPORT",
     about_tab: "PLATFORM",
     terms_tab: "LEGAL",
