@@ -603,12 +603,6 @@ export default async function handler(req, res) {
       const { data: intent } = await supabase.from('payment_intents').select('*').eq('id', intentId).eq('user_id', targetId).eq('status', 'pending').single();
       if (!intent) return res.status(400).json({ success: false, error: 'No procesado.' });
 
-          if (action === 'verify-usdt-payment' || action === 'verify-crypto-payment') {
-      const { intentId, clicks } = req.body; 
-      const targetId = String(userId);
-      const { data: intent } = await supabase.from('payment_intents').select('*').eq('id', intentId).eq('user_id', targetId).eq('status', 'pending').single();
-      if (!intent) return res.status(400).json({ success: false, error: 'No procesado.' });
-
       if (action === 'verify-usdt-payment') {
         const { ethers } = await import('ethers');
         const provider = new ethers.JsonRpcProvider(process.env.BSC_RPC || "https://bsc-dataseed.binance.org/");
@@ -637,9 +631,8 @@ export default async function handler(req, res) {
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '📥 Recarga de Bóveda', description: `Acreditado: $${Number(clicks).toFixed(2)} USDT.`, amount: 0 }]);
       
-      // 🔥 NUEVO: MENSAJE GLORIOSO AL CANAL DE PAGOS POR DEPÓSITO
       try {
-        const axios = require('axios'); // Aseguramos importar axios aquí para la petición
+        const axios = require('axios');
         const usernameDisplay = dbUser?.username && dbUser.username !== 'Usuario' ? `@${dbUser.username}` : `ID: ${targetId}`;
         const cryptoType = action === 'verify-usdt-payment' ? 'USDT (BEP20)' : 'GRAM (TON)';
 
@@ -657,7 +650,7 @@ export default async function handler(req, res) {
         };
 
         await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.split(':')[0]}:${process.env.TELEGRAM_BOT_TOKEN.split(':')[1]}/sendMessage`, {
-          chat_id: '-1002352835078', // Tu canal público
+          chat_id: '-1002352835078',
           text: message,
           parse_mode: 'HTML',
           reply_markup: keyboard,
@@ -669,7 +662,6 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ success: true, deposit_balance: newDepositBalance });
     }
-
 
     // ==========================================
     // ⚙️ PANEL DE COMANDO (ADMIN)
