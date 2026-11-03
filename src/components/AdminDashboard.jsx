@@ -286,10 +286,18 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error(e.message || "Fallo en sobreescritura", { id: tid }); }
   };
 
-  // 🔥 NUEVO: Función para Desplegar Tareas Maestras (Diarias / Partners) sin costo de Bóveda
+    // 🔥 NUEVO: Función para Desplegar Tareas Maestras (Diarias / Partners) sin costo de Bóveda
   const handleDeployMasterTask = async () => {
     if (!masterTaskTitle.trim() || !masterTaskUrl.trim()) return toast.error("Completa el título y la URL objetivo.");
     if (!masterTaskReward || Number(masterTaskReward) <= 0) return toast.error("Asigna una recompensa válida en USDT.");
+
+    // 🛡️ BLINDAJE FRONTEND: Validar enlaces antes de gastar recursos del servidor
+    if ((masterTaskType === 'partner' || masterTaskType === 'daily_channel') && !masterTaskUrl.toLowerCase().includes('bot')) {
+      return toast.error("Enlace inválido. Para Partners o Canales Diarios debes proporcionar el enlace de tu Bot como administrador.");
+    }
+    
+    // Si tuvieras misiones "promo" normales aquí en el panel de admin, también podrías exigir el validation_code,
+    // pero como masterTaskType solo tiene daily_promo y el backend las maneja por tiempo (8 segundos), esto es suficiente.
 
     const tid = toast.loading("Desplegando misión maestra global...");
     setIsDeployingMaster(true);
@@ -311,7 +319,7 @@ export default function AdminDashboard({ userData }) {
         toast.success(`¡Misión ${masterTaskType.toUpperCase()} activada!`, { id: tid });
         setMasterTaskTitle('');
         setMasterTaskUrl('');
-        loadAllTasks();
+        loadAllTasks(); // Recarga la tabla de auditoría para ver la nueva misión
       } else throw new Error(data.error);
     } catch (err) {
       toast.error(err.message || "Error al desplegar la misión.", { id: tid });
@@ -319,6 +327,7 @@ export default function AdminDashboard({ userData }) {
       setIsDeployingMaster(false);
     }
   };
+
 
   return (
     <div style={{ color: '#fff', paddingBottom: '20px' }}>
