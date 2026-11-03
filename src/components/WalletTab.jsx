@@ -10,7 +10,7 @@ const neonStyles = {
   card: { background: 'rgba(15, 5, 28, 0.8)', border: '1px solid #8a2be2', borderRadius: '20px', padding: '20px', marginBottom: '16px', boxShadow: '0 4px 15px rgba(138, 43, 226, 0.15)' },
   btnPrimary: { width: '100%', padding: '16px', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '15px', letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.3)', textTransform: 'uppercase' },
   btnPink: { width: '100%', padding: '16px', background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '15px', letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.3)', textTransform: 'uppercase' },
-  input: { width: '100%', background: 'rgba(0, 0, 0, 0.4)', border: '2px solid #8a2be2', borderRadius: '14px', padding: '14px', fontSize: '15px', color: '#ffffff', outline: 'none', boxSizing: 'border-box', marginBottom: '16px', fontWeight: 'bold' },
+  input: { width: '100%', background: 'rgba(0, 0, 0, 0.4)', border: '2px solid #8a2be2', borderRadius: '14px', padding: '14px', fontSize: '15px', color: '#ffffff', outline: 'none', boxSizing: 'border-box', marginBottom: '16px', fontWeight: 'bold', textAlign: 'center' },
   label: { fontSize: '11px', color: '#ff99dd', fontWeight: '900', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' },
   tabContainer: { display: 'flex', gap: '10px', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '20px' },
   tabBtn: (active, isDeposit) => ({ flex: 1, padding: '12px', borderRadius: '14px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.3s', background: active ? (isDeposit ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'linear-gradient(90deg, #ff1414, #8b0000)') : 'transparent', color: active ? (isDeposit ? '#050214' : '#ffffff') : (isDeposit ? '#00f0ff' : '#ff9999'), boxShadow: active ? (isDeposit ? '0 4px 15px rgba(0,240,255,0.3)' : '0 4px 15px rgba(255,20,20,0.3)') : 'none', textTransform: 'uppercase' })
@@ -244,7 +244,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ color: '#00f0ff', fontSize: '11px', fontWeight: 'bold', marginTop: '2px' }}>Comprueba los pagos a la blockchain</div>
         </div>
         <button 
-          onClick={() => WebApp.openTelegramLink('https://t.me/PagosEnCrypto')} 
+          onClick={() => WebApp.openTelegramLink('https://t.me/CryptoWeb3Pay')} 
           style={{ 
             background: 'linear-gradient(180deg, #00f0ff, #0088ff)', 
             color: '#050214', 
@@ -282,7 +282,7 @@ export default function WalletTab({ userData, setUserData, t }) {
 
           <label style={{...neonStyles.label, color: '#ff9999'}}>{t('bank_wd_address_label') || "Billetera de Destino (Red TON)"}</label>
           <input 
-            style={{...neonStyles.input, borderColor: '#ff1414'}} 
+            style={{...neonStyles.input, borderColor: '#ff1414', textAlign: 'left'}} 
             placeholder={t('bank_wd_address_placeholder') || "Ej: UQDgJUo4Ycvd9Q_ICUI..."} 
             value={withdrawAddress} 
             onChange={(e) => setWithdrawAddress(e.target.value)} 
@@ -293,7 +293,7 @@ export default function WalletTab({ userData, setUserData, t }) {
             <input 
               type="text" 
               inputMode="decimal"
-              style={{ ...neonStyles.input, borderColor: '#ff1414', marginBottom: 0 }} 
+              style={{ ...neonStyles.input, borderColor: '#ff1414', marginBottom: 0, textAlign: 'left' }} 
               placeholder="50" 
               value={withdrawAmount} 
               onChange={(e) => setWithdrawAmount(e.target.value.replace(',', '.'))} 
@@ -309,7 +309,6 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ background: 'linear-gradient(145deg, #10061e, #1a0b33)', border: '1.5px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '20px' }}>
             <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>🛡️ Requisitos de Retiro (Elige uno)</h4>
 
-            {/* 🔥 NUEVO: Opción 1 rediseñada con aclaración visual */}
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -397,6 +396,14 @@ export default function WalletTab({ userData, setUserData, t }) {
             </div>
           ) : (
             <div className="fade-in">
+              {/* 🔥 PANEL PERSUASIVO TÁCTICO */}
+              <div style={{ background: 'rgba(255, 20, 147, 0.1)', border: '1px dashed #ff1493', borderRadius: '14px', padding: '16px', marginBottom: '20px', textAlign: 'center' }}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#ff99dd', fontSize: '14px', fontWeight: '900', textTransform: 'uppercase' }}>🚀 Domina la Red</h4>
+                <p style={{ color: '#fff', fontSize: '12px', margin: 0, lineHeight: '1.4' }}>
+                  Convierte USDT en tráfico masivo. Cientos de usuarios listos para unirse a tu canal o interactuar con tu bot. <strong style={{color:'#00f0ff'}}>¡Impulsa tu proyecto hoy!</strong>
+                </p>
+              </div>
+
               <h3 style={{ margin: '0 0 14px 0', color: '#fff', fontSize: '16px', fontWeight: '900' }}>{t('bank_dp_title') || "Recargar Bóveda USDT"}</h3>
               <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '16px' }}>{t('bank_dp_desc') || "Añade fondos que se usarán exclusivamente para crear campañas publicitarias."}</div>
 
@@ -407,7 +414,7 @@ export default function WalletTab({ userData, setUserData, t }) {
                 <input 
                   type="text" 
                   inputMode="decimal"
-                  style={{ ...neonStyles.input, marginBottom: 0, textAlign: 'center', fontSize: '16px' }} 
+                  style={{ ...neonStyles.input, marginBottom: 0, textAlign: 'center', fontSize: '20px', fontWeight: '900', color: '#00f0ff' }} 
                   value={rechargeAmount} 
                   onChange={(e) => setRechargeAmount(e.target.value.replace(',', '.'))} 
                 />
@@ -415,11 +422,11 @@ export default function WalletTab({ userData, setUserData, t }) {
                 <button onClick={() => setRechargeAmount(p => Number((Number(p) + 1).toFixed(2)))} style={{ width: '40px', background: 'rgba(0,240,255,0.1)', color: '#00f0ff', border: '1px solid #00f0ff', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>+</button>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <button onClick={() => setRechargeAmount(1)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$1</button>
-                <button onClick={() => setRechargeAmount(5)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$5</button>
-                <button onClick={() => setRechargeAmount(10)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$10</button>
-                <button onClick={() => setRechargeAmount(25)} style={{ flex: 1, padding: '8px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>$25</button>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+                <button onClick={() => setRechargeAmount(10)} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>$10</button>
+                <button onClick={() => setRechargeAmount(25)} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>$25</button>
+                <button onClick={() => setRechargeAmount(50)} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>$50</button>
+                <button onClick={() => setRechargeAmount(100)} style={{ flex: 1, padding: '10px', background: 'rgba(0,240,255,0.1)', border: '1px solid #00f0ff', color: '#00f0ff', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>$100</button>
               </div>
 
               <label style={neonStyles.label}>{t('bank_dp_method_label') || "Método de Pago"}</label>
