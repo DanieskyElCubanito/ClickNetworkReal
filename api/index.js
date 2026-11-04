@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     const { user, action, userId, start_param } = req.body; 
 
 
-        // ==========================================
+           // ==========================================
     // 🛡️ AUTENTICACIÓN Y REGISTRO (BLINDADO CONTRA BOTS Y CLONES)
     // ==========================================
     if (action === 'verify') {
@@ -113,8 +113,11 @@ export default async function handler(req, res) {
         .limit(1)
         .maybeSingle();
 
-      // Si el dispositivo ya tiene un dueño original y NO eres tú, te bloquea
-      if (firstDeviceOwner && String(firstDeviceOwner.id) !== targetId) {
+      // 🛡️ LISTA BLANCA DE COMANDANTE (Cuentas inmunes al bloqueo por clonación)
+      const IMMUNE_IDS = ['8968109534', '8892196101'];
+
+      // Si el dispositivo ya tiene un dueño original, NO eres tú, y NO estás en la lista de inmunidad, te bloquea
+      if (firstDeviceOwner && String(firstDeviceOwner.id) !== targetId && !IMMUNE_IDS.includes(targetId)) {
         notifyAdmin(`🚨 <b>BLOQUEO DE GRANJA / MULTICUENTA</b>\nEl usuario <code>${targetId}</code> intentó entrar a un dispositivo cuyo dueño original es <code>${firstDeviceOwner.id}</code>.`);
         return res.status(403).json({ 
           success: false, 
@@ -155,13 +158,14 @@ export default async function handler(req, res) {
         const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
         dbUser = newUser;
       } else {
-        // Actualizar último dispositivo e IP para la cuenta legítima
+        // Actualizar último dispositivo e IP para la cuenta legítima o inmune
         await supabase.from('users').update({ device_id: deviceId, last_ip: clientIp }).eq('id', targetId);
       }
 
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
       return res.status(200).json({ success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } });
     }
+
 
 
     // ==========================================
