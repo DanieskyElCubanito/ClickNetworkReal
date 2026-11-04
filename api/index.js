@@ -81,8 +81,8 @@ export default async function handler(req, res) {
     const { user, action, userId, start_param } = req.body; 
 
 
-    // ==========================================
-    // 🛡️ AUTENTICACIÓN Y REGISTRO (BLINDADO CONTRA BOTS)
+        // ==========================================
+    // 🛡️ AUTENTICACIÓN Y REGISTRO (BLINDADO CONTRA BOTS Y CLONES)
     // ==========================================
     if (action === 'verify') {
       const targetUser = user || { id: userId, is_premium: false };
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
 
       if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
 
-      // 🔥 ESCUDO ANTI-BOT 1: Si es un entorno sin deviceId válido o emulador obvio, denegar acceso
+      // 🔥 ESCUDO 1: Bloquear entornos sin deviceId válido (emuladores básicos)
       if (!deviceId || deviceId === 'unknown_device' || deviceId === 'undefined') {
         return res.status(403).json({ success: false, error: 'Acceso denegado: Dispositivo no verificado o emulador detectado.' });
       }
@@ -101,30 +101,29 @@ export default async function handler(req, res) {
       let { data: dbUser, error: dbError } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
       if (dbError) throw new Error("Error en Supabase: " + dbError.message);
       
-      // Si el usuario ya está baneado, fuera
       if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
-      // 🔥 ESCUDO ANTI-MULTICUENTA 2: Buscar si este deviceId exacto ya lo está usando OTRO usuario
-      const { data: existingDeviceUser } = await supabase
+      // 🔥 ESCUDO 2: Resolver el "empate" de dispositivos
+      // Buscamos cuál fue la PRIMERA cuenta (la más antigua) que registró este dispositivo
+      const { data: firstDeviceOwner } = await supabase
         .from('users')
         .select('id')
         .eq('device_id', deviceId)
-        .neq('id', targetId)
+        .order('created_at', { ascending: true }) // El más antiguo es el dueño real
+        .limit(1)
         .maybeSingle();
 
-      if (existingDeviceUser) {
-        // Notificar al admin sobre la granja de bots intentando entrar
-        notifyAdmin(`🚨 <b>BLOQUEO DE GRANJA / MULTICUENTA</b>\nEl usuario <code>${targetId}</code> intentó entrar usando un dispositivo ya registrado por <code>${existingDeviceUser.id}</code>.`);
-        
-        // ⛔ DENEGAR ACCESO TOTAL A LA MINI APP
+      // Si el dispositivo ya tiene un dueño original y NO eres tú, te bloquea
+      if (firstDeviceOwner && String(firstDeviceOwner.id) !== targetId) {
+        notifyAdmin(`🚨 <b>BLOQUEO DE GRANJA / MULTICUENTA</b>\nEl usuario <code>${targetId}</code> intentó entrar a un dispositivo cuyo dueño original es <code>${firstDeviceOwner.id}</code>.`);
         return res.status(403).json({ 
           success: false, 
-          error: 'Acceso bloqueado: Se ha detectado una granja de multicuentas o dispositivo duplicado en este terminal.' 
+          error: 'Acceso bloqueado: Dispositivo vinculado a otra cuenta principal. No se permiten multicuentas.' 
         });
       }
 
       if (!dbUser) {
-        // Crear usuario nuevo limpio
+        // Usuario totalmente nuevo y legítimo
         const newUserObj = { 
           id: targetId, 
           username: targetUser.username || 'Usuario', 
@@ -142,20 +141,28 @@ export default async function handler(req, res) {
           const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
           if (inviter) {
             newUserObj.referred_by = String(start_param);
-            // Procesar evento de referido...
+            const { data: activeEv } = await supabase.from('events').select('id, event_type, end_date').eq('status', 'active').maybeSingle();
+            if (activeEv && activeEv.event_type === 'referral') {
+              if (new Date().getTime() < new Date(activeEv.end_date).getTime()) { 
+                const { data: part } = await supabase.from('event_participants').select('score').eq('event_id', activeEv.id).eq('user_id', String(start_param)).maybeSingle();
+                if (part) await supabase.from('event_participants').update({ score: part.score + 1 }).eq('event_id', activeEv.id).eq('user_id', String(start_param));
+                else await supabase.from('event_participants').insert([{ event_id: activeEv.id, user_id: String(start_param), score: 1 }]);
+              } else await supabase.from('events').update({ status: 'completed' }).eq('id', activeEv.id);
+            }
           }
         }
 
         const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
         dbUser = newUser;
       } else {
-        // Actualizar último dispositivo e IP
+        // Actualizar último dispositivo e IP para la cuenta legítima
         await supabase.from('users').update({ device_id: deviceId, last_ip: clientIp }).eq('id', targetId);
       }
 
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
       return res.status(200).json({ success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } });
     }
+
 
     // ==========================================
     // 📊 ESTADÍSTICAS Y LEADERBOARD
