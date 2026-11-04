@@ -506,7 +506,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // ==========================================
+        // ==========================================
     // 🏦 PAGOS, RETIROS Y BÓVEDA
     // ==========================================
     if (action === 'request-withdrawal') {
@@ -564,7 +564,6 @@ export default async function handler(req, res) {
 
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Destino: ${address.substring(0,8)}... | -${(withdrawAmount * 1000).toFixed(2)} Gemas`, amount: -withdrawAmount }]);
 
-      // 🔥 NUEVO: Notificación al canal de pagos (Retiro Automático)
       if (withdrawAmount <= 0.9) {
           try {
               const realTxid = await sendTonAutomated(address, withdrawAmount);
@@ -575,18 +574,26 @@ export default async function handler(req, res) {
               
               try {
                 const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${targetId}`;
-                const message = `📤 <b>NUEVA EXTRACCIÓN CONFIRMADA</b>\n\n` +
-                                `👤 <b>Usuario:</b> ${usernameDisplay}\n` +
-                                `💰 <b>Botín:</b> ${(withdrawAmount * 1000).toFixed(2)} Gemas\n` +
-                                `🚀 <b>Red:</b> TON (Transacción Instantánea)\n\n` +
-                                `💸 ¡Sigue completando misiones para multiplicar tu capital!`;
-                const keyboard = { inline_keyboard: [[{ text: "💎 ¡MINAR GEMAS AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]] };
                 
-                await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                const resPrice = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+                if (!resPrice.ok) throw new Error("Fallo de conexión con la API de precios.");
+                
+                const dataPrice = await resPrice.json();
+                if (!dataPrice['the-open-network']?.usd) throw new Error("El precio de GRAM no está disponible en este momento.");
+                
+                const gramPrice = dataPrice['the-open-network'].usd;
+                const gramAmount = (withdrawAmount / gramPrice).toFixed(4);
+
+                const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${gramAmount} GRAM\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<code>${realTxid}</code>\n\n🔥 ¡Retiros procesados con total transparencia!`;
+                const keyboard = { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR GRAM AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
+                
+                const tgRes = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
                   method: 'POST', headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ chat_id: '-1002352835078', text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
                 });
-              } catch (e) { console.error("Error al notificar retiro auto", e); }
+
+                if (!tgRes.ok) throw new Error("Fallo al enviar notificación a Telegram.");
+              } catch (e) { console.error("Operación de notificación cancelada:", e.message); }
 
               return res.status(200).json({ success: true, balance: newBalance, message: 'Pago enviado a la blockchain.' });
           } catch (err) {
