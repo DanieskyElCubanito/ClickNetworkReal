@@ -506,7 +506,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-        // ==========================================
+            // ==========================================
     // 🏦 PAGOS, RETIROS Y BÓVEDA
     // ==========================================
     if (action === 'request-withdrawal') {
@@ -583,8 +583,9 @@ export default async function handler(req, res) {
                 
                 const gramPrice = dataPrice['the-open-network'].usd;
                 const gramAmount = (withdrawAmount / gramPrice).toFixed(4);
+                const canjeGemas = (withdrawAmount * 1000).toFixed(2);
 
-                const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${gramAmount} GRAM\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<code>${realTxid}</code>\n\n🔥 ¡Retiros procesados con total transparencia!`;
+                const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${gramAmount} GRAM\n🔄 <b>Canje:</b> ${canjeGemas} Gemas\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<a href="https://tonscan.org/tx/${realTxid}">${realTxid}</a>\n\n🔥 ¡Retiros procesados con total transparencia!`;
                 const keyboard = { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR GRAM AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
                 
                 const tgRes = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
@@ -604,6 +605,7 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en revisión administrativa.' });
       }
     }
+
 
     if (action === 'generate-usdt-wallet' || action === 'generate-payment-wallet') {
       const { price } = req.body;
@@ -786,8 +788,8 @@ export default async function handler(req, res) {
         const { data: withdrawals } = await supabase.from('withdrawals').select('*').eq('status', 'pending').order('created_at', { ascending: false });
         return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
       }
-
-      if (action === 'admin-approve-withdrawal') {
+      
+            if (action === 'admin-approve-withdrawal') {
         const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', req.body.withdrawalId).single();
         if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Ya pagado.' });
         try {
@@ -797,22 +799,32 @@ export default async function handler(req, res) {
           const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).eq('title', '📤 Retiro Procesando').order('created_at', { ascending: false }).limit(1).maybeSingle();
           if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank">Ver TX</a>` }).eq('id', lastLog.id);
           
-          // 🔥 NUEVO: Notificación al canal de pagos (Retiro Manual)
+          // 🔥 NUEVO: Notificación al canal de pagos (Retiro Manual) igual al automático
           try {
             const { data: wUser } = await supabase.from('users').select('username').eq('id', withdrawal.user_id).single();
             const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${withdrawal.user_id}`;
-            const message = `📤 <b>NUEVA EXTRACCIÓN CONFIRMADA</b>\n\n` +
-                            `👤 <b>Usuario:</b> ${usernameDisplay}\n` +
-                            `💰 <b>Botín:</b> ${(Number(withdrawal.amount) * 1000).toFixed(2)} Gemas\n` +
-                            `🚀 <b>Red:</b> TON (Transacción Autorizada)\n\n` +
-                            `💸 ¡Sigue completando misiones para multiplicar tu capital!`;
-            const keyboard = { inline_keyboard: [[{ text: "💎 ¡MINAR GEMAS AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]] };
+            const withdrawAmount = Number(withdrawal.amount);
             
-            await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            const resPrice = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+            if (!resPrice.ok) throw new Error("Fallo de conexión con la API de precios.");
+            
+            const dataPrice = await resPrice.json();
+            if (!dataPrice['the-open-network']?.usd) throw new Error("El precio de GRAM no está disponible en este momento.");
+            
+            const gramPrice = dataPrice['the-open-network'].usd;
+            const gramAmount = (withdrawAmount / gramPrice).toFixed(4);
+            const canjeGemas = (withdrawAmount * 1000).toFixed(2);
+
+            const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${gramAmount} GRAM\n🔄 <b>Canje:</b> ${canjeGemas} Gemas\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<a href="https://tonscan.org/tx/${realTxid}">${realTxid}</a>\n\n🔥 ¡Retiros procesados con total transparencia!`;
+            const keyboard = { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR GRAM AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
+            
+            const tgRes = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ chat_id: '-1002352835078', text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
             });
-          } catch (e) { console.error("Error al notificar retiro manual", e); }
+
+            if (!tgRes.ok) throw new Error("Fallo al enviar notificación a Telegram.");
+          } catch (e) { console.error("Error al notificar retiro manual:", e.message); }
 
           return res.status(200).json({ success: true });
         } catch (error) { return res.status(400).json({ success: false, error: 'Fallo en blockchain.' }); }
