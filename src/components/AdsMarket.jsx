@@ -10,12 +10,10 @@ export default function AdsMarket({ props }) {
   
   const [category, setCategory] = useState('pagadas'); // pagadas | diarias | partners
 
-  // 🔥 SOLUCIÓN: Hacemos visibles las misiones maestras para el creador (Admin), 
-  // pero ocultamos las campañas normales para que los usuarios no hagan sus propias tareas.
-  const communityTasks = tasks.filter(t => 
-    t.status === 'active' && 
-    (t.creator_id !== String(userData?.id) || ['daily_promo', 'daily_channel', 'partner'].includes(t.type))
-  ).sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
+  // 🔥 SOLUCIÓN: Hacemos visibles TODAS las misiones activas (incluso las del creador), 
+  // para que el creador las pueda ver en el mercado, pero las bloquearemos visualmente en el renderTaskItem.
+  const communityTasks = tasks.filter(t => t.status === 'active')
+    .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
 
   const pagadas = communityTasks.filter(t => !t.type.includes('daily') && t.type !== 'partner');
   const partners = communityTasks.filter(t => t.type === 'partner');
@@ -45,7 +43,9 @@ export default function AdsMarket({ props }) {
     const status = taskStatus[task.id];
     const isCompleted = task.is_completed || status === 'completed';
     const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
-    const isCreator = task.creator_id === String(userData?.id); // Detectamos si eres el creador
+    
+    // 🔥 DETECCIÓN DEL CREADOR: Verifica si el usuario actual es el dueño de la misión
+    const isCreator = task.creator_id === String(userData?.id); 
     
     // Verificación de permanencia
     const requiresRetention = ['channel', 'group', 'partner', 'daily_channel'].includes(task.type);
@@ -65,7 +65,7 @@ export default function AdsMarket({ props }) {
       <div key={task.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch', position: 'relative', overflow: 'hidden' }}>
         
         {/* Efecto de borde brilloso si está casi llena la tarea */}
-        {isLimited && isAlmostFull && !isCompleted && (
+        {isLimited && isAlmostFull && !isCompleted && !isCreator && (
            <div style={{ position: 'absolute', top: 0, right: 0, padding: '2px 8px', background: '#ff1414', color: '#fff', fontSize: '9px', fontWeight: '900', borderBottomLeftRadius: '10px' }}>
               ⚠️ CUPOS CRÍTICOS
            </div>
@@ -107,8 +107,10 @@ export default function AdsMarket({ props }) {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-            {isCreator ? <button disabled style={neon.taskButtonDisabled}>TU MISIÓN</button> :
-             task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={{...neon.taskButtonRejoin, boxShadow: '0 0 10px rgba(0, 255, 170, 0.4)'}}>RESTAURAR</button> :
+            {/* 🔥 BLOQUEO VISUAL: Si es el creador, ve el botón bloqueado */}
+            {isCreator ? (
+               <button disabled style={{...neon.taskButtonDisabled, color: '#ff1493', borderColor: '#ff1493'}}>TU MISIÓN</button>
+            ) : task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={{...neon.taskButtonRejoin, boxShadow: '0 0 10px rgba(0, 255, 170, 0.4)'}}>RESTAURAR</button> :
              isCompleted ? <button disabled style={neon.taskButtonDisabled}>{t('ads_completed') || 'COMPLETADO'}</button> :
              status === 'waiting_for_redirect' ? <button disabled style={{...neon.taskButtonDisabled, color: '#ffaa00', borderColor: '#ffaa00'}}>⏳ 8 SEG</button> :
              status === 'away' ? <button disabled style={{...neon.taskButtonDisabled, color: '#00f0ff', borderColor: '#00f0ff'}}>⏳ REVISANDO...</button> :
