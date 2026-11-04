@@ -349,7 +349,15 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, error: 'Enlace de comunidad inválido.' });
         }
       } else if (task.type === 'bot' && task.bot_token) {
-        try { await axios.post(`https://api.telegram.org/bot${task.bot_token}/sendChatAction`, { chat_id: targetId, action: 'typing' }); } 
+        try { 
+          // Reemplazo de axios por fetch nativo para evitar cuelgues
+          const tgCheck = await fetch(`https://api.telegram.org/bot${task.bot_token}/sendChatAction`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ chat_id: targetId, action: 'typing' })
+          });
+          if (!tgCheck.ok) throw new Error('Bot block');
+        } 
         catch (e) { return res.status(400).json({ success: false, error: 'Validación fallida: Debes iniciar el bot externo presionando /start primero.' }); }
       }
 
@@ -632,7 +640,6 @@ export default async function handler(req, res) {
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '📥 Recarga de Bóveda', description: `Acreditado: $${Number(clicks).toFixed(2)} USDT.`, amount: 0 }]);
       
       try {
-        const axios = require('axios');
         const usernameDisplay = dbUser?.username && dbUser.username !== 'Usuario' ? `@${dbUser.username}` : `ID: ${targetId}`;
         const cryptoType = action === 'verify-usdt-payment' ? 'USDT (BEP20)' : 'GRAM (TON)';
 
@@ -645,17 +652,28 @@ export default async function handler(req, res) {
 
         const keyboard = {
           inline_keyboard: [
-            [{ text: "🚀 ¡LANZAR MI CAMPAÑA AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "success" }]
+            [{ text: "🚀 ¡LANZAR MI CAMPAÑA AHORA!", url: "https://t.me/ClickNetwork_bot/app" }]
           ]
         };
 
-        await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN.split(':')[0]}:${process.env.TELEGRAM_BOT_TOKEN.split(':')[1]}/sendMessage`, {
-          chat_id: '-1002352835078',
-          text: message,
-          parse_mode: 'HTML',
-          reply_markup: keyboard,
-          disable_web_page_preview: true
+        const telegramUrl = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+        
+        const tgRes = await fetch(telegramUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: '-1002352835078', // Tu canal público
+            text: message,
+            parse_mode: 'HTML',
+            reply_markup: keyboard,
+            disable_web_page_preview: true
+          })
         });
+
+        if (!tgRes.ok) {
+           const tgError = await tgRes.text();
+           console.error("Error Telegram API:", tgError);
+        }
       } catch (errLog) {
         console.error("Error al enviar mensaje de depósito al canal:", errLog);
       }
@@ -833,3 +851,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: `Error en servidor: ${error.message || String(error)}` }); 
   }
 }
+ 
