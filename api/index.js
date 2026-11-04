@@ -350,7 +350,6 @@ export default async function handler(req, res) {
         }
       } else if (task.type === 'bot' && task.bot_token) {
         try { 
-          // Reemplazo de axios por fetch nativo para evitar cuelgues
           const tgCheck = await fetch(`https://api.telegram.org/bot${task.bot_token}/sendChatAction`, {
              method: 'POST',
              headers: { 'Content-Type': 'application/json' },
@@ -539,7 +538,7 @@ export default async function handler(req, res) {
         }
       }
 
-      const { data: wUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).single();
+      const { data: wUser } = await supabase.from('users').select('username, balance, total_earnings').eq('id', targetId).single();
       if (!wUser) return res.status(400).json({ success: false, error: 'Usuario no encontrado.' });
 
       if (penaltyAmount > 0) {
@@ -565,6 +564,7 @@ export default async function handler(req, res) {
 
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Destino: ${address.substring(0,8)}... | -${(withdrawAmount * 1000).toFixed(2)} Gemas`, amount: -withdrawAmount }]);
 
+      // 🔥 NUEVO: Notificación al canal de pagos (Retiro Automático)
       if (withdrawAmount <= 0.9) {
           try {
               const realTxid = await sendTonAutomated(address, withdrawAmount);
@@ -572,6 +572,22 @@ export default async function handler(req, res) {
               
               const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).eq('title', '📤 Retiro Procesando').order('created_at', { ascending: false }).limit(1).maybeSingle();
               if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank" style="color:#00f0ff; text-decoration:underline;">Ver Transacción ➔</a>` }).eq('id', lastLog.id);
+              
+              try {
+                const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${targetId}`;
+                const message = `📤 <b>NUEVA EXTRACCIÓN CONFIRMADA</b>\n\n` +
+                                `👤 <b>Usuario:</b> ${usernameDisplay}\n` +
+                                `💰 <b>Botín:</b> ${(withdrawAmount * 1000).toFixed(2)} Gemas\n` +
+                                `🚀 <b>Red:</b> TON (Transacción Instantánea)\n\n` +
+                                `💸 ¡Sigue completando misiones para multiplicar tu capital!`;
+                const keyboard = { inline_keyboard: [[{ text: "💎 ¡MINAR GEMAS AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]] };
+                
+                await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chat_id: '-1002352835078', text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
+                });
+              } catch (e) { console.error("Error al notificar retiro auto", e); }
+
               return res.status(200).json({ success: true, balance: newBalance, message: 'Pago enviado a la blockchain.' });
           } catch (err) {
               await supabase.from('withdrawals').update({ status: 'pending' }).eq('id', withdrawal.id);
@@ -650,30 +666,12 @@ export default async function handler(req, res) {
                         `⚡ <b>Estado:</b> Bóveda Cargada y Operativa\n\n` +
                         `🔥 ¡La red publicitaria se expande! ¿Listo para dominar Telegram con tus propias campañas?`;
 
-        const keyboard = {
-          inline_keyboard: [
-            [{ text: "🚀 ¡LANZAR MI CAMPAÑA AHORA!", url: "https://t.me/ClickNetwork_bot/app" }]
-          ]
-        };
-
-        const telegramUrl = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+        const keyboard = { inline_keyboard: [[{ text: "🚀 ¡LANZAR MI CAMPAÑA AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]] };
         
-        const tgRes = await fetch(telegramUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: '-1002352835078', // Tu canal público
-            text: message,
-            parse_mode: 'HTML',
-            reply_markup: keyboard,
-            disable_web_page_preview: true
-          })
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: '-1002352835078', text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
         });
-
-        if (!tgRes.ok) {
-           const tgError = await tgRes.text();
-           console.error("Error Telegram API:", tgError);
-        }
       } catch (errLog) {
         console.error("Error al enviar mensaje de depósito al canal:", errLog);
       }
@@ -791,6 +789,24 @@ export default async function handler(req, res) {
           
           const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).eq('title', '📤 Retiro Procesando').order('created_at', { ascending: false }).limit(1).maybeSingle();
           if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank">Ver TX</a>` }).eq('id', lastLog.id);
+          
+          // 🔥 NUEVO: Notificación al canal de pagos (Retiro Manual)
+          try {
+            const { data: wUser } = await supabase.from('users').select('username').eq('id', withdrawal.user_id).single();
+            const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${withdrawal.user_id}`;
+            const message = `📤 <b>NUEVA EXTRACCIÓN CONFIRMADA</b>\n\n` +
+                            `👤 <b>Usuario:</b> ${usernameDisplay}\n` +
+                            `💰 <b>Botín:</b> ${(Number(withdrawal.amount) * 1000).toFixed(2)} Gemas\n` +
+                            `🚀 <b>Red:</b> TON (Transacción Autorizada)\n\n` +
+                            `💸 ¡Sigue completando misiones para multiplicar tu capital!`;
+            const keyboard = { inline_keyboard: [[{ text: "💎 ¡MINAR GEMAS AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]] };
+            
+            await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: '-1002352835078', text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
+            });
+          } catch (e) { console.error("Error al notificar retiro manual", e); }
+
           return res.status(200).json({ success: true });
         } catch (error) { return res.status(400).json({ success: false, error: 'Fallo en blockchain.' }); }
       }
@@ -851,4 +867,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: `Error en servidor: ${error.message || String(error)}` }); 
   }
 }
- 
