@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 import { neon, TaskIcons } from './AdsStyles.jsx';
@@ -13,7 +13,9 @@ export default function AdsTab({ userData, setUserData, t }) {
 
   const [taskStatus, setTaskStatus] = useState({}); 
   const [verifyInputs, setVerifyInputs] = useState({}); 
-  const [taskStartTimes, setTaskStartTimes] = useState({});
+  
+  // 🔥 CORRECCIÓN TÁCTICA: Memoria síncrona inmune al congelamiento de Telegram
+  const taskStartTimes = useRef({});
 
   // 🔥 RESTAURADO: Estados del Wizard y los Pasos
   const [taskType, setTaskType] = useState(null);
@@ -51,7 +53,6 @@ export default function AdsTab({ userData, setUserData, t }) {
     { id: 'promo', icon: TaskIcons.promo('#ff1493'), title: t('ads_type_promo') || 'Tráfico', desc: 'Visitas web o referidos', color: '#ff1493', autoName: 'Campaña Tráfico' }
   ];
 
-  // 🔥 RESTAURADO: Lógica matemática de los pasos
   const stepsFlow = taskType === 'bot' ? ['type', 'url', 'token', 'budget'] : ['type', 'url', 'budget'];
   const totalSteps = stepsFlow.length;
   const currentStepId = stepsFlow[currentStepIndex];
@@ -81,16 +82,12 @@ export default function AdsTab({ userData, setUserData, t }) {
     const handleHide = () => {
       setTaskStatus(prevStatus => {
         const nextStatus = { ...prevStatus };
-        let changed = false;
-        const newStartTimes = {};
         Object.keys(nextStatus).forEach(id => {
           if (nextStatus[id] === 'waiting_for_redirect') {
             nextStatus[id] = 'away'; 
-            newStartTimes[id] = Date.now(); 
-            changed = true;
+            taskStartTimes.current[id] = Date.now(); // Se graba el tiempo exacto en memoria dura
           }
         });
-        if (changed) setTaskStartTimes(prevTimes => ({ ...prevTimes, ...newStartTimes }));
         return nextStatus;
       });
     };
@@ -101,21 +98,21 @@ export default function AdsTab({ userData, setUserData, t }) {
         let showedError = false;
         Object.keys(next).forEach(id => {
           if (next[id] === 'away') {
-            const timeAway = Date.now() - (taskStartTimes[id] || 0);
+            const startTime = taskStartTimes.current[id];
+            // Si por algún error no hay startTime, timeAway es 0, impidiendo la trampa matemática
+            const timeAway = startTime ? Date.now() - startTime : 0; 
             const task = tasks.find(t => String(t.id) === String(id));
             
-            // 🔥 REGLA DE TIEMPO: 8 segundos obligatorios para Bots, Mini Apps y Tráfico Web
+            // Regla estricta: 8 segundos
             let requiredTime = 8000; 
-            
-            // Solo para unirse a canales y grupos la verificación es de 2 segundos
             if (['channel', 'group', 'daily_channel', 'partner'].includes(task?.type)) {
               requiredTime = 2000;
             }
 
-            if (timeAway >= requiredTime) { 
+            if (startTime && timeAway >= requiredTime) { 
               next[id] = 'ready_to_claim'; 
             } else {
-              next[id] = 'ready'; // Se reinicia el botón obligándolo a repetir
+              next[id] = 'ready'; 
               if (!showedError) { 
                 toast.error(`Trampa detectada: Debes permanecer en el destino al menos ${requiredTime / 1000} segundos.`); 
                 showedError = true; 
@@ -127,16 +124,17 @@ export default function AdsTab({ userData, setUserData, t }) {
       });
     };
 
-    document.addEventListener('visibilitychange', () => document.hidden ? handleHide() : handleShow());
+    const onVisibilityChange = () => document.hidden ? handleHide() : handleShow();
+    document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('blur', handleHide); 
     window.addEventListener('focus', handleShow);
     
     return () => { 
-      document.removeEventListener('visibilitychange', () => document.hidden ? handleHide() : handleShow());
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('blur', handleHide); 
       window.removeEventListener('focus', handleShow); 
     };
-  }, [taskStartTimes, tasks]);
+  }, [tasks]);
 
   const fetchTasks = async () => {
     setLoadingTasks(true);
