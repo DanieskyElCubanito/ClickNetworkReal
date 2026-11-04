@@ -104,10 +104,10 @@ export default function AdsTab({ userData, setUserData, t }) {
             const timeAway = Date.now() - (taskStartTimes[id] || 0);
             const task = tasks.find(t => String(t.id) === String(id));
             
-            // 🔥 REGLA DE TIEMPO: 8 segundos obligatorios para Bots y Tráfico Web
+            // 🔥 REGLA DE TIEMPO: 8 segundos obligatorios para Bots, Mini Apps y Tráfico Web
             let requiredTime = 8000; 
             
-            // Solo para canales y grupos bajamos a 5 segundos (porque unirse es más rápido)
+            // Solo para unirse a canales y grupos la verificación es de 2 segundos
             if (['channel', 'group', 'daily_channel', 'partner'].includes(task?.type)) {
               requiredTime = 2000;
             }
