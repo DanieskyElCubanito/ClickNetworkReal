@@ -76,6 +76,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
+  // 🔥 NUEVO BLINDAJE TÁCTICO: Temporizador estricto
   useEffect(() => {
     const handleHide = () => {
       setTaskStatus(prevStatus => {
@@ -83,14 +84,18 @@ export default function AdsTab({ userData, setUserData, t }) {
         let changed = false;
         const newStartTimes = {};
         Object.keys(nextStatus).forEach(id => {
-          if (nextStatus[id] === 'waiting_for_redirect' || nextStatus[id] === 'ready_to_claim') {
-            nextStatus[id] = 'away'; newStartTimes[id] = Date.now(); changed = true;
+          // Solo marcamos el inicio del temporizador si la tarea está en estado 'waiting_for_redirect'
+          if (nextStatus[id] === 'waiting_for_redirect') {
+            nextStatus[id] = 'away'; 
+            newStartTimes[id] = Date.now(); 
+            changed = true;
           }
         });
         if (changed) setTaskStartTimes(prevTimes => ({ ...prevTimes, ...newStartTimes }));
         return nextStatus;
       });
     };
+
     const handleShow = () => {
       setTaskStatus(prev => {
         const next = { ...prev };
@@ -99,20 +104,42 @@ export default function AdsTab({ userData, setUserData, t }) {
           if (next[id] === 'away') {
             const timeAway = Date.now() - (taskStartTimes[id] || 0);
             const task = tasks.find(t => String(t.id) === String(id));
-            const requiredTime = task?.type === 'promo' ? 8000 : 1500;
-            if (timeAway >= requiredTime) { next[id] = 'ready_to_claim'; } 
-            else {
-              next[id] = 'ready'; 
-              if (!showedError) { toast.error(task?.type === 'promo' ? "Debes estar 8s en la web." : "Demasiado rápido."); showedError = true; }
+            
+            // Calculamos el tiempo mínimo requerido
+            let requiredTime = 1500; // Para grupos, bots y channels
+            if (task?.type === 'promo' || task?.type === 'daily_promo') {
+              requiredTime = 8000; // 8 segundos exactos para tráfico web
+            }
+
+            // Si el tiempo es menor, lo regresamos a 'ready' para que lo vuelva a intentar
+            if (timeAway >= requiredTime) { 
+              next[id] = 'ready_to_claim'; 
+            } else {
+              next[id] = 'ready'; // Se reinicia el botón
+              if (!showedError) { 
+                toast.error(
+                  task?.type === 'promo' || task?.type === 'daily_promo' 
+                    ? "Trampa detectada: Debes mantenerte en el enlace durante al menos 8 segundos." 
+                    : "Trampa detectada: Operación demasiado rápida."
+                ); 
+                showedError = true; 
+              }
             }
           }
         });
         return next;
       });
     };
+
     document.addEventListener('visibilitychange', () => document.hidden ? handleHide() : handleShow());
-    window.addEventListener('blur', handleHide); window.addEventListener('focus', handleShow);
-    return () => { window.removeEventListener('blur', handleHide); window.removeEventListener('focus', handleShow); };
+    window.addEventListener('blur', handleHide); 
+    window.addEventListener('focus', handleShow);
+    
+    return () => { 
+      document.removeEventListener('visibilitychange', () => document.hidden ? handleHide() : handleShow());
+      window.removeEventListener('blur', handleHide); 
+      window.removeEventListener('focus', handleShow); 
+    };
   }, [taskStartTimes, tasks]);
 
   const fetchTasks = async () => {
@@ -132,9 +159,14 @@ export default function AdsTab({ userData, setUserData, t }) {
       let finalUrl = task.url.trim();
       if (finalUrl.startsWith('@')) finalUrl = `https://t.me/${finalUrl.substring(1)}`;
       else if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`;
+      
+      // Inicia el flujo de visualización
+      setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting_for_redirect' }));
+      
+      // Ejecuta la redirección
       if (finalUrl.includes('t.me') || finalUrl.includes('telegram.me')) WebApp.openTelegramLink(finalUrl);
       else WebApp.openLink(finalUrl, { try_instant_view: true });
-      setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting_for_redirect' }));
+      
     } catch (e) { toast.error("Error redirección."); }
   };
 
