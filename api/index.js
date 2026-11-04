@@ -675,7 +675,7 @@ export default async function handler(req, res) {
                         `⚡ <b>Estado:</b> Bóveda Cargada y Operativa\n\n` +
                         `🔥 ¡La red publicitaria se expande! ¿Listo para dominar Telegram con tus propias campañas?`;
 
-        const keyboard = { inline_keyboard: [[{ text: "🚀 ¡LANZAR MI CAMPAÑA AHORA!", url: "https://t.me/TeleGemAds_bot/app" }]] };
+                const keyboard = { inline_keyboard: [[{ text: "🚀 ¡LANZAR MI CAMPAÑA AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
         
         await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
