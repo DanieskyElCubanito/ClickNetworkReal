@@ -76,7 +76,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
-  // 🔥 NUEVO BLINDAJE TÁCTICO: Temporizador estricto
+  // 🔥 BLINDAJE TÁCTICO: Temporizador estricto por tipo de misión
   useEffect(() => {
     const handleHide = () => {
       setTaskStatus(prevStatus => {
@@ -84,7 +84,6 @@ export default function AdsTab({ userData, setUserData, t }) {
         let changed = false;
         const newStartTimes = {};
         Object.keys(nextStatus).forEach(id => {
-          // Solo marcamos el inicio del temporizador si la tarea está en estado 'waiting_for_redirect'
           if (nextStatus[id] === 'waiting_for_redirect') {
             nextStatus[id] = 'away'; 
             newStartTimes[id] = Date.now(); 
@@ -105,23 +104,20 @@ export default function AdsTab({ userData, setUserData, t }) {
             const timeAway = Date.now() - (taskStartTimes[id] || 0);
             const task = tasks.find(t => String(t.id) === String(id));
             
-            // Calculamos el tiempo mínimo requerido
-            let requiredTime = 1500; // Para grupos, bots y channels
-            if (task?.type === 'promo' || task?.type === 'daily_promo') {
-              requiredTime = 8000; // 8 segundos exactos para tráfico web
+            // 🔥 REGLA DE TIEMPO: 8 segundos obligatorios para Bots y Tráfico Web
+            let requiredTime = 8000; 
+            
+            // Solo para canales y grupos bajamos a 5 segundos (porque unirse es más rápido)
+            if (['channel', 'group', 'daily_channel', 'partner'].includes(task?.type)) {
+              requiredTime = 2000;
             }
 
-            // Si el tiempo es menor, lo regresamos a 'ready' para que lo vuelva a intentar
             if (timeAway >= requiredTime) { 
               next[id] = 'ready_to_claim'; 
             } else {
-              next[id] = 'ready'; // Se reinicia el botón
+              next[id] = 'ready'; // Se reinicia el botón obligándolo a repetir
               if (!showedError) { 
-                toast.error(
-                  task?.type === 'promo' || task?.type === 'daily_promo' 
-                    ? "Trampa detectada: Debes mantenerte en el enlace durante al menos 8 segundos." 
-                    : "Trampa detectada: Operación demasiado rápida."
-                ); 
+                toast.error(`Trampa detectada: Debes permanecer en el destino al menos ${requiredTime / 1000} segundos.`); 
                 showedError = true; 
               }
             }
@@ -160,10 +156,8 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (finalUrl.startsWith('@')) finalUrl = `https://t.me/${finalUrl.substring(1)}`;
       else if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`;
       
-      // Inicia el flujo de visualización
       setTaskStatus(prev => ({ ...prev, [task.id]: 'waiting_for_redirect' }));
       
-      // Ejecuta la redirección
       if (finalUrl.includes('t.me') || finalUrl.includes('telegram.me')) WebApp.openTelegramLink(finalUrl);
       else WebApp.openLink(finalUrl, { try_instant_view: true });
       
