@@ -14,12 +14,11 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [taskStatus, setTaskStatus] = useState({}); 
   const [verifyInputs, setVerifyInputs] = useState({}); 
   
-  // 🔥 CORRECCIÓN TÁCTICA: Memoria síncrona inmune al congelamiento de Telegram
+  // 🔥 Memoria síncrona inmune al congelamiento de Telegram
   const taskStartTimes = useRef({});
 
-  // 🔥 RESTAURADO: Estados del Wizard y los Pasos
   const [taskType, setTaskType] = useState(null);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0); // Memoria del paso actual
+  const [currentStepIndex, setCurrentStepIndex] = useState(0); 
 
   const [targetUrl, setTargetUrl] = useState('');
   const [botToken, setBotToken] = useState('');
@@ -77,7 +76,6 @@ export default function AdsTab({ userData, setUserData, t }) {
     if (userData?.id && (view === 'list' || view === 'activity')) fetchTasks();
   }, [userData?.id, view]);
 
-  // 🔥 BLINDAJE TÁCTICO: Temporizador estricto por tipo de misión
   useEffect(() => {
     const handleHide = () => {
       setTaskStatus(prevStatus => {
@@ -85,7 +83,7 @@ export default function AdsTab({ userData, setUserData, t }) {
         Object.keys(nextStatus).forEach(id => {
           if (nextStatus[id] === 'waiting_for_redirect') {
             nextStatus[id] = 'away'; 
-            taskStartTimes.current[id] = Date.now(); // Se graba el tiempo exacto en memoria dura
+            taskStartTimes.current[id] = Date.now(); 
           }
         });
         return nextStatus;
@@ -99,11 +97,9 @@ export default function AdsTab({ userData, setUserData, t }) {
         Object.keys(next).forEach(id => {
           if (next[id] === 'away') {
             const startTime = taskStartTimes.current[id];
-            // Si por algún error no hay startTime, timeAway es 0, impidiendo la trampa matemática
             const timeAway = startTime ? Date.now() - startTime : 0; 
             const task = tasks.find(t => String(t.id) === String(id));
             
-            // Regla estricta: 8 segundos
             let requiredTime = 8000; 
             if (['channel', 'group', 'daily_channel', 'partner'].includes(task?.type)) {
               requiredTime = 2000;
@@ -144,6 +140,11 @@ export default function AdsTab({ userData, setUserData, t }) {
       if (data && data.success) {
         setTasks(data.tasks || []);
         if (data.gigaPubClaimed) setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
+        
+        // 🔥 CORRECCIÓN: Actualizar la interfaz visual de la racha
+        if (data.streakCount !== undefined) {
+          setUserData(prev => ({ ...prev, streak_count: data.streakCount }));
+        }
       }
     } catch (e) {} finally { setLoadingTasks(false); }
   };
@@ -172,7 +173,12 @@ export default function AdsTab({ userData, setUserData, t }) {
         const data = await res.json();
         if (data.success) {
           toast.success(`+${data.earned_gemas} 💎 Recompensa Obtenida`, { id: tid });
-          if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+          // 🔥 CORRECCIÓN: Reflejar la racha inmediatamente al cobrar
+          setUserData(prev => ({ 
+            ...prev, 
+            balance: data.balance !== undefined ? data.balance : prev.balance,
+            streak_count: Math.round(Number(data.earned_gemas)) 
+          }));
           setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
         } else { toast.error(data.error || "Error.", { id: tid }); }
       } catch (e) { toast.error("Error servidor.", { id: tid }); } finally { setPlayingAd(false); }
