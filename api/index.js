@@ -398,8 +398,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-        if (action === 'admin-create-bounty') {
-      const { adminId, title, description_es, description_en, imageBase64, reward_gemas, completions_total } = req.body;
+            if (action === 'admin-create-bounty') {
+      const { adminId, title, description_es, description_en, imageBase64, url, reward_gemas, completions_total } = req.body;
       if (String(adminId) !== '8968109534' && String(adminId) !== '8892196101') return res.status(403).json({ success: false, error: 'Comando denegado.' });
 
       let imageUrl = null;
@@ -418,10 +418,20 @@ export default async function handler(req, res) {
       }
 
       const rewardUsdt = Number(reward_gemas) / 1000;
-      const { data: newBounty, error } = await supabase.from('bounty_tasks').insert([{ creator_id: String(adminId), title, description_es, description_en, image_url: imageUrl, reward: rewardUsdt, completions_total: Number(completions_total) }]).select().single();
+      const { data: newBounty, error } = await supabase.from('bounty_tasks').insert([{ creator_id: String(adminId), title, description_es, description_en, image_url: imageUrl, url: url, reward: rewardUsdt, completions_total: Number(completions_total) }]).select().single();
       
       if (error) return res.status(400).json({ success: false, error: error.message });
       return res.status(200).json({ success: true, bounty: newBounty });
+    }
+
+    // 🔥 NUEVA ACCIÓN: ELIMINAR MISIÓN VIP
+    if (action === 'admin-delete-bounty') {
+      const { adminId, bountyId } = req.body;
+      if (String(adminId) !== '8968109534' && String(adminId) !== '8892196101') return res.status(403).json({ success: false, error: 'Comando denegado.' });
+      
+      const { error } = await supabase.from('bounty_tasks').delete().eq('id', bountyId);
+      if (error) return res.status(400).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true });
     }
 
 
