@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
-import { supabase } from '../utils/supabase.js';
 import { neon, TaskIcons } from './AdsStyles';
 
 export default function AdsMarket({ props }) {
@@ -142,34 +141,37 @@ export default function AdsMarket({ props }) {
     );
   };
 
-  // 🔥 LÓGICA DE SUBIDA DE CAPTURAS VIP A SUPABASE
+  // 🔥 LÓGICA DE SUBIDA (VÍA BACKEND - BASE64)
   const handleUploadProof = async (bountyId, e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    if (file.size > 5 * 1024 * 1024) return toast.error("La imagen debe pesar menos de 5MB.");
+    if (file.size > 4 * 1024 * 1024) return toast.error("La imagen debe pesar menos de 4MB.");
     
-    const tid = toast.loading("Subiendo prueba...");
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${userData.id}_${bountyId}_${Date.now()}.${fileExt}`;
-      
-      const { data, error } = await supabase.storage.from('proofs').upload(fileName, file);
-      if (error) throw new Error("Fallo al subir archivo.");
-      
-      const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(fileName);
-      const imageUrl = publicUrlData.publicUrl;
-
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'submit-bounty', userId: userData.id, taskId: bountyId, imageUrl }) });
-      const result = await res.json();
-      
-      if (result.success) {
-         toast.success("Prueba enviada. El admin la revisará pronto.", { id: tid, duration: 4000 });
-         fetchBounties();
-      } else throw new Error(result.error);
-    } catch (err) {
-      toast.error(err.message || "Error al enviar la prueba.", { id: tid });
-    }
+    const tid = toast.loading("Procesando prueba...");
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+      try {
+        const base64Image = reader.result;
+        
+        const res = await fetch('/api', { 
+          method: 'POST', 
+          headers: apiHeaders, 
+          body: JSON.stringify({ action: 'submit-bounty', userId: userData.id, taskId: bountyId, imageBase64: base64Image }) 
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+           toast.success("Prueba enviada. El admin la revisará pronto.", { id: tid, duration: 4000 });
+           fetchBounties();
+        } else throw new Error(result.error);
+      } catch (err) {
+        toast.error(err.message || "Error al enviar la prueba.", { id: tid });
+      }
+    };
+    reader.onerror = () => toast.error("Error al procesar la imagen.", { id: tid });
   };
 
   const handleCreateVipBounty = async () => {
