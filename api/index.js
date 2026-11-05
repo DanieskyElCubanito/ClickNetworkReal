@@ -349,6 +349,67 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed, streakCount: currentStreak });
     }
 
+        // ==========================================
+    // 🌟 MISIONES VIP (BOUNTIES MANUALES)
+    // ==========================================
+    if (action === 'get-bounties') {
+      const targetId = String(userId);
+      const { data: bounties } = await supabase.from('bounty_tasks').select('*').eq('status', 'active').order('created_at', { ascending: false });
+      const { data: submissions } = await supabase.from('bounty_submissions').select('task_id, status').eq('user_id', targetId);
+      
+      const mapped = (bounties || []).map(b => {
+        const sub = (submissions || []).find(s => s.task_id === b.id);
+        return { ...b, user_status: sub ? sub.status : 'none' };
+      });
+      return res.status(200).json({ success: true, bounties: mapped });
+    }
+
+    if (action === 'submit-bounty') {
+      const { taskId, imageUrl } = req.body;
+      const targetId = String(userId);
+
+      const { data: task } = await supabase.from('bounty_tasks').select('*').eq('id', taskId).single();
+      if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Misión inactiva o finalizada.' });
+
+      const { data: existing } = await supabase.from('bounty_submissions').select('id').eq('task_id', taskId).eq('user_id', targetId).maybeSingle();
+      if (existing) return res.status(400).json({ success: false, error: 'Ya has enviado una prueba para esta misión.' });
+
+      const { data: newSub, error } = await supabase.from('bounty_submissions').insert([{ task_id: taskId, user_id: targetId, image_url: imageUrl, status: 'pending' }]).select().single();
+      if (error) return res.status(400).json({ success: false, error: 'Error de conexión.' });
+
+      // Preparar alerta directa a tu Telegram personal
+      const { data: u } = await supabase.from('users').select('username').eq('id', targetId).single();
+      const usernameDisplay = u?.username && u.username !== 'Usuario' ? `@${u.username}` : `ID: ${targetId}`;
+      const rewardGemas = (Number(task.reward) * 1000).toFixed(2);
+
+      const msg = `🚨 <b>NUEVA PRUEBA VIP RECIBIDA</b>\n\n👤 <b>Soldado:</b> ${usernameDisplay}\n🎯 <b>Misión:</b> ${task.title}\n💰 <b>Pago:</b> ${rewardGemas} Gemas\n\n👇 Revisa la captura en el enlace y decide:`;
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: "🖼️ VER CAPTURA DE PANTALLA", url: imageUrl }],
+          [{ text: "✅ APROBAR PAGO", callback_data: `bounty_approve_${newSub.id}` }, { text: "❌ RECHAZAR", callback_data: `bounty_reject_${newSub.id}` }]
+        ]
+      };
+
+      await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: '8968109534', text: msg, parse_mode: 'HTML', reply_markup: keyboard })
+      });
+
+      return res.status(200).json({ success: true });
+    }
+
+    if (action === 'admin-create-bounty') {
+      const { adminId, title, description_es, description_en, image_url, reward_gemas, completions_total } = req.body;
+      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false, error: 'Comando denegado.' });
+
+      const rewardUsdt = Number(reward_gemas) / 1000;
+      const { data: newBounty, error } = await supabase.from('bounty_tasks').insert([{ creator_id: String(adminId), title, description_es, description_en, image_url, reward: rewardUsdt, completions_total: Number(completions_total) }]).select().single();
+      
+      if (error) return res.status(400).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true, bounty: newBounty });
+    }
+
+
     if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
       const startOfToday = new Date(); startOfToday.setUTCHours(0, 0, 0, 0);
