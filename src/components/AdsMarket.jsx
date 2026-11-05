@@ -10,21 +10,19 @@ export default function AdsMarket({ props }) {
     gigaReady, playingAd, handlePlayGigaPub
   } = props;
   
-  const [category, setCategory] = useState('pagadas'); // pagadas | diarias | partners | vip
+  const [category, setCategory] = useState('pagadas');
   
-  // 🔥 ESTADOS PARA BOUNTIES (MISIONES VIP)
   const [bounties, setBounties] = useState([]);
   const [loadingBounties, setLoadingBounties] = useState(false);
   const [showCreateVipModal, setShowCreateVipModal] = useState(false);
   
-  // Inputs del Modal de Creación VIP
   const [vipTitle, setVipTitle] = useState('');
   const [vipDescEs, setVipDescEs] = useState('');
   const [vipDescEn, setVipDescEn] = useState('');
   const [vipRewardGemas, setVipRewardGemas] = useState(10);
   const [vipCompletions, setVipCompletions] = useState(50);
+  const [vipImageBase64, setVipImageBase64] = useState(''); // 🔥 Memoria para la foto de ejemplo
   
-  // Privilegios del Comandante
   const isComandante = String(userData?.id) === '8968109534' || String(userData?.id) === '8892196101';
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
@@ -35,7 +33,6 @@ export default function AdsMarket({ props }) {
   const partners = communityTasks.filter(t => t.type === 'partner');
   const diarias = communityTasks.filter(t => t.type.includes('daily'));
 
-  // Cargar Bounties cuando se abra la pestaña VIP
   useEffect(() => {
     if (category === 'vip' && userData?.id) fetchBounties();
   }, [category, userData?.id]);
@@ -141,7 +138,6 @@ export default function AdsMarket({ props }) {
     );
   };
 
-  // 🔥 LÓGICA DE SUBIDA (VÍA BACKEND - BASE64)
   const handleUploadProof = async (bountyId, e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -175,14 +171,28 @@ export default function AdsMarket({ props }) {
   };
 
   const handleCreateVipBounty = async () => {
-    if (!vipTitle || !vipDescEs || !vipDescEn || !vipRewardGemas) return toast.error("Rellena todos los campos.");
+    if (!vipTitle || !vipDescEs || !vipDescEn || !vipRewardGemas) return toast.error("Rellena los campos obligatorios.");
     const tid = toast.loading("Desplegando misión VIP...");
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-create-bounty', adminId: userData.id, title: vipTitle, description_es: vipDescEs, description_en: vipDescEn, reward_gemas: vipRewardGemas, completions_total: vipCompletions }) });
+      const res = await fetch('/api', { 
+        method: 'POST', 
+        headers: apiHeaders, 
+        body: JSON.stringify({ 
+          action: 'admin-create-bounty', 
+          adminId: userData.id, 
+          title: vipTitle, 
+          description_es: vipDescEs, 
+          description_en: vipDescEn, 
+          imageBase64: vipImageBase64, // 🔥 Foto enviada al backend
+          reward_gemas: vipRewardGemas, 
+          completions_total: vipCompletions 
+        }) 
+      });
       const data = await res.json();
       if (data.success) {
          toast.success("Misión VIP activada.", { id: tid });
          setShowCreateVipModal(false);
+         setVipImageBase64('');
          fetchBounties();
       } else throw new Error(data.error);
     } catch (err) {
@@ -203,6 +213,13 @@ export default function AdsMarket({ props }) {
            <div style={{ color: '#cc00ff', fontSize: '16px', fontWeight: '900' }}>+{Number(bounty.reward * 1000).toFixed(2)} Gemas</div>
         </div>
         
+        {/* 🔥 VISUALIZADOR DE LA FOTO DE REFERENCIA */}
+        {bounty.image_url && (
+          <div style={{ marginBottom: '12px' }}>
+            <img src={bounty.image_url} alt="Referencia" style={{ width: '100%', borderRadius: '12px', border: '1px solid rgba(204,0,255,0.3)', objectFit: 'cover' }} />
+          </div>
+        )}
+
         <div style={{ color: '#aaa', fontSize: '12px', lineHeight: '1.4', marginBottom: '14px', whiteSpace: 'pre-wrap' }}>
           {t('lang') === 'en' ? bounty.description_en : bounty.description_es}
         </div>
@@ -269,7 +286,6 @@ export default function AdsMarket({ props }) {
         <button onClick={() => category === 'vip' ? fetchBounties() : fetchTasks()} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update') || 'ACTUALIZAR'}</button>
       </div>
 
-      {/* 🔥 BOTÓN SECRETO DEL COMANDANTE PARA CREAR MISIONES VIP */}
       {category === 'vip' && isComandante && (
         <button onClick={() => setShowCreateVipModal(true)} style={{ ...neon.btnPrimary, width: '100%', marginBottom: '16px', background: 'linear-gradient(90deg, #ffaa00, #ffe600)', color: '#050214', border: 'none' }}>
            ➕ CREAR MISIÓN VIP (SOLO ADMIN)
@@ -356,13 +372,30 @@ export default function AdsMarket({ props }) {
               <textarea style={{...neon.input, height: '80px', resize: 'none'}} placeholder="1. Go to this link...\n2. Register\n3. Upload screenshot..." value={vipDescEn} onChange={(e) => setVipDescEn(e.target.value)} />
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
               <div style={{ flex: 1 }}><label style={neon.label}>PAGO (GEMAS)</label>
                 <input type="number" style={neon.input} value={vipRewardGemas} onChange={(e) => setVipRewardGemas(Number(e.target.value))} />
               </div>
               <div style={{ flex: 1 }}><label style={neon.label}>CUPOS TOTALES</label>
                 <input type="number" style={neon.input} value={vipCompletions} onChange={(e) => setVipCompletions(Number(e.target.value))} />
               </div>
+            </div>
+
+            {/* 🔥 BOTÓN PARA SUBIR FOTO DE EJEMPLO */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={neon.label}>FOTO DE REFERENCIA (OPCIONAL)</label>
+              <label style={{...neon.btnSecondary, width: '100%', textAlign: 'center', cursor: 'pointer', display: 'block', padding: '10px', marginTop: '6px'}}>
+                 📸 ELEGIR FOTO
+                 <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+                   const file = e.target.files[0];
+                   if (file) {
+                     const reader = new FileReader();
+                     reader.readAsDataURL(file);
+                     reader.onload = () => setVipImageBase64(reader.result);
+                   }
+                 }} />
+              </label>
+              {vipImageBase64 && <img src={vipImageBase64} alt="Preview" style={{ width: '100%', marginTop: '10px', borderRadius: '8px', border: '1px solid #cc00ff' }} />}
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>
