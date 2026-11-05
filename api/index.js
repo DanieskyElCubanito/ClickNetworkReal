@@ -398,16 +398,32 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    if (action === 'admin-create-bounty') {
-      const { adminId, title, description_es, description_en, image_url, reward_gemas, completions_total } = req.body;
-      if (!ADMIN_IDS.includes(String(adminId))) return res.status(403).json({ success: false, error: 'Comando denegado.' });
+        if (action === 'admin-create-bounty') {
+      const { adminId, title, description_es, description_en, imageBase64, reward_gemas, completions_total } = req.body;
+      if (String(adminId) !== '8968109534' && String(adminId) !== '8892196101') return res.status(403).json({ success: false, error: 'Comando denegado.' });
+
+      let imageUrl = null;
+      if (imageBase64) {
+        try {
+          const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+          const buffer = Buffer.from(base64Data, 'base64');
+          const fileName = `bounty_ref_${adminId}_${Date.now()}.png`;
+          
+          const { error: uploadErr } = await supabase.storage.from('proofs').upload(fileName, buffer, { contentType: 'image/png' });
+          if (!uploadErr) {
+            const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(fileName);
+            imageUrl = publicUrlData.publicUrl;
+          }
+        } catch (e) { console.error("Error subiendo foto de admin:", e); }
+      }
 
       const rewardUsdt = Number(reward_gemas) / 1000;
-      const { data: newBounty, error } = await supabase.from('bounty_tasks').insert([{ creator_id: String(adminId), title, description_es, description_en, image_url, reward: rewardUsdt, completions_total: Number(completions_total) }]).select().single();
+      const { data: newBounty, error } = await supabase.from('bounty_tasks').insert([{ creator_id: String(adminId), title, description_es, description_en, image_url: imageUrl, reward: rewardUsdt, completions_total: Number(completions_total) }]).select().single();
       
       if (error) return res.status(400).json({ success: false, error: error.message });
       return res.status(200).json({ success: true, bounty: newBounty });
     }
+
 
 
     if (action === 'claim-gigapub-daily') {
