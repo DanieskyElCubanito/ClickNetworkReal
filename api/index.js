@@ -1,6 +1,6 @@
 export const maxDuration = 60;
 
-import { supabase } from '../utils/supabase.js';
+import { supabase } from '../utils/supabase.js'; 
 import { checkRateLimit, verifyTelegramWebAppData } from '../utils/security.js';
 import { getDerivedUsdtWallet, sweepUsdtAutomated, sendTonAutomated } from '../utils/blockchain.js';
 import { extractTelegramUsername, notifyAdmin, notifyUser, checkMembership, checkAdminStatus, checkAdminStatusDetailed, ADMIN_IDS } from '../utils/telegram.js';
