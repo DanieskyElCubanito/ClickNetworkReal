@@ -364,8 +364,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, bounties: mapped });
     }
 
-    if (action === 'submit-bounty') {
-      const { taskId, imageUrl } = req.body;
+        if (action === 'submit-bounty') {
+      const { taskId, imageBase64 } = req.body;
       const targetId = String(userId);
 
       const { data: task } = await supabase.from('bounty_tasks').select('*').eq('id', taskId).single();
@@ -374,8 +374,28 @@ export default async function handler(req, res) {
       const { data: existing } = await supabase.from('bounty_submissions').select('id').eq('task_id', taskId).eq('user_id', targetId).maybeSingle();
       if (existing) return res.status(400).json({ success: false, error: 'Ya has enviado una prueba para esta misión.' });
 
+      // 🔥 Decodificar imagen Base64 y subirla a Supabase Storage
+      let imageUrl = '';
+      try {
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, 'base64');
+        const fileName = `${targetId}_${taskId}_${Date.now()}.png`;
+        
+        const { error: uploadErr } = await supabase.storage.from('proofs').upload(fileName, buffer, { contentType: 'image/png' });
+        if (uploadErr) throw uploadErr;
+
+        const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(fileName);
+        imageUrl = publicUrlData.publicUrl;
+      } catch (e) {
+        return res.status(400).json({ success: false, error: 'Error subiendo la foto a Supabase. Revisa permisos de Storage.' });
+      }
+
+      // 🔥 Registro en base de datos revelando el error real
       const { data: newSub, error } = await supabase.from('bounty_submissions').insert([{ task_id: taskId, user_id: targetId, image_url: imageUrl, status: 'pending' }]).select().single();
-      if (error) return res.status(400).json({ success: false, error: 'Error de conexión.' });
+      if (error) {
+        console.error("🚨 ERROR SUPABASE:", error);
+        return res.status(400).json({ success: false, error: `Fallo en BD: ${error.message}` });
+      }
 
       // Preparar alerta directa a tu Telegram personal
       const { data: u } = await supabase.from('users').select('username').eq('id', targetId).single();
@@ -390,13 +410,16 @@ export default async function handler(req, res) {
         ]
       };
 
-      await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: '8968109534', text: msg, parse_mode: 'HTML', reply_markup: keyboard })
-      });
+      try {
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: '8968109534', text: msg, parse_mode: 'HTML', reply_markup: keyboard })
+        });
+      } catch (e) { console.error("Error al enviar mensaje Telegram", e); }
 
       return res.status(200).json({ success: true });
     }
+
 
             if (action === 'admin-create-bounty') {
       const { adminId, title, description_es, description_en, imageBase64, url, reward_gemas, completions_total } = req.body;
