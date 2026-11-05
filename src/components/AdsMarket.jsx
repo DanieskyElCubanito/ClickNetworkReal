@@ -10,18 +10,21 @@ export default function AdsMarket({ props }) {
     gigaReady, playingAd, handlePlayGigaPub
   } = props;
   
-  const [category, setCategory] = useState('pagadas');
+  const [category, setCategory] = useState('pagadas'); // pagadas | diarias | partners | vip
   
+  // 🔥 ESTADOS PARA BOUNTIES (MISIONES VIP)
   const [bounties, setBounties] = useState([]);
   const [loadingBounties, setLoadingBounties] = useState(false);
   const [showCreateVipModal, setShowCreateVipModal] = useState(false);
   
+  // Inputs del Modal de Creación VIP
   const [vipTitle, setVipTitle] = useState('');
+  const [vipUrl, setVipUrl] = useState(''); // 🔥 NUEVO: Enlace de la misión
   const [vipDescEs, setVipDescEs] = useState('');
   const [vipDescEn, setVipDescEn] = useState('');
   const [vipRewardGemas, setVipRewardGemas] = useState(10);
   const [vipCompletions, setVipCompletions] = useState(50);
-  const [vipImageBase64, setVipImageBase64] = useState(''); // 🔥 Memoria para la foto de ejemplo
+  const [vipImageBase64, setVipImageBase64] = useState(''); 
   
   const isComandante = String(userData?.id) === '8968109534' || String(userData?.id) === '8892196101';
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
@@ -171,7 +174,7 @@ export default function AdsMarket({ props }) {
   };
 
   const handleCreateVipBounty = async () => {
-    if (!vipTitle || !vipDescEs || !vipDescEn || !vipRewardGemas) return toast.error("Rellena los campos obligatorios.");
+    if (!vipTitle || !vipUrl || !vipDescEs || !vipDescEn || !vipRewardGemas) return toast.error("Rellena título, enlace, y descripciones.");
     const tid = toast.loading("Desplegando misión VIP...");
     try {
       const res = await fetch('/api', { 
@@ -181,9 +184,10 @@ export default function AdsMarket({ props }) {
           action: 'admin-create-bounty', 
           adminId: userData.id, 
           title: vipTitle, 
+          url: vipUrl, // 🔥 Enviando el enlace al backend
           description_es: vipDescEs, 
           description_en: vipDescEn, 
-          imageBase64: vipImageBase64, // 🔥 Foto enviada al backend
+          imageBase64: vipImageBase64, 
           reward_gemas: vipRewardGemas, 
           completions_total: vipCompletions 
         }) 
@@ -192,12 +196,37 @@ export default function AdsMarket({ props }) {
       if (data.success) {
          toast.success("Misión VIP activada.", { id: tid });
          setShowCreateVipModal(false);
-         setVipImageBase64('');
+         setVipTitle(''); setVipUrl(''); setVipDescEs(''); setVipDescEn(''); setVipImageBase64(''); // Limpiar formulario
          fetchBounties();
       } else throw new Error(data.error);
     } catch (err) {
       toast.error(err.message || "Fallo táctico.", { id: tid });
     }
+  };
+
+  // 🔥 LÓGICA DE ELIMINACIÓN VIP (SOLO ADMIN)
+  const handleDeleteVipBounty = async (bountyId) => {
+    if (!window.confirm("¿Estás seguro de eliminar esta misión VIP?")) return;
+    const tid = toast.loading("Eliminando misión...");
+    try {
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-delete-bounty', adminId: userData.id, bountyId }) });
+      const data = await res.json();
+      if (data.success) {
+         toast.success("Misión eliminada.", { id: tid });
+         fetchBounties();
+      } else throw new Error(data.error);
+    } catch (err) {
+      toast.error(err.message || "Error al eliminar.", { id: tid });
+    }
+  };
+
+  const openBountyLink = (url) => {
+    try {
+      let finalUrl = url.trim();
+      if (finalUrl.startsWith('@')) finalUrl = `https://t.me/${finalUrl.substring(1)}`;
+      else if (!finalUrl.startsWith('http')) finalUrl = `https://${finalUrl}`;
+      WebApp.openLink(finalUrl, { try_instant_view: true });
+    } catch (e) { toast.error("Enlace no válido."); }
   };
 
   const renderVipItem = (bounty) => {
@@ -207,13 +236,20 @@ export default function AdsMarket({ props }) {
     const fillPercent = Math.min((bounty.completions_done / bounty.completions_total) * 100, 100);
 
     return (
-      <div key={bounty.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch', borderColor: '#cc00ff', background: 'linear-gradient(145deg, rgba(204, 0, 255, 0.05), rgba(26, 11, 51, 0.9))' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+      <div key={bounty.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch', borderColor: '#cc00ff', background: 'linear-gradient(145deg, rgba(204, 0, 255, 0.05), rgba(26, 11, 51, 0.9))', position: 'relative' }}>
+        
+        {/* 🔥 BOTÓN DE ELIMINAR (SOLO PARA COMANDANTE) */}
+        {isComandante && (
+          <button onClick={() => handleDeleteVipBounty(bounty.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,20,20,0.2)', color: '#ff1414', border: '1px solid #ff1414', borderRadius: '8px', padding: '4px 8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', zIndex: 10 }}>
+            🗑️ ELIMINAR
+          </button>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingRight: isComandante ? '80px' : '0' }}>
            <div style={{ color: '#fff', fontSize: '15px', fontWeight: '900', letterSpacing: '0.5px' }}>💎 {bounty.title}</div>
            <div style={{ color: '#cc00ff', fontSize: '16px', fontWeight: '900' }}>+{Number(bounty.reward * 1000).toFixed(2)} Gemas</div>
         </div>
         
-        {/* 🔥 VISUALIZADOR DE LA FOTO DE REFERENCIA */}
         {bounty.image_url && (
           <div style={{ marginBottom: '12px' }}>
             <img src={bounty.image_url} alt="Referencia" style={{ width: '100%', borderRadius: '12px', border: '1px solid rgba(204,0,255,0.3)', objectFit: 'cover' }} />
@@ -233,6 +269,13 @@ export default function AdsMarket({ props }) {
             <div style={{ height: '100%', width: `${fillPercent}%`, background: '#cc00ff' }}></div>
           </div>
         </div>
+
+        {/* 🔥 BOTÓN PARA IR A LA MISIÓN */}
+        {bounty.url && (
+          <button onClick={() => openBountyLink(bounty.url)} style={{ ...neon.btnSecondary, width: '100%', marginBottom: '10px', background: 'rgba(204, 0, 255, 0.1)', color: '#cc00ff', borderColor: '#cc00ff', fontSize: '12px', fontWeight: '900' }}>
+            🌐 IR AL ENLACE DE LA MISIÓN
+          </button>
+        )}
 
         {isApproved ? (
            <button disabled style={{...neon.taskButtonDisabled, width: '100%', background: 'rgba(0,255,170,0.1)', color: '#00ffaa', borderColor: '#00ffaa'}}>✅ PAGO RECIBIDO</button>
@@ -363,6 +406,11 @@ export default function AdsMarket({ props }) {
             <div style={{ marginBottom: '12px' }}><label style={neon.label}>TÍTULO DE LA MISIÓN</label>
               <input style={neon.input} placeholder="Ej: Regístrate en Binance y verifica KYC" value={vipTitle} onChange={(e) => setVipTitle(e.target.value)} />
             </div>
+
+            {/* 🔥 NUEVO CAMPO: ENLACE */}
+            <div style={{ marginBottom: '12px' }}><label style={neon.label}>ENLACE OBJETIVO (LINK)</label>
+              <input style={neon.input} placeholder="https://..." value={vipUrl} onChange={(e) => setVipUrl(e.target.value)} />
+            </div>
             
             <div style={{ marginBottom: '12px' }}><label style={neon.label}>INSTRUCCIONES (ESPAÑOL)</label>
               <textarea style={{...neon.input, height: '80px', resize: 'none'}} placeholder="1. Entra a este link...\n2. Regístrate\n3. Sube captura del perfil..." value={vipDescEs} onChange={(e) => setVipDescEs(e.target.value)} />
@@ -381,7 +429,6 @@ export default function AdsMarket({ props }) {
               </div>
             </div>
 
-            {/* 🔥 BOTÓN PARA SUBIR FOTO DE EJEMPLO */}
             <div style={{ marginBottom: '20px' }}>
               <label style={neon.label}>FOTO DE REFERENCIA (OPCIONAL)</label>
               <label style={{...neon.btnSecondary, width: '100%', textAlign: 'center', cursor: 'pointer', display: 'block', padding: '10px', marginTop: '6px'}}>
