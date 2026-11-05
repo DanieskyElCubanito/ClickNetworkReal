@@ -62,10 +62,66 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Telegram-Init-Data');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    // ==========================================
+    // 🤖 INTERCEPTOR DE WEBHOOKS (BOTONES DE TELEGRAM)
+    // ==========================================
+    if (req.body && req.body.callback_query) {
+      const cb = req.body.callback_query;
+      const data = cb.data;
+      const chatId = cb.message.chat.id;
+      const messageId = cb.message.message_id;
+
+      // Solo tú (Comandante) puedes pulsar estos botones
+      if (String(cb.from.id) !== '8968109534' && String(cb.from.id) !== '8892196101') {
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', body: JSON.stringify({ callback_query_id: cb.id, text: 'Acceso Denegado', show_alert: true }) });
+        return res.status(200).end();
+      }
+
+      if (data.startsWith('bounty_')) {
+        const parts = data.split('_');
+        const actionType = parts[1]; 
+        const submissionId = parts[2];
+
+        const { data: sub } = await supabase.from('bounty_submissions').select('*, bounty_tasks(*)').eq('id', submissionId).single();
+        
+        if (!sub || sub.status !== 'pending') {
+          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id: cb.id, text: 'Esta prueba ya fue procesada.', show_alert: true }) });
+          return res.status(200).end();
+        }
+
+        const targetUserId = sub.user_id;
+        const rewardUsdt = Number(sub.bounty_tasks.reward);
+        const gemas = (rewardUsdt * 1000).toFixed(2);
+
+        if (actionType === 'approve') {
+          await supabase.from('bounty_submissions').update({ status: 'approved' }).eq('id', submissionId);
+          await supabase.from('bounty_tasks').update({ completions_done: sub.bounty_tasks.completions_done + 1 }).eq('id', sub.bounty_tasks.id);
+          
+          const { data: u } = await supabase.from('users').select('balance, total_earnings').eq('id', targetUserId).single();
+          await supabase.from('users').update({ balance: Number((Number(u.balance) + rewardUsdt).toFixed(4)), total_earnings: Number((Number(u.total_earnings) + rewardUsdt).toFixed(4)) }).eq('id', targetUserId);
+          
+          await supabase.from('history_logs').insert([{ user_id: targetUserId, title: '✅ Misión VIP Aprobada', description: `Recompensa por "${sub.bounty_tasks.title}" | +${gemas} Gemas`, amount: rewardUsdt }]);
+          
+          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetUserId, text: `🎉 <b>¡MISIÓN VIP APROBADA!</b>\n\nTu prueba para <b>${sub.bounty_tasks.title}</b> fue válida.\n💰 Se han añadido <b>${gemas} Gemas</b> a tu balance.`, parse_mode: 'HTML' }) });
+          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: cb.message.text + '\n\n✅ <b>ESTADO: APROBADA Y PAGADA</b>.', parse_mode: 'HTML' }) });
+
+        } else if (actionType === 'reject') {
+          await supabase.from('bounty_submissions').update({ status: 'rejected' }).eq('id', submissionId);
+          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetUserId, text: `❌ <b>MISIÓN VIP RECHAZADA</b>\n\nTu prueba para <b>${sub.bounty_tasks.title}</b> no cumplió los requisitos o la imagen era inválida.`, parse_mode: 'HTML' }) });
+          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: cb.message.text + '\n\n❌ <b>ESTADO: RECHAZADA</b>.', parse_mode: 'HTML' }) });
+        }
+
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id: cb.id, text: 'Comando ejecutado con éxito' }) });
+      }
+      return res.status(200).end();
+    }
+
+    // A partir de aquí sigue el código normal de IP y validación de firma
     const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+
 
     if (!checkRateLimit(clientIp)) {
       return res.status(429).json({ success: false, error: 'Demasiadas solicitudes. Intente más tarde.' });
