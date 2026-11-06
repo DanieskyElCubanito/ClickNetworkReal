@@ -123,10 +123,27 @@ export default async function handler(req, res) {
     if (!checkRateLimit(clientIp)) {
       return res.status(429).json({ success: false, error: 'Demasiadas solicitudes. Intente más tarde.' });
     }
-
     const telegramInitData = req.headers['x-telegram-init-data'];
     if (!telegramInitData || !verifyTelegramWebAppData(telegramInitData)) {
          return res.status(403).json({ success: false, error: 'Firma de Telegram inválida o ausente. Abre la app desde el bot oficial.' });
+    }
+
+    // 🔥 OPERACIÓN TIERRA ARRASADA: CANDADO DE SESIÓN (AUTH_DATE)
+    try {
+      const urlParams = new URLSearchParams(telegramInitData);
+      const authDate = Number(urlParams.get('auth_date') || 0);
+      const currentTime = Math.floor(Date.now() / 1000);
+      
+      // Si la firma tiene más de 3 horas de antigüedad (10800 segundos), se bloquea.
+      // Destruye los scripts que reutilizan firmas durante días.
+      if (currentTime - authDate > 10800) {
+         return res.status(403).json({ 
+           success: false, 
+           error: 'Sesión expirada por seguridad. Por favor, cierra la Mini App y vuelve a abrirla.' 
+         });
+      }
+    } catch (e) {
+      console.error("Error validando auth_date");
     }
 
     if (!req.body) return res.status(400).json({ success: false, error: 'Cuerpo de solicitud vacío.' });
@@ -134,7 +151,7 @@ export default async function handler(req, res) {
     const { user, action, userId, start_param } = req.body; 
 
     // ==========================================
-    // 🔥 ESCUDO INTERNACIONAL ANTI-GRANJAS (BLOQUEO DE IP MÚLTIPLE)
+    // 🔥 ESCUDO INTERNACIONAL ANTI-GRANJAS Y AUTO-BANEO
     // ==========================================
     if (action === 'verify' || action === 'complete-task' || action === 'claim-gigapub-daily') {
        const { count: ipCount } = await supabase
@@ -142,14 +159,20 @@ export default async function handler(req, res) {
          .select('id', { count: 'exact', head: true })
          .eq('last_ip', clientIp);
 
+       // Si hay más de 3 cuentas operando desde la misma red, se quema la granja completa.
        if (ipCount > 3) {
-         notifyAdmin(`🚨 <b>ATAQUE DE GRANJA BLOQUEADO</b>\nLa IP <code>${clientIp}</code> intentó operar con más de 3 cuentas simultáneas.`);
+         // 💀 AUTO-EJECUCIÓN: Banea permanentemente a todas las cuentas de esa IP
+         await supabase.from('users').update({ is_banned: true }).eq('last_ip', clientIp);
+         
+         notifyAdmin(`🚨 <b>GRANJA ANIQUILADA</b>\nLa IP <code>${clientIp}</code> intentó operar con ${ipCount} cuentas. Todas han sido baneadas de forma permanente.`);
+         
          return res.status(403).json({ 
            success: false, 
-           error: 'Sistema Anti-Bot: Límite de cuentas excedido en esta red WiFi/IP. Operación bloqueada.' 
+           error: 'Sistema Anti-Bot: Granja detectada. Tus cuentas han sido suspendidas permanentemente por violar los términos de servicio.' 
          });
        }
     }
+
 
     // ==========================================
     // 🛡️ AUTENTICACIÓN Y REGISTRO (BLINDADO CONTRA BOTS Y CLONES)
