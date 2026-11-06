@@ -497,9 +497,9 @@ export default async function handler(req, res) {
 
       // 🔥 ESCUDO 3: ANTI-RÁFAGA (CANDADO DE 8 SEGUNDOS)
       const { data: lastLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).eq('title', '✅ Tarea Completada').order('created_at', { ascending: false }).limit(1).maybeSingle();
-      if (lastLog && (Date.now() - new Date(lastLog.created_at).getTime() < 8000)) { 
+      if (lastLog && (Date.now() - new Date(lastLog.created_at).getTime() < 1000)) { 
         notifyAdmin(`🤖 <b>Alerta Anti-Bot (Ráfaga)</b>\nEl usuario <code>${targetId}</code> intentó ejecutar scripts para saltar el temporizador.`);
-        return res.status(400).json({ success: false, error: 'Detectado uso de automatización. Espera 8 segundos entre cada tarea.' });
+        return res.status(400).json({ success: false, error: 'Detectado uso de automatización. Espera 1 segundos entre cada tarea.' });
       }
 
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
