@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Telegram-Init-Data');
 
-    if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
     // ==========================================
@@ -74,7 +74,6 @@ export default async function handler(req, res) {
       const chatId = cb.message.chat.id;
       const messageId = cb.message.message_id;
 
-      // Solo tú (Comandante) puedes pulsar estos botones
       if (String(cb.from.id) !== '8968109534' && String(cb.from.id) !== '8892196101') {
         await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', body: JSON.stringify({ callback_query_id: cb.id, text: 'Acceso Denegado', show_alert: true }) });
         return res.status(200).end();
@@ -119,9 +118,7 @@ export default async function handler(req, res) {
       return res.status(200).end();
     }
 
-    // A partir de aquí sigue el código normal de IP y validación de firma
     const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
-
 
     if (!checkRateLimit(clientIp)) {
       return res.status(429).json({ success: false, error: 'Demasiadas solicitudes. Intente más tarde.' });
@@ -136,8 +133,25 @@ export default async function handler(req, res) {
 
     const { user, action, userId, start_param } = req.body; 
 
+    // ==========================================
+    // 🔥 ESCUDO INTERNACIONAL ANTI-GRANJAS (BLOQUEO DE IP MÚLTIPLE)
+    // ==========================================
+    if (action === 'verify' || action === 'complete-task' || action === 'claim-gigapub-daily') {
+       const { count: ipCount } = await supabase
+         .from('users')
+         .select('id', { count: 'exact', head: true })
+         .eq('last_ip', clientIp);
 
-           // ==========================================
+       if (ipCount > 3) {
+         notifyAdmin(`🚨 <b>ATAQUE DE GRANJA BLOQUEADO</b>\nLa IP <code>${clientIp}</code> intentó operar con más de 3 cuentas simultáneas.`);
+         return res.status(403).json({ 
+           success: false, 
+           error: 'Sistema Anti-Bot: Límite de cuentas excedido en esta red WiFi/IP. Operación bloqueada.' 
+         });
+       }
+    }
+
+    // ==========================================
     // 🛡️ AUTENTICACIÓN Y REGISTRO (BLINDADO CONTRA BOTS Y CLONES)
     // ==========================================
     if (action === 'verify') {
@@ -147,7 +161,6 @@ export default async function handler(req, res) {
 
       if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
 
-      // 🔥 ESCUDO 1: Bloquear entornos sin deviceId válido (emuladores básicos)
       if (!deviceId || deviceId === 'unknown_device' || deviceId === 'undefined') {
         return res.status(403).json({ success: false, error: 'Acceso denegado: Dispositivo no verificado o emulador detectado.' });
       }
@@ -159,22 +172,18 @@ export default async function handler(req, res) {
       
       if (dbUser && dbUser.is_banned) return res.status(403).json({ success: false, error: 'Cuenta suspendida.' });
 
-      // 🔥 ESCUDO 2: Resolver el "empate" de dispositivos
-      // Buscamos cuál fue la PRIMERA cuenta (la más antigua) que registró este dispositivo
       const { data: firstDeviceOwner } = await supabase
         .from('users')
         .select('id')
         .eq('device_id', deviceId)
-        .order('created_at', { ascending: true }) // El más antiguo es el dueño real
+        .order('created_at', { ascending: true }) 
         .limit(1)
         .maybeSingle();
 
-      // 🛡️ LISTA BLANCA DE COMANDANTE (Cuentas inmunes al bloqueo por clonación)
       const IMMUNE_IDS = ['8968109534', '8892196101'];
 
-      // Si el dispositivo ya tiene un dueño original, NO eres tú, y NO estás en la lista de inmunidad, te bloquea
       if (firstDeviceOwner && String(firstDeviceOwner.id) !== targetId && !IMMUNE_IDS.includes(targetId)) {
-        notifyAdmin(`🚨 <b>BLOQUEO DE GRANJA / MULTICUENTA</b>\nEl usuario <code>${targetId}</code> intentó entrar a un dispositivo cuyo dueño original es <code>${firstDeviceOwner.id}</code>.`);
+        notifyAdmin(`🚨 <b>BLOQUEO DE MULTICUENTA (DEVICE)</b>\nEl usuario <code>${targetId}</code> intentó entrar a un dispositivo cuyo dueño original es <code>${firstDeviceOwner.id}</code>.`);
         return res.status(403).json({ 
           success: false, 
           error: 'Acceso bloqueado: Dispositivo vinculado a otra cuenta principal. No se permiten multicuentas.' 
@@ -182,7 +191,6 @@ export default async function handler(req, res) {
       }
 
       if (!dbUser) {
-        // Usuario totalmente nuevo y legítimo
         const newUserObj = { 
           id: targetId, 
           username: targetUser.username || 'Usuario', 
@@ -214,15 +222,12 @@ export default async function handler(req, res) {
         const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
         dbUser = newUser;
       } else {
-        // Actualizar último dispositivo e IP para la cuenta legítima o inmune
         await supabase.from('users').update({ device_id: deviceId, last_ip: clientIp }).eq('id', targetId);
       }
 
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
       return res.status(200).json({ success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } });
     }
-
-
 
     // ==========================================
     // 📊 ESTADÍSTICAS Y LEADERBOARD
@@ -349,9 +354,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed, streakCount: currentStreak });
     }
 
-        // ==========================================
-    // 🌟 MISIONES VIP (BOUNTIES MANUALES)
-    // ==========================================
     if (action === 'get-bounties') {
       const targetId = String(userId);
       const { data: bounties } = await supabase.from('bounty_tasks').select('*').eq('status', 'active').order('created_at', { ascending: false });
@@ -364,7 +366,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, bounties: mapped });
     }
 
-        if (action === 'submit-bounty') {
+    if (action === 'submit-bounty') {
       const { taskId, imageBase64 } = req.body;
       const targetId = String(userId);
 
@@ -374,7 +376,6 @@ export default async function handler(req, res) {
       const { data: existing } = await supabase.from('bounty_submissions').select('id').eq('task_id', taskId).eq('user_id', targetId).maybeSingle();
       if (existing) return res.status(400).json({ success: false, error: 'Ya has enviado una prueba para esta misión.' });
 
-      // 🔥 Decodificar imagen Base64 y subirla a Supabase Storage
       let imageUrl = '';
       try {
         const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
@@ -390,14 +391,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Error subiendo la foto a Supabase. Revisa permisos de Storage.' });
       }
 
-      // 🔥 Registro en base de datos revelando el error real
       const { data: newSub, error } = await supabase.from('bounty_submissions').insert([{ task_id: taskId, user_id: targetId, image_url: imageUrl, status: 'pending' }]).select().single();
       if (error) {
-        console.error("🚨 ERROR SUPABASE:", error);
         return res.status(400).json({ success: false, error: `Fallo en BD: ${error.message}` });
       }
 
-      // Preparar alerta directa a tu Telegram personal
       const { data: u } = await supabase.from('users').select('username').eq('id', targetId).single();
       const usernameDisplay = u?.username && u.username !== 'Usuario' ? `@${u.username}` : `ID: ${targetId}`;
       const rewardGemas = (Number(task.reward) * 1000).toFixed(2);
@@ -415,13 +413,12 @@ export default async function handler(req, res) {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: '8968109534', text: msg, parse_mode: 'HTML', reply_markup: keyboard })
         });
-      } catch (e) { console.error("Error al enviar mensaje Telegram", e); }
+      } catch (e) {}
 
       return res.status(200).json({ success: true });
     }
 
-
-            if (action === 'admin-create-bounty') {
+    if (action === 'admin-create-bounty') {
       const { adminId, title, description_es, description_en, imageBase64, url, reward_gemas, completions_total } = req.body;
       if (String(adminId) !== '8968109534' && String(adminId) !== '8892196101') return res.status(403).json({ success: false, error: 'Comando denegado.' });
 
@@ -437,7 +434,7 @@ export default async function handler(req, res) {
             const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(fileName);
             imageUrl = publicUrlData.publicUrl;
           }
-        } catch (e) { console.error("Error subiendo foto de admin:", e); }
+        } catch (e) {}
       }
 
       const rewardUsdt = Number(reward_gemas) / 1000;
@@ -447,7 +444,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, bounty: newBounty });
     }
 
-    // 🔥 NUEVA ACCIÓN: ELIMINAR MISIÓN VIP
     if (action === 'admin-delete-bounty') {
       const { adminId, bountyId } = req.body;
       if (String(adminId) !== '8968109534' && String(adminId) !== '8892196101') return res.status(403).json({ success: false, error: 'Comando denegado.' });
@@ -456,8 +452,6 @@ export default async function handler(req, res) {
       if (error) return res.status(400).json({ success: false, error: error.message });
       return res.status(200).json({ success: true });
     }
-
-
 
     if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
@@ -501,10 +495,11 @@ export default async function handler(req, res) {
       const { taskId, validation_code_input } = req.body; 
       const targetId = String(userId);
 
+      // 🔥 ESCUDO 3: ANTI-RÁFAGA (CANDADO DE 8 SEGUNDOS)
       const { data: lastLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).eq('title', '✅ Tarea Completada').order('created_at', { ascending: false }).limit(1).maybeSingle();
-      if (lastLog && (Date.now() - new Date(lastLog.created_at).getTime() < 5000)) { 
-        notifyAdmin(`🤖 <b>Alerta Anti-Spam / Bot</b>\nEl usuario <code>${targetId}</code> intentó completar tareas en ráfaga.`);
-        return res.status(400).json({ success: false, error: 'Por favor, espera unos segundos entre cada tarea.' });
+      if (lastLog && (Date.now() - new Date(lastLog.created_at).getTime() < 8000)) { 
+        notifyAdmin(`🤖 <b>Alerta Anti-Bot (Ráfaga)</b>\nEl usuario <code>${targetId}</code> intentó ejecutar scripts para saltar el temporizador.`);
+        return res.status(400).json({ success: false, error: 'Detectado uso de automatización. Espera 8 segundos entre cada tarea.' });
       }
 
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
@@ -698,7 +693,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-            // ==========================================
+    // ==========================================
     // 🏦 PAGOS, RETIROS Y BÓVEDA
     // ==========================================
     if (action === 'request-withdrawal') {
@@ -797,7 +792,6 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en revisión administrativa.' });
       }
     }
-
 
     if (action === 'generate-usdt-wallet' || action === 'generate-payment-wallet') {
       const { price } = req.body;
@@ -981,7 +975,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, withdrawals: withdrawals || [] });
       }
       
-            if (action === 'admin-approve-withdrawal') {
+      if (action === 'admin-approve-withdrawal') {
         const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', req.body.withdrawalId).single();
         if (withdrawal.status === 'completed') return res.status(400).json({ success: false, error: 'Ya pagado.' });
         try {
@@ -991,7 +985,6 @@ export default async function handler(req, res) {
           const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).eq('title', '📤 Retiro Procesando').order('created_at', { ascending: false }).limit(1).maybeSingle();
           if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank">Ver TX</a>` }).eq('id', lastLog.id);
           
-          // 🔥 NUEVO: Notificación al canal de pagos (Retiro Manual) igual al automático
           try {
             const { data: wUser } = await supabase.from('users').select('username').eq('id', withdrawal.user_id).single();
             const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${withdrawal.user_id}`;
@@ -1078,3 +1071,12 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: `Error en servidor: ${error.message || String(error)}` }); 
   }
 }
+
+// 🔥 AMPLIACIÓN TÁCTICA DEL LÍMITE DE PESO PARA IMÁGENES BASE64
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
