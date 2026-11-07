@@ -65,77 +65,23 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // ==========================================
-    // 🤖 INTERCEPTOR DE WEBHOOKS (BOTONES DE TELEGRAM)
-    // ==========================================
-    if (req.body && req.body.callback_query) {
-      const cb = req.body.callback_query;
-      const data = cb.data;
-      const chatId = cb.message.chat.id;
-      const messageId = cb.message.message_id;
-
-      if (String(cb.from.id) !== '8968109534' && String(cb.from.id) !== '8892196101') {
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', body: JSON.stringify({ callback_query_id: cb.id, text: 'Acceso Denegado', show_alert: true }) });
-        return res.status(200).end();
-      }
-
-      if (data.startsWith('bounty_')) {
-        const parts = data.split('_');
-        const actionType = parts[1]; 
-        const submissionId = parts[2];
-
-        const { data: sub } = await supabase.from('bounty_submissions').select('*, bounty_tasks(*)').eq('id', submissionId).single();
-        
-        if (!sub || sub.status !== 'pending') {
-          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id: cb.id, text: 'Esta prueba ya fue procesada.', show_alert: true }) });
-          return res.status(200).end();
-        }
-
-        const targetUserId = sub.user_id;
-        const rewardUsdt = Number(sub.bounty_tasks.reward);
-        const gemas = (rewardUsdt * 1000).toFixed(2);
-
-        if (actionType === 'approve') {
-          await supabase.from('bounty_submissions').update({ status: 'approved' }).eq('id', submissionId);
-          await supabase.from('bounty_tasks').update({ completions_done: sub.bounty_tasks.completions_done + 1 }).eq('id', sub.bounty_tasks.id);
-          
-          const { data: u } = await supabase.from('users').select('balance, total_earnings').eq('id', targetUserId).single();
-          await supabase.from('users').update({ balance: Number((Number(u.balance) + rewardUsdt).toFixed(4)), total_earnings: Number((Number(u.total_earnings) + rewardUsdt).toFixed(4)) }).eq('id', targetUserId);
-          
-          await supabase.from('history_logs').insert([{ user_id: targetUserId, title: '✅ Misión VIP Aprobada', description: `Recompensa por "${sub.bounty_tasks.title}" | +${gemas} Gemas`, amount: rewardUsdt }]);
-          
-          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetUserId, text: `🎉 <b>¡MISIÓN VIP APROBADA!</b>\n\nTu prueba para <b>${sub.bounty_tasks.title}</b> fue válida.\n💰 Se han añadido <b>${gemas} Gemas</b> a tu balance.`, parse_mode: 'HTML' }) });
-          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: cb.message.text + '\n\n✅ <b>ESTADO: APROBADA Y PAGADA</b>.', parse_mode: 'HTML' }) });
-
-        } else if (actionType === 'reject') {
-          await supabase.from('bounty_submissions').update({ status: 'rejected' }).eq('id', submissionId);
-          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: targetUserId, text: `❌ <b>MISIÓN VIP RECHAZADA</b>\n\nTu prueba para <b>${sub.bounty_tasks.title}</b> no cumplió los requisitos o la imagen era inválida.`, parse_mode: 'HTML' }) });
-          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: cb.message.text + '\n\n❌ <b>ESTADO: RECHAZADA</b>.', parse_mode: 'HTML' }) });
-        }
-
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id: cb.id, text: 'Comando ejecutado con éxito' }) });
-      }
-      return res.status(200).end();
-    }
-
     const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
 
     if (!checkRateLimit(clientIp)) {
       return res.status(429).json({ success: false, error: 'Demasiadas solicitudes. Intente más tarde.' });
     }
+
     const telegramInitData = req.headers['x-telegram-init-data'];
     if (!telegramInitData || !verifyTelegramWebAppData(telegramInitData)) {
          return res.status(403).json({ success: false, error: 'Firma de Telegram inválida o ausente. Abre la app desde el bot oficial.' });
     }
 
-    // 🔥 OPERACIÓN TIERRA ARRASADA: CANDADO DE SESIÓN (AUTH_DATE)
+    // 🔥 ESCUDO 1: CANDADO DE SESIÓN (AUTH_DATE) - 3 HORAS MÁXIMO
     try {
       const urlParams = new URLSearchParams(telegramInitData);
       const authDate = Number(urlParams.get('auth_date') || 0);
       const currentTime = Math.floor(Date.now() / 1000);
       
-      // Si la firma tiene más de 3 horas de antigüedad (10800 segundos), se bloquea.
-      // Destruye los scripts que reutilizan firmas durante días.
       if (currentTime - authDate > 10800) {
          return res.status(403).json({ 
            success: false, 
@@ -148,24 +94,18 @@ export default async function handler(req, res) {
 
     if (!req.body) return res.status(400).json({ success: false, error: 'Cuerpo de solicitud vacío.' });
 
-    const { user, action, userId, start_param } = req.body; 
+    const { user, action, userId, start_param, turnstileToken } = req.body; 
 
-    // ==========================================
-    // 🔥 ESCUDO INTERNACIONAL ANTI-GRANJAS Y AUTO-BANEO
-    // ==========================================
+    // 🔥 ESCUDO 2: ANTI-GRANJAS POR IP (Máximo 3, con autobaneo)
     if (action === 'verify' || action === 'complete-task' || action === 'claim-gigapub-daily') {
        const { count: ipCount } = await supabase
          .from('users')
          .select('id', { count: 'exact', head: true })
          .eq('last_ip', clientIp);
 
-       // Si hay más de 3 cuentas operando desde la misma red, se quema la granja completa.
        if (ipCount > 3) {
-         // 💀 AUTO-EJECUCIÓN: Banea permanentemente a todas las cuentas de esa IP
          await supabase.from('users').update({ is_banned: true }).eq('last_ip', clientIp);
-         
-         notifyAdmin(`🚨 <b>GRANJA ANIQUILADA</b>\nLa IP <code>${clientIp}</code> intentó operar con ${ipCount} cuentas. Todas han sido baneadas de forma permanente.`);
-         
+         notifyAdmin(`🚨 <b>GRANJA ANIQUILADA</b>\nLa IP <code>${clientIp}</code> intentó operar con múltiples cuentas. Todas han sido baneadas de forma permanente.`);
          return res.status(403).json({ 
            success: false, 
            error: 'Sistema Anti-Bot: Granja detectada. Tus cuentas han sido suspendidas permanentemente por violar los términos de servicio.' 
@@ -173,9 +113,8 @@ export default async function handler(req, res) {
        }
     }
 
-
     // ==========================================
-    // 🛡️ AUTENTICACIÓN Y REGISTRO (BLINDADO CONTRA BOTS Y CLONES)
+    // 🛡️ AUTENTICACIÓN Y REGISTRO
     // ==========================================
     if (action === 'verify') {
       const targetUser = user || { id: userId, is_premium: false };
@@ -183,6 +122,30 @@ export default async function handler(req, res) {
       const deviceId = targetUser?.deviceId || 'unknown_device';
 
       if (!targetId || targetId === 'undefined') return res.status(400).json({ success: false, error: 'No user id' });
+
+      // 🔥 ESCUDO 3: OBLIGATORIO TENER @USERNAME DE TELEGRAM
+      if (!targetUser.username || targetUser.username.trim() === '') {
+        return res.status(403).json({ 
+          success: false, 
+          error: 'Seguridad: Debes configurar un @NombreDeUsuario en los ajustes de tu Telegram para poder usar la plataforma.' 
+        });
+      }
+
+      // 🔥 ESCUDO 4: CAPTCHA INVISIBLE (CLOUDFLARE TURNSTILE)
+      if (process.env.TURNSTILE_SECRET_KEY) {
+        if (!turnstileToken) {
+           return res.status(403).json({ success: false, error: 'Validación de seguridad (Captcha) requerida. Actualiza la app.' });
+        }
+        const cfForm = new URLSearchParams();
+        cfForm.append('secret', process.env.TURNSTILE_SECRET_KEY);
+        cfForm.append('response', turnstileToken);
+        cfForm.append('remoteip', clientIp);
+        const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: cfForm });
+        const cfData = await cfRes.json();
+        if (!cfData.success) {
+           return res.status(403).json({ success: false, error: 'No pasaste la prueba de seguridad de red (Bot detectado).' });
+        }
+      }
 
       if (!deviceId || deviceId === 'unknown_device' || deviceId === 'undefined') {
         return res.status(403).json({ success: false, error: 'Acceso denegado: Dispositivo no verificado o emulador detectado.' });
@@ -216,7 +179,7 @@ export default async function handler(req, res) {
       if (!dbUser) {
         const newUserObj = { 
           id: targetId, 
-          username: targetUser.username || 'Usuario', 
+          username: targetUser.username, 
           balance: 0, 
           deposit_balance: 0, 
           total_earnings: 0, 
@@ -245,7 +208,7 @@ export default async function handler(req, res) {
         const { data: newUser } = await supabase.from('users').insert([newUserObj]).select().single();
         dbUser = newUser;
       } else {
-        await supabase.from('users').update({ device_id: deviceId, last_ip: clientIp }).eq('id', targetId);
+        await supabase.from('users').update({ device_id: deviceId, last_ip: clientIp, username: targetUser.username }).eq('id', targetId);
       }
 
       const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
@@ -377,105 +340,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tasks: mappedTasks, gigaPubClaimed, streakCount: currentStreak });
     }
 
-    if (action === 'get-bounties') {
-      const targetId = String(userId);
-      const { data: bounties } = await supabase.from('bounty_tasks').select('*').eq('status', 'active').order('created_at', { ascending: false });
-      const { data: submissions } = await supabase.from('bounty_submissions').select('task_id, status').eq('user_id', targetId);
-      
-      const mapped = (bounties || []).map(b => {
-        const sub = (submissions || []).find(s => s.task_id === b.id);
-        return { ...b, user_status: sub ? sub.status : 'none' };
-      });
-      return res.status(200).json({ success: true, bounties: mapped });
-    }
-
-    if (action === 'submit-bounty') {
-      const { taskId, imageBase64 } = req.body;
-      const targetId = String(userId);
-
-      const { data: task } = await supabase.from('bounty_tasks').select('*').eq('id', taskId).single();
-      if (!task || task.status !== 'active') return res.status(400).json({ success: false, error: 'Misión inactiva o finalizada.' });
-
-      const { data: existing } = await supabase.from('bounty_submissions').select('id').eq('task_id', taskId).eq('user_id', targetId).maybeSingle();
-      if (existing) return res.status(400).json({ success: false, error: 'Ya has enviado una prueba para esta misión.' });
-
-      let imageUrl = '';
-      try {
-        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-        const buffer = Buffer.from(base64Data, 'base64');
-        const fileName = `${targetId}_${taskId}_${Date.now()}.png`;
-        
-        const { error: uploadErr } = await supabase.storage.from('proofs').upload(fileName, buffer, { contentType: 'image/png' });
-        if (uploadErr) throw uploadErr;
-
-        const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(fileName);
-        imageUrl = publicUrlData.publicUrl;
-      } catch (e) {
-        return res.status(400).json({ success: false, error: 'Error subiendo la foto a Supabase. Revisa permisos de Storage.' });
-      }
-
-      const { data: newSub, error } = await supabase.from('bounty_submissions').insert([{ task_id: taskId, user_id: targetId, image_url: imageUrl, status: 'pending' }]).select().single();
-      if (error) {
-        return res.status(400).json({ success: false, error: `Fallo en BD: ${error.message}` });
-      }
-
-      const { data: u } = await supabase.from('users').select('username').eq('id', targetId).single();
-      const usernameDisplay = u?.username && u.username !== 'Usuario' ? `@${u.username}` : `ID: ${targetId}`;
-      const rewardGemas = (Number(task.reward) * 1000).toFixed(2);
-
-      const msg = `🚨 <b>NUEVA PRUEBA VIP RECIBIDA</b>\n\n👤 <b>Soldado:</b> ${usernameDisplay}\n🎯 <b>Misión:</b> ${task.title}\n💰 <b>Pago:</b> ${rewardGemas} Gemas\n\n👇 Revisa la captura en el enlace y decide:`;
-      const keyboard = {
-        inline_keyboard: [
-          [{ text: "🖼️ VER CAPTURA DE PANTALLA", url: imageUrl }],
-          [{ text: "✅ APROBAR PAGO", callback_data: `bounty_approve_${newSub.id}` }, { text: "❌ RECHAZAR", callback_data: `bounty_reject_${newSub.id}` }]
-        ]
-      };
-
-      try {
-        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: '8968109534', text: msg, parse_mode: 'HTML', reply_markup: keyboard })
-        });
-      } catch (e) {}
-
-      return res.status(200).json({ success: true });
-    }
-
-    if (action === 'admin-create-bounty') {
-      const { adminId, title, description_es, description_en, imageBase64, url, reward_gemas, completions_total } = req.body;
-      if (String(adminId) !== '8968109534' && String(adminId) !== '8892196101') return res.status(403).json({ success: false, error: 'Comando denegado.' });
-
-      let imageUrl = null;
-      if (imageBase64) {
-        try {
-          const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-          const buffer = Buffer.from(base64Data, 'base64');
-          const fileName = `bounty_ref_${adminId}_${Date.now()}.png`;
-          
-          const { error: uploadErr } = await supabase.storage.from('proofs').upload(fileName, buffer, { contentType: 'image/png' });
-          if (!uploadErr) {
-            const { data: publicUrlData } = supabase.storage.from('proofs').getPublicUrl(fileName);
-            imageUrl = publicUrlData.publicUrl;
-          }
-        } catch (e) {}
-      }
-
-      const rewardUsdt = Number(reward_gemas) / 1000;
-      const { data: newBounty, error } = await supabase.from('bounty_tasks').insert([{ creator_id: String(adminId), title, description_es, description_en, image_url: imageUrl, url: url, reward: rewardUsdt, completions_total: Number(completions_total) }]).select().single();
-      
-      if (error) return res.status(400).json({ success: false, error: error.message });
-      return res.status(200).json({ success: true, bounty: newBounty });
-    }
-
-    if (action === 'admin-delete-bounty') {
-      const { adminId, bountyId } = req.body;
-      if (String(adminId) !== '8968109534' && String(adminId) !== '8892196101') return res.status(403).json({ success: false, error: 'Comando denegado.' });
-      
-      const { error } = await supabase.from('bounty_tasks').delete().eq('id', bountyId);
-      if (error) return res.status(400).json({ success: false, error: error.message });
-      return res.status(200).json({ success: true });
-    }
-
     if (action === 'claim-gigapub-daily') {
       const targetId = String(userId);
       const startOfToday = new Date(); startOfToday.setUTCHours(0, 0, 0, 0);
@@ -518,11 +382,10 @@ export default async function handler(req, res) {
       const { taskId, validation_code_input } = req.body; 
       const targetId = String(userId);
 
-      // 🔥 ESCUDO 3: ANTI-RÁFAGA (CANDADO DE 8 SEGUNDOS)
+      // 🔥 ESCUDO 5: ANTI-RÁFAGA (CANDADO DE 1 SEGUNDO)
       const { data: lastLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).eq('title', '✅ Tarea Completada').order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (lastLog && (Date.now() - new Date(lastLog.created_at).getTime() < 1000)) { 
-        notifyAdmin(`🤖 <b>Alerta Anti-Bot (Ráfaga)</b>\nEl usuario <code>${targetId}</code> intentó ejecutar scripts para saltar el temporizador.`);
-        return res.status(400).json({ success: false, error: 'Detectado uso de automatización. Espera 1 segundos entre cada tarea.' });
+        return res.status(400).json({ success: false, error: 'Procesando. Espera 1 segundo entre cada cobro.' });
       }
 
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
@@ -717,7 +580,7 @@ export default async function handler(req, res) {
     }
 
     // ==========================================
-    // 🏦 PAGOS, RETIROS Y BÓVEDA
+    // 🏦 PAGOS Y RETIROS (100% MANUALES POR ADMIN)
     // ==========================================
     if (action === 'request-withdrawal') {
       const targetId = String(userId || user?.id);
@@ -765,7 +628,8 @@ export default async function handler(req, res) {
       const newBalance = Number((Number(wUser.balance) - withdrawAmount).toFixed(4));
       await supabase.from('users').update({ balance: newBalance }).eq('id', targetId);
 
-      const { data: withdrawal, error: withdrawError } = await supabase.from('withdrawals').insert([{ user_id: targetId, wallet_address: address, amount: withdrawAmount, status: withdrawAmount <= 0.9 ? 'processing' : 'pending' }]).select().single();
+      // TODOS los retiros se envían a estado 'pending' para revisión del administrador
+      const { data: withdrawal, error: withdrawError } = await supabase.from('withdrawals').insert([{ user_id: targetId, wallet_address: address, amount: withdrawAmount, status: 'pending' }]).select().single();
 
       if (withdrawError || !withdrawal) {
         await supabase.from('users').update({ balance: newBalance + withdrawAmount }).eq('id', targetId);
@@ -774,46 +638,7 @@ export default async function handler(req, res) {
 
       await supabase.from('history_logs').insert([{ user_id: targetId, title: '📤 Retiro Procesando', description: `Destino: ${address.substring(0,8)}... | -${(withdrawAmount * 1000).toFixed(2)} Gemas`, amount: -withdrawAmount }]);
 
-      if (withdrawAmount <= 0.9) {
-          try {
-              const realTxid = await sendTonAutomated(address, withdrawAmount);
-              await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawal.id);
-              
-              const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', targetId).eq('title', '📤 Retiro Procesando').order('created_at', { ascending: false }).limit(1).maybeSingle();
-              if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank" style="color:#00f0ff; text-decoration:underline;">Ver Transacción ➔</a>` }).eq('id', lastLog.id);
-              
-              try {
-                const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${targetId}`;
-                
-                const resPrice = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-                if (!resPrice.ok) throw new Error("Fallo de conexión con la API de precios.");
-                
-                const dataPrice = await resPrice.json();
-                if (!dataPrice['the-open-network']?.usd) throw new Error("El precio de GRAM no está disponible en este momento.");
-                
-                const gramPrice = dataPrice['the-open-network'].usd;
-                const gramAmount = (withdrawAmount / gramPrice).toFixed(4);
-                const canjeGemas = (withdrawAmount * 1000).toFixed(2);
-
-                const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${gramAmount} GRAM\n🔄 <b>Canje:</b> ${canjeGemas} Gemas\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<a href="https://tonscan.org/tx/${realTxid}">${realTxid}</a>\n\n🔥 ¡Retiros procesados con total transparencia!`;
-                const keyboard = { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR GRAM AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
-                
-                const tgRes = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ chat_id: '-1002352835078', text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
-                });
-
-                if (!tgRes.ok) throw new Error("Fallo al enviar notificación a Telegram.");
-              } catch (e) { console.error("Operación de notificación cancelada:", e.message); }
-
-              return res.status(200).json({ success: true, balance: newBalance, message: 'Pago enviado a la blockchain.' });
-          } catch (err) {
-              await supabase.from('withdrawals').update({ status: 'pending' }).eq('id', withdrawal.id);
-              return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en cola manual por red saturada.' });
-          }
-      } else {
-          return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en revisión administrativa.' });
-      }
+      return res.status(200).json({ success: true, balance: newBalance, message: 'Retiro en revisión administrativa.' });
     }
 
     if (action === 'generate-usdt-wallet' || action === 'generate-payment-wallet') {
@@ -1094,12 +919,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: `Error en servidor: ${error.message || String(error)}` }); 
   }
 }
-
-// 🔥 AMPLIACIÓN TÁCTICA DEL LÍMITE DE PESO PARA IMÁGENES BASE64
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
