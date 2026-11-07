@@ -9,6 +9,7 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
       const totalDeposited = deposits ? deposits.reduce((sum, u) => sum + Number(u.deposit_balance), 0) : 0;
       const { data: statsRow } = await supabase.from('platform_stats').select('total_global_clicks').eq('id', 1).maybeSingle();
       const daysOnline = Math.max(1, Math.floor((Date.now() - new Date("2026-10-25T00:00:00Z").getTime()) / 86400000));
+      
       return { status: 200, body: { success: true, stats: { users: totalUsers || 0, withdrawn: totalWithdrawnUsdt * 1000, deposited: totalDeposited, globalClicks: statsRow?.total_global_clicks || 0, daysOnline } } };
     }
 
@@ -34,7 +35,46 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
         }
         topReferrers.sort((a, b) => b.score - a.score);
       }
-      return { status: 200, body: { success: true, topTasks: completedRanking, topReferrals: topReferrers, pastEvents: [] } };
+
+      // 🔥 RESTAURADO: Lógica de eventos/torneos pasados
+      let pastEventsPublic = [];
+      const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
+      const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= Date.now())).slice(0, 5);
+      
+      for (const ev of pastEventsData) {
+        const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
+        const winners = [];
+        if (participants) {
+          for (const p of participants) {
+            const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
+            winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
+          }
+        }
+        pastEventsPublic.push({ ...ev, winners });
+      }
+
+      return { status: 200, body: { success: true, topTasks: completedRanking, topReferrals: topReferrers, pastEvents: pastEventsPublic } };
+    }
+
+    // 🔥 RESTAURADO: Lógica del torneo activo actual
+    if (action === 'get-active-event') {
+      const { data: activeEvent } = await supabase.from('events').select('*').eq('status', 'active').maybeSingle();
+      if (!activeEvent) return { status: 200, body: { success: true, activeEvent: null, leaderboard: [] } };
+      
+      if (new Date().getTime() >= new Date(activeEvent.end_date).getTime()) {
+        await supabase.from('events').update({ status: 'completed' }).eq('id', activeEvent.id);
+        return { status: 200, body: { success: true, activeEvent: null, leaderboard: [] } };
+      }
+      
+      const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', activeEvent.id).order('score', { ascending: false }).limit(10);
+      const leaderboard = [];
+      if (participants) {
+        for (const p of participants) {
+          const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).single();
+          leaderboard.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
+        }
+      }
+      return { status: 200, body: { success: true, activeEvent, leaderboard } };
     }
 
     if (action === 'get-history') {
