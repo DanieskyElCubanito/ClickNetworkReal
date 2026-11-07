@@ -285,7 +285,7 @@ export const translations = {
     lb_empty_tourney: "El tablero está vacío. ¡Haz tu primer movimiento y asegura el 🥇 1er Lugar!",
     lb_securing: "Asegurando:",
     lb_pts: "PTS",
-    lb_lifetime_ref: "Top Histórico (Comisiones de Escuadrón)",
+    lb_lifetime_ref: "Top Histórico (Mejores Reclutadores)",
     lb_empty_history: "Sin registros en la base de datos.",
     lb_lifetime_task: "Top Histórico (Misiones Completadas)",
     lb_you: "(TÚ)",
