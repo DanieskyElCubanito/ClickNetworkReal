@@ -18,11 +18,11 @@ const neonStyles = {
 
 export default function WalletTab({ userData, setUserData, t }) {
   const [activeTab, setActiveTab] = useState('withdraw'); 
-  const [withdrawAddress, setWithdrawAddress] = useState('');
+  const [withdrawAddress, setWithdrawAddress] = useState(userData?.saved_wallet || '');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  // 🛠️ ESTADO: Requisitos de retiro
+  // 🛠️ ESTADO: Requisitos de retiro (ACTUALIZADO A 5 Y 5)
   const [reqs, setReqs] = useState({ referrals: 0, ads: 0 });
   const [playingAd, setPlayingAd] = useState(false);
 
@@ -55,7 +55,11 @@ export default function WalletTab({ userData, setUserData, t }) {
             body: JSON.stringify({ action: 'get-withdrawal-reqs', userId: userData.id }) 
           });
           const data = await res.json();
-          if (data.success) setReqs({ referrals: data.referrals, ads: data.ads });
+          if (data.success) {
+             setReqs({ referrals: data.referrals, ads: data.ads });
+             // Si el servidor envía la wallet guardada, la aseguramos en el input
+             if (data.saved_wallet) setWithdrawAddress(data.saved_wallet);
+          }
         } catch (e) {
           console.error("Error cargando requisitos", e);
         }
@@ -126,8 +130,9 @@ export default function WalletTab({ userData, setUserData, t }) {
     if (!gemasAmount || gemasAmount < 50) return toast.error(t('bank_err_min_withdraw') || "El retiro mínimo es de 50 Gemas.");
     if (gemasAmount > gemBalance) return toast.error(t('bank_err_insufficient') || "No tienes suficientes Gemas.");
 
-    if (reqs.referrals < 3 && reqs.ads < 15) {
-      return toast.error(t('bank_req_error') || "Debes cumplir uno de los requisitos para retirar (3 Referidos Activos o 15 Anuncios hoy).");
+    // REQUISITOS ACTUALIZADOS (5 referidos O 5 anuncios)
+    if (reqs.referrals < 5 && reqs.ads < 5) {
+      return toast.error(t('bank_req_error') || "Debes cumplir uno de los requisitos para retirar (5 Referidos Activos o 5 Anuncios).");
     }
 
     setIsWithdrawing(true);
@@ -142,11 +147,11 @@ export default function WalletTab({ userData, setUserData, t }) {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(data.message || t('bank_msg_success') || "Retiro en proceso.", { id: tid });
-        if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
-        setWithdrawAddress(''); setWithdrawAmount('');
+        toast.success(data.message || t('bank_msg_success') || "Retiro en revisión administrativa.", { id: tid, duration: 4000 });
+        if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance, saved_wallet: withdrawAddress }));
+        setWithdrawAmount('');
       } else {
-        toast.error(data.error || t('bank_msg_error') || "Error al solicitar retiro.", { id: tid });
+        toast.error(data.error || t('bank_msg_error') || "Error al solicitar retiro.", { id: tid, duration: 4000 });
       }
     } catch (err) {
       toast.error(t('bank_msg_conn_error') || "Error de conexión.", { id: tid });
@@ -208,6 +213,9 @@ export default function WalletTab({ userData, setUserData, t }) {
   };
 
   const cancelCheckout = () => { setCheckoutView(false); setIntentId(null); setTempWallet(''); };
+
+  // 🔥 DETERMINAR SI EL INPUT DE WALLET DEBE ESTAR BLOQUEADO
+  const walletIsLocked = !!userData?.saved_wallet;
 
   return (
     <div style={neonStyles.container} className="fade-in">
@@ -282,11 +290,23 @@ export default function WalletTab({ userData, setUserData, t }) {
 
           <label style={{...neonStyles.label, color: '#ff9999'}}>{t('bank_wd_address_label') || "Billetera de Destino (Red TON)"}</label>
           <input 
-            style={{...neonStyles.input, borderColor: '#ff1414', textAlign: 'left'}} 
+            style={{
+               ...neonStyles.input, 
+               borderColor: walletIsLocked ? '#444' : '#ff1414', 
+               background: walletIsLocked ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.4)',
+               color: walletIsLocked ? '#aaa' : '#fff',
+               textAlign: 'left'
+            }} 
             placeholder={t('bank_wd_address_placeholder') || "Ej: UQDgJUo4Ycvd9Q_ICUI..."} 
             value={withdrawAddress} 
-            onChange={(e) => setWithdrawAddress(e.target.value)} 
+            onChange={(e) => !walletIsLocked && setWithdrawAddress(e.target.value)} 
+            disabled={walletIsLocked}
           />
+          {walletIsLocked && (
+             <div style={{ color: '#ffaa00', fontSize: '10px', fontWeight: 'bold', marginTop: '-10px', marginBottom: '16px', textAlign: 'center' }}>
+               🔒 Billetera guardada por seguridad. Inmodificable.
+             </div>
+          )}
 
           <label style={{...neonStyles.label, color: '#ff9999'}}>{t('bank_wd_amount_label') || "Cantidad a retirar (GEMAS)"}</label>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
@@ -309,38 +329,40 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ background: 'linear-gradient(145deg, #10061e, #1a0b33)', border: '1.5px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '20px' }}>
             <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>{t('bank_req_title') || "🛡️ Requisitos de Retiro (Elige uno)"}</h4>
 
+            {/* REQUISITO 1: 5 REFERIDOS */}
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span>{t('bank_req_opt1') || "Opción 1: Referidos Activos"}</span>
                   <span style={{ fontSize: '9px', color: '#ff99dd', marginTop: '2px', fontWeight: 'normal' }}>{t('bank_req_opt1_desc') || "(Deben haber ganado al menos 5 Gemas)"}</span>
                 </div>
-                <span style={{ color: reqs.referrals >= 3 ? '#00ffaa' : '#ff99dd', paddingTop: '2px' }}>{reqs.referrals} / 3</span>
+                <span style={{ color: reqs.referrals >= 5 ? '#00ffaa' : '#ff99dd', paddingTop: '2px' }}>{reqs.referrals} / 5</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>
-                <div style={{ width: `${Math.min((reqs.referrals / 3) * 100, 100)}%`, height: '100%', background: reqs.referrals >= 3 ? '#00ffaa' : '#ff1493', borderRadius: '4px', transition: 'width 0.3s' }}></div>
+                <div style={{ width: `${Math.min((reqs.referrals / 5) * 100, 100)}%`, height: '100%', background: reqs.referrals >= 5 ? '#00ffaa' : '#ff1493', borderRadius: '4px', transition: 'width 0.3s' }}></div>
               </div>
             </div>
 
+            {/* REQUISITO 2: 5 ANUNCIOS */}
             <div style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
-                <span>{t('bank_req_opt2') || "Opción 2: Anuncios de Hoy"}</span>
-                <span style={{ color: reqs.ads >= 15 ? '#00ffaa' : '#ff99dd' }}>{reqs.ads} / 15</span>
+                <span>{t('bank_req_opt2') || "Opción 2: Tareas Web / Anuncios"}</span>
+                <span style={{ color: reqs.ads >= 5 ? '#00ffaa' : '#ff99dd' }}>{reqs.ads} / 5</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '12px' }}>
-                <div style={{ width: `${Math.min((reqs.ads / 15) * 100, 100)}%`, height: '100%', background: reqs.ads >= 15 ? '#00ffaa' : '#00f0ff', borderRadius: '4px', transition: 'width 0.3s' }}></div>
+                <div style={{ width: `${Math.min((reqs.ads / 5) * 100, 100)}%`, height: '100%', background: reqs.ads >= 5 ? '#00ffaa' : '#00f0ff', borderRadius: '4px', transition: 'width 0.3s' }}></div>
               </div>
               <button 
                 onClick={handleWatchProgressAd} 
-                disabled={playingAd || reqs.ads >= 15 || reqs.referrals >= 3}
-                style={{ width: '100%', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', padding: '10px', fontWeight: '900', fontSize: '13px', cursor: (reqs.ads >= 15 || reqs.referrals >= 3) ? 'not-allowed' : 'pointer', opacity: (reqs.ads >= 15 || reqs.referrals >= 3) ? 0.5 : 1 }}
+                disabled={playingAd || reqs.ads >= 5 || reqs.referrals >= 5}
+                style={{ width: '100%', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', padding: '10px', fontWeight: '900', fontSize: '13px', cursor: (reqs.ads >= 5 || reqs.referrals >= 5) ? 'not-allowed' : 'pointer', opacity: (reqs.ads >= 5 || reqs.referrals >= 5) ? 0.5 : 1 }}
               >
-                {playingAd ? (t('bank_req_btn_loading') || 'CARGANDO VIDEO...') : (t('bank_req_btn_watch') || '▶ VER ANUNCIO PARA DESBLOQUEAR')}
+                {playingAd ? (t('bank_req_btn_loading') || 'CARGANDO...') : (t('bank_req_btn_watch') || '▶ EJECUTAR TAREA WEB')}
               </button>
             </div>
           </div>
 
-          <button onClick={handleWithdraw} disabled={isWithdrawing} style={{...neonStyles.btnPink, background: 'linear-gradient(90deg, #ff1414, #8b0000)', opacity: (reqs.referrals < 3 && reqs.ads < 15) ? 0.5 : 1 }}>
+          <button onClick={handleWithdraw} disabled={isWithdrawing} style={{...neonStyles.btnPink, background: 'linear-gradient(90deg, #ff1414, #8b0000)', opacity: (reqs.referrals < 5 && reqs.ads < 5) ? 0.5 : 1 }}>
             {isWithdrawing ? (t('bank_btn_processing') || 'PROCESANDO...') : (t('bank_btn_withdraw') || 'SOLICITAR RETIRO ➔')}
           </button>
         </div>
