@@ -59,7 +59,6 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true } };
     }
 
-    // 🔥 RESTAURADO: Función para leer a los ganadores del Salón de la Fama
     if (action === 'admin-get-past-events') {
         const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
         const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= Date.now())).slice(0, 10);
@@ -146,12 +145,16 @@ export async function handleAdminActions(action, targetId, reqBody) {
     }
 
     if (action === 'admin-update-config') {
-        await supabase.from('system_settings').upsert({ 
+        // 🔥 CORRECCIÓN: Capturamos el error para que el frontend no diga "Guardado exitoso" si falla Supabase
+        const { error } = await supabase.from('system_settings').upsert({ 
             id: 1, 
             master_wallet_gram: reqBody.config.master_wallet_gram, 
             master_wallet_usdt_bep20: reqBody.config.master_wallet_usdt_bep20,
             min_withdrawal: reqBody.config.min_withdrawal
         });
+        
+        if (error) return { status: 400, body: { success: false, error: `Fallo al guardar en BD: ${error.message}` } };
+        
         return { status: 200, body: { success: true } };
     }
 
