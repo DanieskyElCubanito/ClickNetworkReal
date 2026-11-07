@@ -5,7 +5,8 @@ import { supabase } from '../utils/supabase.js';
 import { handleAuthAndUserActions } from './auth.js';
 import { handleTaskActions } from './tasks.js';
 import { handleBankingActions } from './banking.js';
-// (Si necesitas funciones de admin, crearías un admin.js y lo importas aquí)
+import { handlePublicDataActions } from './public.js';
+import { handleAdminActions } from './admin.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -26,7 +27,6 @@ export default async function handler(req, res) {
          return res.status(403).json({ success: false, error: 'Firma de Telegram inválida o ausente.' });
     }
 
-    // 🔥 ESCUDO 1: CANDADO DE SESIÓN (AUTH_DATE) - 3 HORAS MÁXIMO
     try {
       const urlParams = new URLSearchParams(telegramInitData);
       const authDate = Number(urlParams.get('auth_date') || 0);
@@ -40,7 +40,6 @@ export default async function handler(req, res) {
     const { user, action, userId, start_param, turnstileToken } = req.body; 
     const targetId = String(userId || user?.id);
 
-    // 🔥 ESCUDO 2: ANTI-GRANJAS POR IP (Máximo 3)
     if (['verify', 'complete-task', 'claim-gigapub-daily'].includes(action)) {
        const { count: ipCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('last_ip', clientIp);
        if (ipCount > 3) {
@@ -49,28 +48,27 @@ export default async function handler(req, res) {
        }
     }
 
-    // 🔥 ESCUDO 3: OBLIGATORIO TENER @USERNAME
     if (action === 'verify' && (!user?.username || user.username.trim() === '')) {
         return res.status(403).json({ success: false, error: 'Debes configurar un @NombreDeUsuario en Telegram para usar la plataforma.' });
     }
 
-    // 🔀 ENRUTAMIENTO A MÓDULOS HIJOS
     let result = null;
 
-    // 1. Módulo de Autenticación y Usuarios
     result = await handleAuthAndUserActions(action, targetId, user, user?.deviceId, clientIp, start_param, turnstileToken);
     if (result) return res.status(result.status).json(result.body);
 
-    // 2. Módulo de Tareas y Campañas
+    result = await handlePublicDataActions(action, targetId, req.body);
+    if (result) return res.status(result.status).json(result.body);
+
     result = await handleTaskActions(action, targetId, req.body);
     if (result) return res.status(result.status).json(result.body);
 
-    // 3. Módulo Bancario (Retiros y Pagos)
     result = await handleBankingActions(action, targetId, req.body);
     if (result) return res.status(result.status).json(result.body);
 
-    // (Si agregas el módulo admin, lo pones aquí)
-    
+    result = await handleAdminActions(action, targetId, req.body);
+    if (result) return res.status(result.status).json(result.body);
+
     return res.status(400).json({ success: false, error: `Acción no reconocida: ${action}` });
 
   } catch (error) { 
@@ -78,3 +76,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: `Error interno de servidor.` }); 
   }
 }
+
+export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
