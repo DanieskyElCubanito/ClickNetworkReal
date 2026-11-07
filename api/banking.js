@@ -43,14 +43,17 @@ export async function handleBankingActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true, balance: newBalance, saved_wallet: address, message: 'Retiro en revisión administrativa.' } };
     }
 
-    if (action === 'get-withdrawal-reqs') {
+        if (action === 'get-withdrawal-reqs') {
         const todayStr = new Date(); todayStr.setUTCHours(0, 0, 0, 0);
         const { count: refCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', targetId).gte('total_earnings', 0.005);
         const { count: adsCount } = await supabase.from('history_logs').select('*', { count: 'exact', head: true }).eq('user_id', targetId).like('description', '%[AdView]%').gte('created_at', todayStr.toISOString());
         
         const { data: u } = await supabase.from('users').select('saved_wallet').eq('id', targetId).single();
-        return { status: 200, body: { success: true, referrals: refCount || 0, ads: adsCount || 0, saved_wallet: u?.saved_wallet || null } };
+        const { data: config } = await supabase.from('system_settings').select('min_withdrawal').eq('id', 1).single();
+        
+        return { status: 200, body: { success: true, referrals: refCount || 0, ads: adsCount || 0, saved_wallet: u?.saved_wallet || null, min_withdrawal: config?.min_withdrawal || 0.05 } };
     }
+
 
     if (action === 'generate-payment-wallet') {
       const { mnemonicNew, mnemonicToPrivateKey, WalletContractV4 } = await import('../utils/blockchain.js');
