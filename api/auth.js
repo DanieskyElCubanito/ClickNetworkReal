@@ -1,30 +1,36 @@
 import { supabase } from '../utils/supabase.js';
-import { notifyAdmin } from '../utils/telegram.js';
+import { notifyAdmin, checkMembership, extractTelegramUsername, notifyUser } from '../utils/telegram.js';
 
-export async function handleAuthAndUserActions(action, targetId, targetUser, deviceId, clientIp, start_param) {
+export async function handleAuthAndUserActions(action, targetId, targetUser, deviceId, clientIp, start_param, turnstileToken) {
     if (action === 'verify') {
+        if (process.env.TURNSTILE_SECRET_KEY) {
+            if (!turnstileToken) return { status: 403, body: { success: false, error: 'Captcha requerido. Actualiza la app.' } };
+            const cfForm = new URLSearchParams({ secret: process.env.TURNSTILE_SECRET_KEY, response: turnstileToken, remoteip: clientIp });
+            const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: cfForm });
+            const cfData = await cfRes.json();
+            if (!cfData.success) return { status: 403, body: { success: false, error: 'Bot detectado por Cloudflare.' } };
+        }
+
+        if (!deviceId || deviceId === 'unknown_device') return { status: 403, body: { success: false, error: 'Dispositivo no verificado.' } };
+
         runRetentionAudit(targetId).catch(() => {});
 
-        let { data: dbUser, error: dbError } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
-        if (dbError) throw new Error("Error en Supabase: " + dbError.message);
-        
+        let { data: dbUser } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
         if (dbUser && dbUser.is_banned) return { status: 403, body: { success: false, error: 'Cuenta suspendida.' } };
 
         const { data: firstDeviceOwner } = await supabase.from('users').select('id').eq('device_id', deviceId).order('created_at', { ascending: true }).limit(1).maybeSingle();
         const IMMUNE_IDS = ['8968109534', '8892196101'];
 
         if (firstDeviceOwner && String(firstDeviceOwner.id) !== targetId && !IMMUNE_IDS.includes(targetId)) {
-            notifyAdmin(`🚨 <b>BLOQUEO DE MULTICUENTA (DEVICE)</b>\nEl usuario <code>${targetId}</code> intentó entrar a un dispositivo cuyo dueño original es <code>${firstDeviceOwner.id}</code>.`);
+            notifyAdmin(`🚨 <b>BLOQUEO DE MULTICUENTA</b>\nEl usuario <code>${targetId}</code> intentó entrar al dispositivo de <code>${firstDeviceOwner.id}</code>.`);
             return { status: 403, body: { success: false, error: 'Acceso bloqueado: Dispositivo vinculado a otra cuenta.' } };
         }
 
         if (!dbUser) {
             const newUserObj = { 
                 id: targetId, username: targetUser.username, balance: 0, deposit_balance: 0, 
-                total_earnings: 0, referral_earnings: 0, is_human: true, 
-                device_id: deviceId, last_ip: clientIp, referral_reward_granted: true 
+                total_earnings: 0, referral_earnings: 0, is_human: true, device_id: deviceId, last_ip: clientIp 
             };
-           
             if (start_param && String(start_param) !== targetId) {
                 const { data: inviter } = await supabase.from('users').select('id').eq('id', String(start_param)).maybeSingle();
                 if (inviter) newUserObj.referred_by = String(start_param);
@@ -62,22 +68,42 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
         
         await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
         await supabase.from('history_logs').insert([{ user_id: targetId, title: `🎁 Bono Diario (Día ${currentStreak})`, description: `Anuncio completado [GigaPubDaily] [Streak:${currentStreak}] | +${earnedGemas.toFixed(2)} Gemas`, amount: rewardForDb }]);
+        
+        if (Number(dbUser.total_earnings || 0) < 0.005 && newTotal >= 0.005 && dbUser.referred_by) {
+            const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
+            if (referrer) {
+                await supabase.from('users').update({ balance: Number((Number(referrer.balance || 0) + 0.005).toFixed(4)), referral_earnings: Number((Number(referrer.referral_earnings || 0) + 0.005).toFixed(4)), total_earnings: Number((Number(referrer.total_earnings || 0) + 0.005).toFixed(4)) }).eq('id', referrer.id);
+                await supabase.from('history_logs').insert([{ user_id: referrer.id, title: '🎯 Recluta Validado', description: `Tu recluta se activó. Bono: +5.00 Gemas`, amount: 0.005 }]);
+            }
+        }
         return { status: 200, body: { success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance } };
     }
 
-    return null; // Acción no manejada por este archivo
+    return null; 
 }
 
 async function runRetentionAudit(userId) {
+  try {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: recentTasks } = await supabase.from('user_completed_tasks').select('task_id, tasks!inner(type, url, reward)').eq('user_id', userId).gte('created_at', yesterday);
-    // (Lógica simplificada de retención. Si falla, el usuario no retiene la gema)
-    if (recentTasks) {
-       for (const item of recentTasks) {
-          const t = item.tasks;
-          if (t && ['group', 'channel'].includes(t.type)) {
-             // Auditoría asíncrona de bots
-          }
-       }
+    const { data: recentTasks } = await supabase.from('user_completed_tasks').select('task_id, created_at, tasks!inner(type, url, reward, title)').eq('user_id', userId).gte('created_at', yesterday);
+    if (!recentTasks || recentTasks.length === 0) return;
+
+    for (const item of recentTasks) {
+      const t = item.tasks;
+      if (t && (t.type === 'group' || t.type === 'channel' || t.type === 'partner' || t.type === 'daily_channel')) {
+        const chatId = extractTelegramUsername(t.url);
+        if (chatId && !(await checkMembership(userId, chatId))) {
+            const penaltyAmount = Number(t.reward || 0);
+            const { data: pUser } = await supabase.from('users').select('balance, total_earnings').eq('id', userId).single();
+            if (pUser) {
+              const newBal = Math.max(0, Number(pUser.balance) - penaltyAmount);
+              await supabase.from('users').update({ balance: newBal, total_earnings: Math.max(0, Number(pUser.total_earnings) - penaltyAmount) }).eq('id', userId);
+              await supabase.from('user_completed_tasks').delete().eq('task_id', item.task_id).eq('user_id', userId);
+              await supabase.from('history_logs').insert([{ user_id: userId, title: '⚠️ Penalidad de Permanencia', description: `Sanción por abandono prematuro: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, amount: -penaltyAmount }]);
+              await notifyUser(userId, `⚠️ <b>PENALIZACIÓN</b>\nSaliste de ${t.title} antes de 24h. Gemas deducidas.`);
+            }
+        }
+      }
     }
+  } catch (error) {}
 }
