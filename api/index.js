@@ -593,7 +593,7 @@ export default async function handler(req, res) {
       const { count: refCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', targetId).gte('total_earnings', 0.005);
       const { count: adsCount } = await supabase.from('history_logs').select('*', { count: 'exact', head: true }).eq('user_id', targetId).like('description', '%[AdView]%').gte('created_at', todayDate.toISOString());
 
-      if ((refCount || 0) < 3 && (adsCount || 0) < 15) return res.status(400).json({ success: false, error: `Requisito: 3 referidos activos O ver 15 anuncios hoy.` });
+      if ((refCount || 0) < 3 && (adsCount || 0) < 5) return res.status(400).json({ success: false, error: `Requisito: 5 referidos activos O ver 5 anuncios hoy.` });
 
       await runRetentionAudit(targetId).catch(e => {});
 
