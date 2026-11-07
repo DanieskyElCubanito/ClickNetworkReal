@@ -3,7 +3,6 @@ import { sendTonAutomated } from '../utils/blockchain.js';
 import { extractTelegramUsername, checkAdminStatusDetailed, ADMIN_IDS } from '../utils/telegram.js';
 
 export async function handleAdminActions(action, targetId, reqBody) {
-    // 🔍 Acción especial: Verificar si el bot es admin en un canal (Usado al crear tareas)
     if (action === 'verify-admin') {
       const chatId = extractTelegramUsername(reqBody.url);
       if (!chatId) return { status: 400, body: { success: false, error: 'Enlace inválido.' } };
@@ -19,20 +18,17 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 403, body: { success: false, error: 'Comando denegado.' } };
     }
 
-    // 🔥 RESTAURADO: Auditoría Global de Misiones
     if (action === 'admin-get-all-tasks') {
         const { data: allTasks } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
         return { status: 200, body: { success: true, tasks: allTasks || [] } };
     }
 
-    // 🔥 RESTAURADO: Estadísticas Globales del Panel
     if (action === 'admin-stats') {
         const { data: usersData } = await supabase.from('users').select('id');
         const { data: tasksData } = await supabase.from('tasks').select('id');
         return { status: 200, body: { success: true, stats: { users: usersData?.length || 0, tasks: tasksData?.length || 0 } } };
     }
 
-    // 🔥 RESTAURADO: Búsqueda y Edición de Usuarios
     if (action === 'admin-search-user') {
         const { data: foundUser } = await supabase.from('users').select('*').eq('id', String(reqBody.targetId)).maybeSingle();
         return { status: 200, body: { success: !!foundUser, user: foundUser } };
@@ -43,7 +39,6 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true } };
     }
 
-    // 🔥 RESTAURADO: Enviar Premio Directo (Sorteo)
     if (action === 'admin-send-sorteo') {
         const usdtAmount = Number(reqBody.amount) / 1000;
         const { data: user } = await supabase.from('users').select('balance, total_earnings').eq('id', String(reqBody.targetId)).single();
@@ -52,7 +47,6 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true } };
     }
 
-    // 🔥 RESTAURADO: Gestión de Eventos/Torneos
     if (action === 'admin-create-event') {
         const { title, event_type, start_date, end_date, prizes } = reqBody;
         const { data } = await supabase.from('events').insert([{ title, event_type, status: 'active', start_date, end_date, prizes: prizes || [] }]).select().single();
@@ -65,7 +59,26 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true } };
     }
 
-    // 🏦 PAGOS Y BÓVEDA
+    // 🔥 RESTAURADO: Función para leer a los ganadores del Salón de la Fama
+    if (action === 'admin-get-past-events') {
+        const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
+        const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= Date.now())).slice(0, 10);
+        
+        const eventsWithWinners = [];
+        for (const ev of pastEventsData) {
+          const { data: participants } = await supabase.from('event_participants').select('user_id, score').eq('event_id', ev.id).order('score', { ascending: false }).limit(3);
+          const winners = [];
+          if (participants) {
+            for (const p of participants) {
+              const { data: u } = await supabase.from('users').select('username').eq('id', p.user_id).maybeSingle();
+              winners.push({ userId: p.user_id, username: u?.username || 'Usuario', score: p.score });
+            }
+          }
+          eventsWithWinners.push({ ...ev, winners });
+        }
+        return { status: 200, body: { success: true, pastEvents: eventsWithWinners } };
+    }
+
     if (action === 'admin-get-withdrawals') {
         const { data: withdrawals } = await supabase.from('withdrawals').select('*').eq('status', 'pending').order('created_at', { ascending: false });
         return { status: 200, body: { success: true, withdrawals: withdrawals || [] } };
@@ -75,9 +88,7 @@ export async function handleAdminActions(action, targetId, reqBody) {
         const { withdrawalId } = reqBody;
         const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
         
-        if (withdrawal.status === 'completed') {
-            return { status: 400, body: { success: false, error: 'Ya pagado.' } };
-        }
+        if (withdrawal.status === 'completed') return { status: 400, body: { success: false, error: 'Ya pagado.' } };
         
         try {
             const realTxid = await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
@@ -86,7 +97,6 @@ export async function handleAdminActions(action, targetId, reqBody) {
             const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).like('title', '%Retiro%').order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank">Ver TX</a>` }).eq('id', lastLog.id);
             
-            // Notificación al canal de pagos (Transparencia en Vivo)
             try {
                 const { data: wUser } = await supabase.from('users').select('username').eq('id', withdrawal.user_id).single();
                 const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${withdrawal.user_id}`;
@@ -108,11 +118,11 @@ export async function handleAdminActions(action, targetId, reqBody) {
                        });
                    }
                 }
-            } catch (e) { console.error("Error al notificar retiro manual:", e.message); }
+            } catch (e) { console.error("Error al notificar retiro:", e.message); }
 
             return { status: 200, body: { success: true } };
         } catch (error) { 
-            return { status: 400, body: { success: false, error: 'Fallo en blockchain. Revisa el saldo de tu Master Wallet.' } }; 
+            return { status: 400, body: { success: false, error: 'Fallo en blockchain.' } }; 
         }
     }
 
@@ -130,7 +140,6 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true } };
     }
 
-    // ⚙️ CONFIGURACIÓN DEL SISTEMA
     if (action === 'admin-get-config') {
         const { data } = await supabase.from('system_settings').select('*').eq('id', 1).maybeSingle();
         return { status: 200, body: { success: true, config: data || { master_wallet_gram: '', master_wallet_usdt_bep20: '', min_withdrawal: 0.05 } } };
@@ -146,7 +155,6 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true } };
     }
 
-    // 🚀 CREACIÓN DE MISIONES DESDE EL ADMIN
     if (action === 'admin-create-master-task') {
         const { title, url, type, reward } = reqBody;
         if (type === 'partner' || type === 'daily_channel') {
