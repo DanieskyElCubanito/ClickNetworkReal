@@ -22,7 +22,9 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  // 🛠️ ESTADO: Requisitos de retiro (ACTUALIZADO A 5 Y 5)
+  // 🔥 NUEVO: Estado Dinámico para el Mínimo de Retiro
+  const [minWithdrawalGemas, setMinWithdrawalGemas] = useState(50);
+
   const [reqs, setReqs] = useState({ referrals: 0, ads: 0 });
   const [playingAd, setPlayingAd] = useState(false);
 
@@ -57,8 +59,12 @@ export default function WalletTab({ userData, setUserData, t }) {
           const data = await res.json();
           if (data.success) {
              setReqs({ referrals: data.referrals, ads: data.ads });
-             // Si el servidor envía la wallet guardada, la aseguramos en el input
              if (data.saved_wallet) setWithdrawAddress(data.saved_wallet);
+             
+             // Actualizamos el mínimo de retiro según lo que dicte el Admin Panel
+             if (data.min_withdrawal) {
+                 setMinWithdrawalGemas(Math.round(Number(data.min_withdrawal) * 1000));
+             }
           }
         } catch (e) {
           console.error("Error cargando requisitos", e);
@@ -127,10 +133,9 @@ export default function WalletTab({ userData, setUserData, t }) {
     if (withdrawAddress.length < 20) return toast.error(t('bank_err_wallet_invalid') || "Billetera TON inválida.");
 
     const gemasAmount = Number(withdrawAmount);
-    if (!gemasAmount || gemasAmount < 50) return toast.error(t('bank_err_min_withdraw') || "El retiro mínimo es de 50 Gemas.");
+    if (!gemasAmount || gemasAmount < minWithdrawalGemas) return toast.error(t('bank_err_min_withdraw') || `El retiro mínimo es de ${minWithdrawalGemas} Gemas.`);
     if (gemasAmount > gemBalance) return toast.error(t('bank_err_insufficient') || "No tienes suficientes Gemas.");
 
-    // REQUISITOS ACTUALIZADOS (5 referidos O 5 anuncios)
     if (reqs.referrals < 5 && reqs.ads < 5) {
       return toast.error(t('bank_req_error') || "Debes cumplir uno de los requisitos para retirar (5 Referidos Activos o 5 Anuncios).");
     }
@@ -214,7 +219,6 @@ export default function WalletTab({ userData, setUserData, t }) {
 
   const cancelCheckout = () => { setCheckoutView(false); setIntentId(null); setTempWallet(''); };
 
-  // 🔥 DETERMINAR SI EL INPUT DE WALLET DEBE ESTAR BLOQUEADO
   const walletIsLocked = !!userData?.saved_wallet;
 
   return (
@@ -284,7 +288,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
             <div>
               <h3 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '900' }}>{t('bank_wd_title') || "Retirar a Billetera TON"}</h3>
-              <div style={{ fontSize: '11px', color: '#aaa' }}>{t('bank_wd_min') || "Mínimo de retiro: 50 Gemas"}</div>
+              <div style={{ fontSize: '11px', color: '#aaa' }}>{t('bank_wd_min') || `Mínimo de retiro: ${minWithdrawalGemas} Gemas`}</div>
             </div>
           </div>
 
@@ -314,7 +318,7 @@ export default function WalletTab({ userData, setUserData, t }) {
               type="text" 
               inputMode="decimal"
               style={{ ...neonStyles.input, borderColor: '#ff1414', marginBottom: 0, textAlign: 'left' }} 
-              placeholder="50" 
+              placeholder={`${minWithdrawalGemas}`} 
               value={withdrawAmount} 
               onChange={(e) => setWithdrawAmount(e.target.value.replace(',', '.'))} 
             />
@@ -329,7 +333,6 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ background: 'linear-gradient(145deg, #10061e, #1a0b33)', border: '1.5px solid #8a2be2', borderRadius: '20px', padding: '16px', marginBottom: '20px' }}>
             <h4 style={{ color: '#ffe600', margin: '0 0 12px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '900' }}>{t('bank_req_title') || "🛡️ Requisitos de Retiro (Elige uno)"}</h4>
 
-            {/* REQUISITO 1: 5 REFERIDOS */}
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -343,7 +346,6 @@ export default function WalletTab({ userData, setUserData, t }) {
               </div>
             </div>
 
-            {/* REQUISITO 2: 5 ANUNCIOS */}
             <div style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
                 <span>{t('bank_req_opt2') || "Opción 2: Tareas Web / Anuncios"}</span>
