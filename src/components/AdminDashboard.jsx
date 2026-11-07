@@ -37,7 +37,9 @@ export default function AdminDashboard({ userData }) {
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  const [sysConfig, setSysConfig] = useState({ master_wallet_gram: '', master_wallet_usdt_bep20: '' });
+  // CONFIGURACIÓN DEL SISTEMA
+  const [sysConfig, setSysConfig] = useState({ master_wallet_gram: '', master_wallet_usdt_bep20: '', min_withdrawal: 0.05 });
+  const [minWithdrawalGemas, setMinWithdrawalGemas] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
 
   const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
@@ -55,7 +57,7 @@ export default function AdminDashboard({ userData }) {
   const [pastEvents, setPastEvents] = useState([]);
   const [loadingPast, setLoadingPast] = useState(false);
 
-  // 🔥 NUEVO: DESPLIEGUE DE TAREAS MAESTRAS (Diarias / Partners)
+  // DESPLIEGUE DE TAREAS MAESTRAS
   const [masterTaskTitle, setMasterTaskTitle] = useState('');
   const [masterTaskUrl, setMasterTaskUrl] = useState('');
   const [masterTaskType, setMasterTaskType] = useState('daily_promo');
@@ -94,7 +96,10 @@ export default function AdminDashboard({ userData }) {
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-config', adminId: userData.id }) });
       const data = await res.json();
-      if (data.success && data.config) setSysConfig(data.config);
+      if (data.success && data.config) {
+        setSysConfig(data.config);
+        setMinWithdrawalGemas(String((Number(data.config.min_withdrawal) * 1000).toFixed(0)));
+      }
     } catch (e) {}
   };
 
@@ -131,12 +136,23 @@ export default function AdminDashboard({ userData }) {
   };
 
   const handleSaveConfig = async () => {
+    if (!minWithdrawalGemas || Number(minWithdrawalGemas) <= 0) return toast.error("Ingresa un mínimo de retiro válido.");
+    const usdtMin = Number(minWithdrawalGemas) / 1000;
+    
     const tid = toast.loading("Asegurando coordenadas maestras...");
     setSavingConfig(true);
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-config', adminId: userData.id, config: sysConfig }) });
+      const res = await fetch('/api', { 
+        method: 'POST', 
+        headers: apiHeaders, 
+        body: JSON.stringify({ 
+          action: 'admin-update-config', 
+          adminId: userData.id, 
+          config: { ...sysConfig, min_withdrawal: usdtMin } 
+        }) 
+      });
       const data = await res.json();
-      if (data.success) toast.success("Billeteras maestras actualizadas", { id: tid });
+      if (data.success) toast.success("Configuración del Sistema actualizada", { id: tid });
       else throw new Error(data.error);
     } catch (e) { toast.error("Error de sincronización", { id: tid }); }
     setSavingConfig(false);
@@ -286,12 +302,10 @@ export default function AdminDashboard({ userData }) {
     } catch (e) { toast.error(e.message || "Fallo en sobreescritura", { id: tid }); }
   };
 
-  // 🔥 NUEVO: Función para Desplegar Tareas Maestras (Diarias / Partners)
   const handleDeployMasterTask = async () => {
     if (!masterTaskTitle.trim() || !masterTaskUrl.trim()) return toast.error("Completa el título y la URL objetivo.");
     if (!masterTaskReward || Number(masterTaskReward) <= 0) return toast.error("Asigna una recompensa válida en USDT.");
 
-    // 🛡️ CORRECCIÓN: Para canales, verificamos que sea un formato de Telegram válido
     if (masterTaskType === 'partner' || masterTaskType === 'daily_channel') {
       if (!masterTaskUrl.includes('t.me/') && !masterTaskUrl.startsWith('@')) {
         return toast.error("Enlace inválido. Debe ser un canal de Telegram (ej. @MiCanal o https://t.me/MiCanal).");
@@ -346,7 +360,7 @@ export default function AdminDashboard({ userData }) {
         </div>
       </div>
 
-      {/* 🔥 NUEVO: DESPLIEGUE DE TAREAS MAESTRAS */}
+      {/* DESPLIEGUE DE TAREAS MAESTRAS */}
       <div style={{ ...neon.card, borderColor: '#ff1493', background: 'linear-gradient(145deg, #2a051d, #140212)' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff1493', display: 'flex', alignItems: 'center', gap: '6px' }}>
           {Icons.rocket} Despliegue de Misiones Maestras
@@ -513,11 +527,24 @@ export default function AdminDashboard({ userData }) {
         )}
       </div>
 
-      {/* CONFIGURACIÓN DE BILLETERAS */}
+      {/* CONFIGURACIÓN DE SISTEMA (BILLETERAS Y MÍNIMOS) */}
       <div style={{ ...neon.card, borderColor: '#ff41b4' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff99dd', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {Icons.wallet} Billeteras Maestras
+          {Icons.wallet} Configuración del Sistema
         </h3>
+
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+           <div style={{ flex: 1 }}>
+              <span style={neon.label}>MÍNIMO DE RETIRO (GEMAS)</span>
+              <input 
+                 type="number" 
+                 placeholder="Ej: 50" 
+                 style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center' }} 
+                 value={minWithdrawalGemas} 
+                 onChange={(e) => setMinWithdrawalGemas(e.target.value)} 
+              />
+           </div>
+        </div>
 
         <span style={neon.label}>Billetera Pública GRAM (Red TON)</span>
         <input 
@@ -542,7 +569,7 @@ export default function AdminDashboard({ userData }) {
         </div>
 
         <button onClick={handleSaveConfig} disabled={savingConfig} style={{ ...neon.btn, background: 'linear-gradient(90deg, #ff1493, #8a2be2)', color: '#fff' }}>
-          {savingConfig ? 'Sincronizando...' : 'GUARDAR BILLETERAS'}
+          {savingConfig ? 'Sincronizando...' : 'GUARDAR CONFIGURACIÓN'}
         </button>
       </div>
 
