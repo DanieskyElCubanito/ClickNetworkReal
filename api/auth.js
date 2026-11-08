@@ -2,7 +2,30 @@ import { supabase } from '../utils/supabase.js';
 import { notifyAdmin, checkMembership, extractTelegramUsername, notifyUser } from '../utils/telegram.js';
 
 export async function handleAuthAndUserActions(action, targetId, targetUser, deviceId, clientIp, start_param, turnstileToken) {
-    if (action === 'verify') {
+    if (action === 'verify' || action === 'verify-channels') {
+        
+        // 🔥 Lógica de Canales Obligatorios
+        const { data: config } = await supabase.from('system_settings').select('mandatory_channel_1, mandatory_channel_2').eq('id', 1).maybeSingle();
+        let c1_joined = true;
+        let c2_joined = true;
+        let c1_url = config?.mandatory_channel_1 || '';
+        let c2_url = config?.mandatory_channel_2 || '';
+
+        if (c1_url) {
+            const u1 = extractTelegramUsername(c1_url);
+            if (u1) c1_joined = await checkMembership(targetId, u1);
+        }
+        if (c2_url) {
+            const u2 = extractTelegramUsername(c2_url);
+            if (u2) c2_joined = await checkMembership(targetId, u2);
+        }
+
+        // Si solo estamos verificando canales desde la pantalla de bloqueo:
+        if (action === 'verify-channels') {
+            return { status: 200, body: { success: true, allJoined: (c1_joined && c2_joined), channel1: c1_joined, channel2: c2_joined, c1_url, c2_url } };
+        }
+
+        // Si es el inicio de sesión principal (verify)
         if (process.env.TURNSTILE_SECRET_KEY) {
             if (!turnstileToken) return { status: 403, body: { success: false, error: 'Captcha requerido. Actualiza la app.' } };
             const cfForm = new URLSearchParams({ secret: process.env.TURNSTILE_SECRET_KEY, response: turnstileToken, remoteip: clientIp });
@@ -42,7 +65,16 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
         }
 
         const { count: refCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('referred_by', targetId);
-        return { status: 200, body: { success: true, user: dbUser, stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) } } };
+        
+        return { 
+            status: 200, 
+            body: { 
+                success: true, 
+                user: dbUser, 
+                stats: { n1: refCount || 0, c1: String(dbUser?.referral_earnings || 0) },
+                mandatory: { c1_url, c2_url, c1_joined, c2_joined, all_joined: (c1_joined && c2_joined) } // Enviamos esto a App.jsx
+            } 
+        };
     }
 
     if (action === 'claim-gigapub-daily') {
@@ -69,7 +101,6 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
         await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
         await supabase.from('history_logs').insert([{ user_id: targetId, title: `🎁 Bono Diario (Día ${currentStreak})`, description: `Anuncio completado [GigaPubDaily] [Streak:${currentStreak}] | +${earnedGemas.toFixed(2)} Gemas`, amount: rewardForDb }]);
         
-        // 🔥 LÓGICA DINÁMICA DE REFERIDOS APLICADA AL CHECK-IN
         if (dbUser.referred_by) {
             const { data: config } = await supabase.from('system_settings').select('ref_percent, ref_bonus_gemas').eq('id', 1).maybeSingle();
             const percent = config && config.ref_percent ? Number(config.ref_percent) / 100 : 0.10;
