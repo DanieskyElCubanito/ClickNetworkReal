@@ -38,10 +38,19 @@ export default function AdminDashboard({ userData }) {
   const [loadingTasks, setLoadingTasks] = useState(false);
 
   // CONFIGURACIÓN DEL SISTEMA
-  const [sysConfig, setSysConfig] = useState({ master_wallet_gram: '', master_wallet_usdt_bep20: '', min_withdrawal: 0.05, ref_percent: 10, ref_bonus_gemas: 5 });
+  const [sysConfig, setSysConfig] = useState({ 
+      master_wallet_gram: '', 
+      master_wallet_usdt_bep20: '', 
+      min_withdrawal: 0.05, 
+      ref_percent: 10, 
+      ref_bonus_gemas: 5,
+      mandatory_channel_1: '',
+      mandatory_channel_2: ''
+  });
+  
   const [minWithdrawalGemas, setMinWithdrawalGemas] = useState('');
   
-  // 🔥 NUEVOS ESTADOS DE REFERIDOS
+  // ESTADOS DE REFERIDOS
   const [refPercent, setRefPercent] = useState('10');
   const [refBonusGemas, setRefBonusGemas] = useState('5');
   
@@ -427,6 +436,116 @@ export default function AdminDashboard({ userData }) {
         </button>
       </div>
 
+      {/* GESTIÓN DE TORNEOS */}
+      <div style={{ ...neon.card, borderColor: '#00f0ff', background: 'linear-gradient(145deg, #0d1225, #050b14)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', color: '#00f0ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {Icons.trophy} Control de Temporadas
+          </h3>
+          <button onClick={loadActiveEvent} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>{Icons.refresh}</button>
+        </div>
+
+        {loadingEvent ? (
+          <div style={{ textAlign: 'center', fontSize: '12px', color: '#00f0ff' }}>Escaneando radar de eventos...</div>
+        ) : activeEvent ? (
+          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '16px', borderRadius: '12px', border: '1px dashed #00f0ff', textAlign: 'center' }}>
+            <div style={{ color: '#00ffaa', fontSize: '10px', fontWeight: '900', letterSpacing: '1px', marginBottom: '6px' }}>TEMPORADA EN CURSO</div>
+            <div style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>{activeEvent.title}</div>
+            <div style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '16px' }}>
+              Modo de Juego: <b>{activeEvent.event_type === 'referral' ? 'Reclutar Aliados' : 'Cazar Misiones'}</b>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '12px' }}>
+              <div><div style={{fontSize:'16px'}}>🥇</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{activeEvent.prizes[0]}</div></div>
+              <div><div style={{fontSize:'16px'}}>🥈</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{activeEvent.prizes[1]}</div></div>
+              <div><div style={{fontSize:'16px'}}>🥉</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{activeEvent.prizes[2]}</div></div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => handleManageEvent('completed')} style={{ ...neon.btn, background: 'linear-gradient(90deg, #00f0ff, #0088ff)', flex: 1, color: '#fff' }}>FORZAR FINALIZACIÓN</button>
+              <button onClick={() => handleManageEvent('deleted')} style={{ ...neon.btnDanger, flex: 1 }}>{Icons.trash} ELIMINAR</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ fontSize: '11px', color: '#aaa', textAlign: 'center', marginBottom: '8px' }}>Activa un protocolo de temporada para incentivar a los jugadores a competir en el Salón de la Fama.</div>
+
+            <div>
+              <span style={neon.label}>Nombre de la Temporada</span>
+              <input type="text" style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0}} value={eventTitle} onChange={e => setEventTitle(e.target.value)} placeholder="Ej. Temporada Cero" />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ flex: 2 }}>
+                <span style={neon.label}>Modo de Competencia</span>
+                <select style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0, padding: '11px', background: 'rgba(0,0,0,0.8)'}} value={eventType} onChange={e => setEventType(e.target.value)}>
+                  <option value="referral">👥 Reclutamiento Masivo</option>
+                  <option value="task_completion">🔥 Completar Misiones</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <span style={neon.label}>Días Activos</span>
+                <input type="number" style={{...neon.input, borderColor: '#00f0ff', marginBottom: 0, textAlign: 'center'}} value={eventDays} onChange={e => setEventDays(e.target.value)} />
+              </div>
+            </div>
+
+            <span style={{...neon.label, marginTop: '8px'}}>Recompensas para el TOP 3</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input type="text" style={{...neon.input, borderColor: '#ffe600', marginBottom: 0, textAlign: 'center'}} value={prize1} onChange={e => setPrize1(e.target.value)} placeholder="🥇 1er Lugar" />
+              <input type="text" style={{...neon.input, borderColor: '#C0C0C0', marginBottom: 0, textAlign: 'center'}} value={prize2} onChange={e => setPrize2(e.target.value)} placeholder="🥈 2do Lugar" />
+              <input type="text" style={{...neon.input, borderColor: '#cd7f32', marginBottom: 0, textAlign: 'center'}} value={prize3} onChange={e => setPrize3(e.target.value)} placeholder="🥉 3er Lugar" />
+            </div>
+
+            <button onClick={handleCreateEvent} style={{ ...neon.btn, background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#fff', marginTop: '10px' }}>
+              🚀 LANZAR TEMPORADA AHORA
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* HISTORIAL DE TORNEOS FINALIZADOS */}
+      <div style={{ marginTop: '24px', borderTop: '1px dashed rgba(0, 240, 255, 0.3)', paddingTop: '20px', marginBottom: '20px' }}>
+        <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '1px' }}>
+          Temporadas Finalizadas (Salón de la Fama)
+        </h4>
+
+        {loadingPast ? (
+          <div style={{ textAlign: 'center', fontSize: '11px', color: '#aaa' }}>Desencriptando registros...</div>
+        ) : pastEvents.length === 0 ? (
+          <div style={{ textAlign: 'center', fontSize: '11px', color: '#666', background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '10px' }}>
+            Aún no hay temporadas completadas en la base de datos.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }}>
+            {pastEvents.map(ev => (
+              <div key={ev.id} style={{ background: 'rgba(0,0,0,0.5)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(0, 240, 255, 0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '900', color: '#fff' }}>{ev.title}</span>
+                  <span style={{ fontSize: '10px', color: '#aaa', fontWeight: 'bold' }}>
+                    Finalizó: {new Date(ev.end_date).toLocaleDateString()}
+                  </span>
+                </div>
+
+                {ev.winners && ev.winners.length > 0 ? (
+                  ev.winners.map((w, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: '6px' }}>
+                      <div style={{ color: '#ccc' }}>
+                        <span style={{ fontSize: '14px', marginRight: '6px' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
+                        <span style={{ fontWeight: 'bold', color: '#fff' }}>@{w.username}</span> 
+                        <span style={{ fontSize: '10px', marginLeft: '4px' }}>(ID: {w.userId})</span>
+                      </div>
+                      <div style={{ color: '#ffe600', fontWeight: '900' }}>{w.score} pts</div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ fontSize: '11px', color: '#666', textAlign: 'center' }}>Ningún jugador puntuó en este evento.</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* CONFIGURACIÓN DE SISTEMA */}
       <div style={{ ...neon.card, borderColor: '#ff41b4' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff99dd', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -446,7 +565,7 @@ export default function AdminDashboard({ userData }) {
            </div>
         </div>
 
-                {/* 🔥 NUEVO: CONTROLES DE REFERIDOS */}
+        {/* 🔥 CONTROLES DE REFERIDOS */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
            <div style={{ flex: 1 }}>
               <span style={neon.label}>% COMISIÓN REFERIDOS</span>
@@ -471,7 +590,7 @@ export default function AdminDashboard({ userData }) {
            </div>
         </div>
 
-        {/* 🔥 NUEVO: CANALES OBLIGATORIOS AL INICIO */}
+        {/* 🔥 CANALES OBLIGATORIOS AL INICIO */}
         <div style={{ background: 'rgba(255, 65, 180, 0.1)', border: '1px dashed #ff41b4', padding: '12px', borderRadius: '12px', marginBottom: '20px' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#ff99dd', textTransform: 'uppercase' }}>📢 Gatekeeper (Canales Obligatorios)</h4>
             <span style={neon.label}>Canal Obligatorio 1 (URL)</span>
@@ -493,7 +612,7 @@ export default function AdminDashboard({ userData }) {
             />
             <div style={{ fontSize: '10px', color: '#aaa', marginTop: '6px' }}>Si dejas el campo vacío, no se exigirá ese canal. Recuerda que el bot debe ser admin en esos canales para leer los miembros.</div>
         </div>
-        </div>
+
         <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '20px', textAlign: 'center' }}>
           * El bono único se paga automáticamente cuando el recluta alcanza sus primeras 5 Gemas.
         </div>
