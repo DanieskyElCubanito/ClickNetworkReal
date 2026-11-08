@@ -48,17 +48,13 @@ export async function handleTaskActions(action, targetId, reqBody) {
         await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
         await supabase.from('history_logs').insert([{ user_id: targetId, title: '✅ Tarea Completada', description: `Campaña: "${task.title}" | +${(rewardAmount * 1000).toFixed(2)} Gemas`, amount: rewardAmount }]);
 
-        // 🔥 LÓGICA DINÁMICA DE REFERIDOS
         if (dbUser.referred_by) {
-            // Buscamos la configuración en la base de datos
             const { data: config } = await supabase.from('system_settings').select('ref_percent, ref_bonus_gemas').eq('id', 1).maybeSingle();
             const percent = config && config.ref_percent ? Number(config.ref_percent) / 100 : 0.10;
             const bonusUsdt = config && config.ref_bonus_gemas ? Number(config.ref_bonus_gemas) / 1000 : 0.005;
 
-            // Calculamos la comisión
             const comm = Number((rewardAmount * percent).toFixed(4));
             
-            // Calculamos si hay que darle el bono único (cuando el usuario pasa de 0 a 5 gemas)
             let extraBonusUsdt = 0;
             if (Number(dbUser.total_earnings || 0) < 0.005 && newTotal >= 0.005) {
                 extraBonusUsdt = bonusUsdt;
@@ -70,11 +66,9 @@ export async function handleTaskActions(action, targetId, reqBody) {
             if (ref && totalToReferrer > 0) {
                await supabase.from('users').update({ balance: Number(ref.balance) + totalToReferrer, referral_earnings: Number(ref.referral_earnings) + totalToReferrer }).eq('id', ref.id);
                
-               // Si se pagó el bono único, avisamos al reclutador
                if (extraBonusUsdt > 0) {
                    await supabase.from('history_logs').insert([{ user_id: ref.id, title: '🎯 Recluta Validado', description: `Tu recluta se activó. Bono único pagado.`, amount: extraBonusUsdt }]);
                }
-               // Si hubo comisión por tarea
                if (comm > 0) {
                    await supabase.from('history_logs').insert([{ user_id: ref.id, title: '👥 Comisión de Red', description: `Misión de recluta (ID: ${targetId})`, amount: comm }]);
                }
@@ -113,6 +107,87 @@ export async function handleTaskActions(action, targetId, reqBody) {
         await supabase.from('users').update({ balance: newBalance, total_earnings: Number((Number(dbUser.total_earnings || 0) + 0.0005).toFixed(4)) }).eq('id', targetId);
         await supabase.from('history_logs').insert([{ user_id: targetId, title: '📺 Anuncio Visto', description: `Visualización para retiro [AdView] | +0.50 Gemas`, amount: 0.0005 }]);
         return { status: 200, body: { success: true, balance: newBalance } };
+    }
+
+    // 🔥 RESTAURADO: PAUSAR / ACTIVAR TAREAS
+    if (action === 'toggle-task-status') {
+      const { taskId, requestingUserId } = reqBody;
+      const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).eq('creator_id', String(requestingUserId)).single();
+      if (!task) return { status: 400, body: { success: false, error: 'Sin permisos o tarea no encontrada.' } };
+      const newStatus = task.status === 'active' ? 'paused' : 'active';
+      await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
+      return { status: 200, body: { success: true, status: newStatus } };
+    }
+
+    // 🔥 RESTAURADO: ELIMINAR TAREAS
+    if (action === 'delete-task') {
+      const { taskId, requestingUserId, isAdminAction } = reqBody;
+      const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+      if (!task) return { status: 400, body: { success: false, error: 'Misión no encontrada.' } };
+      if (task.creator_id !== String(requestingUserId) && !isAdminAction) return { status: 403, body: { success: false, error: 'Sin permisos.' } };
+
+      const remainingCompletions = task.completions_total - (task.completions_done || 0);
+      if (remainingCompletions > 0) {
+        const refundAmount = Number((remainingCompletions * task.reward * 1.30).toFixed(4));
+        const { data: user } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
+        if (user) {
+          await supabase.from('users').update({ deposit_balance: Number((Number(user.deposit_balance) + refundAmount).toFixed(4)) }).eq('id', task.creator_id);
+          await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: '💰 Reembolso', description: `Cancelación de campaña. +$${refundAmount.toFixed(2)} USDT`, amount: 0 }]);
+        }
+      }
+      await supabase.from('tasks').delete().eq('id', taskId);
+      return { status: 200, body: { success: true } };
+    }
+
+    // 🔥 RESTAURADO: EDITAR TAREAS (TÍTULO, URL Y CUPOS)
+    if (action === 'edit-task') {
+      const { taskId, requestingUserId, newTitle, newUrl, addCompletions, newReward, isAdminAction } = reqBody;
+      const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+      if (!task) return { status: 400, body: { success: false, error: 'Misión no encontrada.' } };
+      if (task.creator_id !== String(requestingUserId) && !isAdminAction) return { status: 403, body: { success: false, error: 'Sin permisos.' } };
+
+      if (task.type === 'bot' && !newUrl.toLowerCase().includes('bot')) {
+        return { status: 400, body: { success: false, error: 'Las URLs de Bots deben contener la palabra "bot".' } };
+      }
+
+      // Verificamos si cambió el canal y si el bot sigue siendo Admin allí
+      if ((task.type === 'group' || task.type === 'channel' || task.type === 'partner') && newUrl !== task.url) {
+        const chatId = extractTelegramUsername(newUrl);
+        if (!chatId) return { status: 400, body: { success: false, error: 'Enlace de Telegram inválido.' } };
+        const adminCheck = await checkAdminStatusDetailed(chatId);
+        if (!adminCheck.isAdmin) return { status: 400, body: { success: false, error: adminCheck.error } };
+      }
+
+      const updates = { title: newTitle, url: newUrl };
+      let netCost = 0;
+      const remainingCompletions = task.completions_total - (task.completions_done || 0);
+
+      // Si subió la recompensa
+      if (newReward && Number(newReward) !== Number(task.reward) && remainingCompletions > 0) {
+        netCost += (remainingCompletions * Number(newReward) * 1.30) - (remainingCompletions * task.reward * 1.30);
+        updates.reward = Number(newReward);
+      }
+
+      // Si agregó más cupos
+      if (addCompletions && Number(addCompletions) > 0) {
+        netCost += Number(addCompletions) * (updates.reward || task.reward) * 1.30;
+        updates.completions_total = task.completions_total + Number(addCompletions);
+        updates.status = 'active'; 
+      }
+
+      // Cobrar a la bóveda si el costo aumentó
+      if (netCost !== 0) {
+        const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).single();
+        if (netCost > 0 && (!cUser || Number(cUser.deposit_balance) < netCost)) return { status: 400, body: { success: false, error: `Saldo de Bóveda insuficiente para este ajuste.` } };
+        
+        await supabase.from('users').update({ deposit_balance: Number((Number(cUser.deposit_balance) - netCost).toFixed(4)) }).eq('id', task.creator_id);
+        await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: netCost > 0 ? '🔋 Ajuste de Campaña' : '💰 Reembolso', description: `Edición táctica de la misión`, amount: -netCost }]);
+      }
+
+      const { error: updateError } = await supabase.from('tasks').update(updates).eq('id', taskId);
+      if (updateError) return { status: 400, body: { success: false, error: `Error interno: ${updateError.message}` } };
+      
+      return { status: 200, body: { success: true } };
     }
 
     return null;
