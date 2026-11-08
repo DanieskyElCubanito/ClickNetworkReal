@@ -139,22 +139,23 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true } };
     }
 
+    // 🔥 MODIFICADO PARA INCLUIR LAS NUEVAS VARIABLES DE REFERIDOS
     if (action === 'admin-get-config') {
         const { data } = await supabase.from('system_settings').select('*').eq('id', 1).maybeSingle();
-        return { status: 200, body: { success: true, config: data || { master_wallet_gram: '', master_wallet_usdt_bep20: '', min_withdrawal: 0.05 } } };
+        return { status: 200, body: { success: true, config: data || { master_wallet_gram: '', master_wallet_usdt_bep20: '', min_withdrawal: 0.05, ref_percent: 10, ref_bonus_gemas: 5 } } };
     }
 
     if (action === 'admin-update-config') {
-        // 🔥 CORRECCIÓN: Capturamos el error para que el frontend no diga "Guardado exitoso" si falla Supabase
         const { error } = await supabase.from('system_settings').upsert({ 
             id: 1, 
             master_wallet_gram: reqBody.config.master_wallet_gram, 
             master_wallet_usdt_bep20: reqBody.config.master_wallet_usdt_bep20,
-            min_withdrawal: reqBody.config.min_withdrawal
+            min_withdrawal: reqBody.config.min_withdrawal,
+            ref_percent: reqBody.config.ref_percent,
+            ref_bonus_gemas: reqBody.config.ref_bonus_gemas
         });
         
         if (error) return { status: 400, body: { success: false, error: `Fallo al guardar en BD: ${error.message}` } };
-        
         return { status: 200, body: { success: true } };
     }
 
