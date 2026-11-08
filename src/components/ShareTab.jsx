@@ -3,7 +3,6 @@ import toast from 'react-hot-toast';
 import { botApi } from '../api/botApi';
 import WebApp from '@twa-dev/sdk';
 
-// --- ÍCONOS SVG PREMIUM (Estilo Gamer) ---
 const Icons = {
   redGem: (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 10px rgba(255, 20, 20, 0.8))' }}>
@@ -93,6 +92,10 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
   const [earnings, setEarnings] = useState(totalReferralEarnings || stats?.c1 || 0);
   const [loading, setLoading] = useState(false);
 
+  // 🔥 NUEVOS ESTADOS PARA PORCENTAJES DINÁMICOS
+  const [sysPercent, setSysPercent] = useState(10);
+  const [sysBonus, setSysBonus] = useState(5);
+
   useEffect(() => {
     if (userId) fetchReferrals();
   }, [userId]);
@@ -104,6 +107,9 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
       if (data && data.success) {
         setReferralsList(data.referrals || []);
         setEarnings(data.earnings || 0);
+        
+        if (data.sys_percent !== undefined) setSysPercent(Number(data.sys_percent));
+        if (data.sys_bonus !== undefined) setSysBonus(Number(data.sys_bonus));
       }
     } catch (error) {
       console.error("Error fetching referrals.");
@@ -114,14 +120,11 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
 
   const n1 = referralsList.length;
 
-  // 🔥 NUEVA LÓGICA DE CLASIFICACIÓN DE REFERIDOS
   const activeCount = referralsList.filter(r => r.is_human && Number(r.total_earnings || 0) >= 0.005).length;
   const fraudCount = referralsList.filter(r => !r.is_human).length;
   const pendingCount = n1 - activeCount - fraudCount;
 
-  // Transformamos las ganancias en USDT a Gemas (con hasta 2 decimales)
   const gemEarnings = Number((Number(earnings) * 1000).toFixed(2));
-
   const inviteLink = `https://t.me/TeleGemAds_bot/app?startapp=${userId}`;
 
   const handleCopy = () => {
@@ -153,7 +156,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
             <div style={{ color: '#00ffaa', fontSize: '10px', fontWeight: '900', letterSpacing: '1px', marginBottom: '6px' }}>{t('ref_status_active') || "ACTIVOS"}</div>
             <div style={{ color: '#ffffff', fontSize: '24px', fontWeight: '900', textShadow: '0 0 10px rgba(0, 255, 170, 0.5)' }}>{activeCount}</div>
           </div>
-          
+
           <div style={{ ...neon.statBox, borderColor: '#ffe600', background: 'rgba(255, 230, 0, 0.05)' }}>
             <div style={{ color: '#ffe600', fontSize: '10px', fontWeight: '900', letterSpacing: '1px', marginBottom: '6px' }}>{t('ref_status_pending') || "PENDIENTES"}</div>
             <div style={{ color: '#ffffff', fontSize: '24px', fontWeight: '900', textShadow: '0 0 10px rgba(255, 230, 0, 0.5)' }}>{pendingCount}</div>
@@ -215,11 +218,15 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
             {referralsList.map((ref, idx) => {
               const avatarLetter = ref.username ? ref.username.charAt(0).toUpperCase() : 'U';
 
-                            // 🔥 RESTAURADO: Mantenemos la fórmula original en la vista para no afectar los números pasados
+              // 🔥 LÓGICA DINÁMICA DE CÁLCULO DE COMISIONES PARA LA VISTA
               const childTotalUSDT = Number(ref.total_earnings || 0);
-              const generatedTotalUSDT = childTotalUSDT * 0.20; 
-              const generatedGemas = Number((Number(generatedTotalUSDT) * 1000).toFixed(2));
-
+              
+              // Se le suma el bono solo si el usuario ya es "Activo" (ha generado el mínimo)
+              let generatedTotalUSDT = childTotalUSDT * (sysPercent / 100); 
+              if (childTotalUSDT >= 0.005) {
+                 generatedTotalUSDT += (sysBonus / 1000); // Se suma el bono único (en USDT)
+              }
+              const generatedGemas = Number((generatedTotalUSDT * 1000).toFixed(2));
 
               const isHuman = ref.is_human;
               const isActive = isHuman && childTotalUSDT >= 0.005;
@@ -259,7 +266,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
                         {Icons.shieldCross} CLON
                       </span>
                     )}
-                    
+
                     {isHuman && isActive && (
                        <div style={{ color: '#00f0ff', fontSize: '12px', fontWeight: '900', marginTop: '8px' }}>
                          +{generatedGemas} 💎
@@ -272,10 +279,11 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
           </div>
         )}
 
-                <div style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '16px', padding: '16px', marginTop: '20px', border: '1px dashed #00f0ff', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.8)' }}>
+        <div style={{ background: 'rgba(0,0,0,0.6)', borderRadius: '16px', padding: '16px', marginTop: '20px', border: '1px dashed #00f0ff', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.8)' }}>
           <p style={{ textAlign: 'center', fontSize: '12px', color: '#ffffff', margin: 0, lineHeight: '1.6', fontWeight: '900', textTransform: 'uppercase' }}>
             RENDIMIENTO CONTRACTUAL:<br/>
-            <strong style={{color: '#00ffaa'}}>10% POR MISIÓN + 5 GEMAS (BONO ÚNICO)</strong><br/>
+            {/* 🔥 LÓGICA DINÁMICA EN EL TEXTO INFERIOR */}
+            <strong style={{color: '#00ffaa'}}>{sysPercent}% POR MISIÓN + {sysBonus} GEMAS (BONO ÚNICO)</strong><br/>
             <span style={{ color: '#00f0ff' }}>AL VALIDAR CADA RECLUTA NUEVO EN TU ESCUADRÓN.</span>
           </p>
         </div>
