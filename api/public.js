@@ -36,7 +36,6 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
         topReferrers.sort((a, b) => b.score - a.score);
       }
 
-      // 🔥 RESTAURADO: Lógica de eventos/torneos pasados
       let pastEventsPublic = [];
       const { data: allEventsData } = await supabase.from('events').select('*').order('end_date', { ascending: false });
       const pastEventsData = (allEventsData || []).filter(ev => ev.status === 'completed' || (ev.status === 'active' && new Date(ev.end_date).getTime() <= Date.now())).slice(0, 5);
@@ -56,7 +55,6 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
       return { status: 200, body: { success: true, topTasks: completedRanking, topReferrals: topReferrers, pastEvents: pastEventsPublic } };
     }
 
-    // 🔥 RESTAURADO: Lógica del torneo activo actual
     if (action === 'get-active-event') {
       const { data: activeEvent } = await supabase.from('events').select('*').eq('status', 'active').maybeSingle();
       if (!activeEvent) return { status: 200, body: { success: true, activeEvent: null, leaderboard: [] } };
@@ -82,10 +80,22 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
       return { status: 200, body: { success: true, history: history || [] } };
     }
 
+    // 🔥 MODIFICADO: Ahora envía los porcentajes y bonos configurados
     if (action === 'get-referrals') {
       let { data: lv1 } = await supabase.from('users').select('*').eq('referred_by', targetId);
       const { data: dbUser } = await supabase.from('users').select('referral_earnings').eq('id', targetId).maybeSingle();
-      return { status: 200, body: { success: true, referrals: lv1 || [], earnings: dbUser?.referral_earnings || 0 } };
+      const { data: config } = await supabase.from('system_settings').select('ref_percent, ref_bonus_gemas').eq('id', 1).maybeSingle();
+      
+      return { 
+          status: 200, 
+          body: { 
+              success: true, 
+              referrals: lv1 || [], 
+              earnings: dbUser?.referral_earnings || 0,
+              sys_percent: config?.ref_percent || 10,
+              sys_bonus: config?.ref_bonus_gemas || 5
+          } 
+      };
     }
 
     return null;
