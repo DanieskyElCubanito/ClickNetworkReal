@@ -54,7 +54,7 @@ export const translations = {
     home_earn: "Cazar Recompensas",
     home_create: "Lanzar Campaña",
     home_invite: "Reclutar Escuadrón",
-    home_invite_desc: "Perciba 10% + 5 Gemas automáticas por cada misión completada por su red.",
+    home_invite_desc: "Perciba comisiones dinámicas por cada misión o check-in que complete su red.",
     home_btn_affiliates: "ACCEDER AL RADAR DE RECLUTAS ➔",
 
     // AdsTab (Mercado / Tareas / Categorías)
@@ -175,8 +175,8 @@ export const translations = {
     ref_status_active: "ACTIVOS",
     ref_status_pending: "PENDIENTES",
     ref_footer_p1: "Rendimiento contractual:",
-    ref_footer_p2: "10% + 5 GEMAS automáticas",
-    ref_footer_p3: "por cada misión completada por tu escuadrón.",
+    ref_footer_p2: "Comisión Dinámica + Bono Único",
+    ref_footer_p3: "por cada interacción y progreso de tu escuadrón.",
     ref_toast_copy_ok: "Coordenadas de reclutamiento copiadas.",
     ref_toast_copy_fail: "Fallo al extraer las coordenadas.",
 
@@ -231,7 +231,7 @@ export const translations = {
     bank_dp_method_usdt: "USDT (BEP20)",
     bank_btn_connecting: "ESTABLECIENDO CONEXIÓN...",
     bank_btn_proceed: "PROCEDER AL SUMINISTRO",
-    
+
     // Novedades de WalletTab (Requisitos y persuasión)
     bank_req_title: "🛡️ Requisitos de Retiro (Elige uno)",
     bank_req_opt1: "Opción 1: Referidos Activos",
@@ -364,7 +364,7 @@ export const translations = {
     home_earn: "Hunt Rewards",
     home_create: "Deploy Campaign",
     home_invite: "Recruit Squad",
-    home_invite_desc: "Earn an automatic 10% + 5 Gems for every mission completed by your squad.",
+    home_invite_desc: "Earn dynamic commissions for every mission or check-in completed by your network.",
     home_btn_affiliates: "ACCESS RECRUITMENT RADAR ➔",
 
     // AdsTab (Mercado / Tareas / Categorías)
@@ -485,8 +485,8 @@ export const translations = {
     ref_status_active: "ACTIVE",
     ref_status_pending: "PENDING",
     ref_footer_p1: "Contractual yield:",
-    ref_footer_p2: "Automatic 10% + 5 GEMS",
-    ref_footer_p3: "for every mission completed by your squad.",
+    ref_footer_p2: "Dynamic Commission + Unique Bonus",
+    ref_footer_p3: "for every interaction and progress of your squad.",
     ref_toast_copy_ok: "Recruitment coordinates secured in clipboard.",
     ref_toast_copy_fail: "Failed to extract coordinates.",
 
@@ -541,7 +541,7 @@ export const translations = {
     bank_dp_method_usdt: "USDT (BEP20)",
     bank_btn_connecting: "ESTABLISHING CONNECTION...",
     bank_btn_proceed: "PROCEED TO SUPPLY",
-    
+
     // Novedades de WalletTab (Requisitos y persuasión)
     bank_req_title: "🛡️ Withdrawal Requirements (Choose one)",
     bank_req_opt1: "Option 1: Active Referrals",
