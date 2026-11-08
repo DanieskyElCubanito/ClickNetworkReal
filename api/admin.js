@@ -90,6 +90,41 @@ export async function handleAdminActions(action, targetId, reqBody) {
             await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
             const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).like('title', '%Retiro%').order('created_at', { ascending: false }).limit(1).maybeSingle();
             if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank">Ver TX</a>` }).eq('id', lastLog.id);
+            
+            // 🔥 NOTIFICACIÓN AL CANAL DE PAGOS (Dinámica)
+            try {
+                const { data: config } = await supabase.from('system_settings').select('payment_channel_id').eq('id', 1).maybeSingle();
+                const payChannel = config?.payment_channel_id;
+
+                if (payChannel) {
+                    const { data: wUser } = await supabase.from('users').select('username').eq('id', withdrawal.user_id).single();
+                    const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${withdrawal.user_id}`;
+                    const withdrawAmount = Number(withdrawal.amount);
+                    
+                    const resPrice = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+                    if (resPrice.ok) {
+                       const dataPrice = await resPrice.json();
+                       if (dataPrice['the-open-network']?.usd) {
+                           const gramPrice = dataPrice['the-open-network'].usd;
+                           const gramAmount = (withdrawAmount / gramPrice).toFixed(4);
+                           const canjeGemas = (withdrawAmount * 1000).toFixed(2);
+                           const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${gramAmount} GRAM\n🔄 <b>Canje:</b> ${canjeGemas} Gemas\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<a href="https://tonscan.org/tx/${realTxid}">${realTxid}</a>\n\n🔥 ¡Retiros procesados con total transparencia!`;
+                           const keyboard = { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR GRAM AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
+                           
+                           const tgReq = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                             method: 'POST', headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify({ chat_id: payChannel, text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
+                           });
+                           
+                           if(!tgReq.ok) {
+                               const tgErr = await tgReq.text();
+                               console.error("Fallo enviando notificación a Telegram (Retiro):", tgErr);
+                           }
+                       }
+                    }
+                }
+            } catch (e) { console.error("Error crítico al notificar retiro:", e.message); }
+
             return { status: 200, body: { success: true } };
         } catch (error) { 
             return { status: 400, body: { success: false, error: 'Fallo en blockchain.' } }; 
@@ -109,13 +144,20 @@ export async function handleAdminActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true } };
     }
 
-    // 🔥 ACTUALIZADO: Envía la info de los canales al Panel
+    // 🔥 ACTUALIZADO: Envía el nuevo parámetro del Canal de Pagos
     if (action === 'admin-get-config') {
         const { data } = await supabase.from('system_settings').select('*').eq('id', 1).maybeSingle();
-        return { status: 200, body: { success: true, config: data || { master_wallet_gram: '', master_wallet_usdt_bep20: '', min_withdrawal: 0.05, ref_percent: 10, ref_bonus_gemas: 5, mandatory_channel_1: '', mandatory_channel_2: '' } } };
+        return { status: 200, body: { 
+            success: true, 
+            config: data || { 
+                master_wallet_gram: '', master_wallet_usdt_bep20: '', min_withdrawal: 0.05, 
+                ref_percent: 10, ref_bonus_gemas: 5, mandatory_channel_1: '', mandatory_channel_2: '',
+                payment_channel_id: '' 
+            } 
+        } };
     }
 
-    // 🔥 ACTUALIZADO: Guarda la info de los canales en la base de datos
+    // 🔥 ACTUALIZADO: Guarda el nuevo parámetro del Canal de Pagos
     if (action === 'admin-update-config') {
         const { error } = await supabase.from('system_settings').upsert({ 
             id: 1, 
@@ -125,7 +167,8 @@ export async function handleAdminActions(action, targetId, reqBody) {
             ref_percent: reqBody.config.ref_percent,
             ref_bonus_gemas: reqBody.config.ref_bonus_gemas,
             mandatory_channel_1: reqBody.config.mandatory_channel_1,
-            mandatory_channel_2: reqBody.config.mandatory_channel_2
+            mandatory_channel_2: reqBody.config.mandatory_channel_2,
+            payment_channel_id: reqBody.config.payment_channel_id
         });
         if (error) return { status: 400, body: { success: false, error: `Fallo al guardar en BD: ${error.message}` } };
         return { status: 200, body: { success: true } };
