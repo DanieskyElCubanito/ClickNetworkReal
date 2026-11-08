@@ -69,13 +69,37 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
         await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
         await supabase.from('history_logs').insert([{ user_id: targetId, title: `🎁 Bono Diario (Día ${currentStreak})`, description: `Anuncio completado [GigaPubDaily] [Streak:${currentStreak}] | +${earnedGemas.toFixed(2)} Gemas`, amount: rewardForDb }]);
         
-        if (Number(dbUser.total_earnings || 0) < 0.005 && newTotal >= 0.005 && dbUser.referred_by) {
-            const { data: referrer } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
-            if (referrer) {
-                await supabase.from('users').update({ balance: Number((Number(referrer.balance || 0) + 0.005).toFixed(4)), referral_earnings: Number((Number(referrer.referral_earnings || 0) + 0.005).toFixed(4)), total_earnings: Number((Number(referrer.total_earnings || 0) + 0.005).toFixed(4)) }).eq('id', referrer.id);
-                await supabase.from('history_logs').insert([{ user_id: referrer.id, title: '🎯 Recluta Validado', description: `Tu recluta se activó. Bono: +5.00 Gemas`, amount: 0.005 }]);
+        // 🔥 LÓGICA DINÁMICA DE REFERIDOS APLICADA AL CHECK-IN
+        if (dbUser.referred_by) {
+            const { data: config } = await supabase.from('system_settings').select('ref_percent, ref_bonus_gemas').eq('id', 1).maybeSingle();
+            const percent = config && config.ref_percent ? Number(config.ref_percent) / 100 : 0.10;
+            const bonusUsdt = config && config.ref_bonus_gemas ? Number(config.ref_bonus_gemas) / 1000 : 0.005;
+
+            const comm = Number((rewardForDb * percent).toFixed(4));
+            
+            let extraBonusUsdt = 0;
+            if (Number(dbUser.total_earnings || 0) < 0.005 && newTotal >= 0.005) {
+                extraBonusUsdt = bonusUsdt;
+            }
+
+            const totalToReferrer = comm + extraBonusUsdt;
+
+            const { data: ref } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
+            if (ref && totalToReferrer > 0) {
+               await supabase.from('users').update({ 
+                   balance: Number(ref.balance) + totalToReferrer, 
+                   referral_earnings: Number(ref.referral_earnings) + totalToReferrer 
+               }).eq('id', ref.id);
+               
+               if (extraBonusUsdt > 0) {
+                   await supabase.from('history_logs').insert([{ user_id: ref.id, title: '🎯 Recluta Validado', description: `Tu recluta se activó. Bono único pagado.`, amount: extraBonusUsdt }]);
+               }
+               if (comm > 0) {
+                   await supabase.from('history_logs').insert([{ user_id: ref.id, title: '👥 Comisión de Red', description: `Check-in diario de recluta (ID: ${targetId})`, amount: comm }]);
+               }
             }
         }
+        
         return { status: 200, body: { success: true, earned_gemas: earnedGemas.toFixed(2), balance: newBalance } };
     }
 
