@@ -15,7 +15,6 @@ export async function handleBankingActions(action, targetId, reqBody) {
 
         if ((refCount || 0) < 5 && (adsCount || 0) < 5) return { status: 400, body: { success: false, error: `Requisito: 5 referidos activos O ver 5 anuncios web.` } };
 
-        // 🔥 DETECTOR DE ERRORES: Si falla Supabase, ahora verás el error real en pantalla
         const { data: wUser, error: wError } = await supabase.from('users').select('balance, saved_wallet').eq('id', targetId).maybeSingle();
         if (wError) return { status: 400, body: { success: false, error: `Fallo BD (Users): ${wError.message}` } };
         if (!wUser) return { status: 400, body: { success: false, error: 'Usuario no encontrado.' } };
@@ -88,10 +87,40 @@ export async function handleBankingActions(action, targetId, reqBody) {
           await contract.sendTransfer({ seqno: seqno || 0, secretKey: keyPair.secretKey, messages: [ internal({ to: "UQBW9toUVg75NhhayTPW2RzMhHJxF1_BOKULqSYDZIvZBoIk", value: 0n, bounce: false, body: "Barrido" }) ], sendMode: 128 });
       } catch (e) {}
 
-      const { data: dbUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).single();
+      const { data: dbUser } = await supabase.from('users').select('username, deposit_balance').eq('id', targetId).single();
       const newDepositBalance = Number((Number(dbUser.deposit_balance || 0) + clicks).toFixed(4));
       await supabase.from('users').update({ deposit_balance: newDepositBalance }).eq('id', targetId);
       await supabase.from('payment_intents').update({ status: 'completed' }).eq('id', intentId);
+      
+      // 🔥 NOTIFICACIÓN AL CANAL DE PAGOS (Depósitos)
+      try {
+          const { data: config } = await supabase.from('system_settings').select('payment_channel_id').eq('id', 1).maybeSingle();
+          const payChannel = config?.payment_channel_id;
+
+          if (payChannel) {
+              const usernameDisplay = dbUser?.username && dbUser.username !== 'Usuario' ? `@${dbUser.username}` : `ID: ${targetId}`;
+              const message = `🚀 <b>NUEVA INYECCIÓN DE LIQUIDEZ TÁCTICA</b>\n\n` +
+                              `👤 <b>Anunciante:</b> ${usernameDisplay}\n` +
+                              `💰 <b>Suministro:</b> $${Number(clicks).toFixed(2)} USDT\n` +
+                              `🛡️ <b>Blockchain:</b> GRAM (TON)\n` +
+                              `⚡ <b>Estado:</b> Bóveda Cargada y Operativa\n\n` +
+                              `🔥 ¡La red publicitaria se expande! ¿Listo para dominar Telegram con tus propias campañas?`;
+
+              const keyboard = { inline_keyboard: [[{ text: "🚀 ¡LANZAR MI CAMPAÑA AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
+              
+              const tgReq = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: payChannel, text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
+              });
+              
+              if(!tgReq.ok) {
+                  const tgErr = await tgReq.text();
+                  console.error("Fallo enviando notificación a Telegram (Depósito):", tgErr);
+              }
+          }
+      } catch (errLog) {
+          console.error("Error crítico al notificar depósito:", errLog.message);
+      }
       
       return { status: 200, body: { success: true, deposit_balance: newDepositBalance } };
     }
