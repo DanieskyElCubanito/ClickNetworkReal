@@ -48,11 +48,36 @@ export async function handleTaskActions(action, targetId, reqBody) {
         await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
         await supabase.from('history_logs').insert([{ user_id: targetId, title: '✅ Tarea Completada', description: `Campaña: "${task.title}" | +${(rewardAmount * 1000).toFixed(2)} Gemas`, amount: rewardAmount }]);
 
+        // 🔥 LÓGICA DINÁMICA DE REFERIDOS
         if (dbUser.referred_by) {
-            const comm = Number((rewardAmount * 0.10).toFixed(4));
+            // Buscamos la configuración en la base de datos
+            const { data: config } = await supabase.from('system_settings').select('ref_percent, ref_bonus_gemas').eq('id', 1).maybeSingle();
+            const percent = config && config.ref_percent ? Number(config.ref_percent) / 100 : 0.10;
+            const bonusUsdt = config && config.ref_bonus_gemas ? Number(config.ref_bonus_gemas) / 1000 : 0.005;
+
+            // Calculamos la comisión
+            const comm = Number((rewardAmount * percent).toFixed(4));
+            
+            // Calculamos si hay que darle el bono único (cuando el usuario pasa de 0 a 5 gemas)
+            let extraBonusUsdt = 0;
+            if (Number(dbUser.total_earnings || 0) < 0.005 && newTotal >= 0.005) {
+                extraBonusUsdt = bonusUsdt;
+            }
+
+            const totalToReferrer = comm + extraBonusUsdt;
+
             const { data: ref } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
-            if (ref) {
-               await supabase.from('users').update({ balance: Number(ref.balance) + comm, referral_earnings: Number(ref.referral_earnings) + comm }).eq('id', ref.id);
+            if (ref && totalToReferrer > 0) {
+               await supabase.from('users').update({ balance: Number(ref.balance) + totalToReferrer, referral_earnings: Number(ref.referral_earnings) + totalToReferrer }).eq('id', ref.id);
+               
+               // Si se pagó el bono único, avisamos al reclutador
+               if (extraBonusUsdt > 0) {
+                   await supabase.from('history_logs').insert([{ user_id: ref.id, title: '🎯 Recluta Validado', description: `Tu recluta se activó. Bono único pagado.`, amount: extraBonusUsdt }]);
+               }
+               // Si hubo comisión por tarea
+               if (comm > 0) {
+                   await supabase.from('history_logs').insert([{ user_id: ref.id, title: '👥 Comisión de Red', description: `Misión de recluta (ID: ${targetId})`, amount: comm }]);
+               }
             }
         }
 
