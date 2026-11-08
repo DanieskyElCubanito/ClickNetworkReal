@@ -12,6 +12,7 @@ import AdminDashboard from './components/AdminDashboard';
 import WalletTab from './components/WalletTab'; 
 import MarketTab from './components/MarketTab';
 import LeaderboardTab from './components/LeaderboardTab';
+import ChannelJoin from './components/ChannelJoin'; // 🔥 IMPORTAMOS AL GATEKEEPER
 
 const neonTheme = {
   container: { backgroundColor: '#0a0314', backgroundImage: 'radial-gradient(circle at 50% 10%, #2b0b47 0%, #0a0314 80%)', minHeight: '100vh', height: 'var(--tg-viewport-height, 100vh)', color: '#ffffff', fontFamily: "'Fredoka', 'Quicksand', system-ui, -apple-system, sans-serif", display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
@@ -22,7 +23,6 @@ const neonTheme = {
   btnRetry: { marginTop: '20px', padding: '12px 28px', background: 'linear-gradient(180deg, #00f0ff 0%, #0099ff 100%)', color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '14px', letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 4px 0 #0066aa, 0 8px 18px rgba(0, 240, 255, 0.45)' }
 };
 
-// 🔥 FUNCIÓN SEGURA PARA LOCALSTORAGE
 const safeStorage = {
   get: (key) => {
     try { return localStorage.getItem(key); } 
@@ -45,6 +45,12 @@ function App() {
   const initialized = useRef(false);
   const t = (key) => translations[lang][key] || key;
 
+  // 🔥 NUEVOS ESTADOS DEL GATEKEEPER (CANALES)
+  const [mustJoin, setMustJoin] = useState(false);
+  const [channelStatus, setChannelStatus] = useState({
+    c1: true, c2: true, c1_url: '', c2_url: ''
+  });
+
   const safeErrorMessage = (errorPayload, fallbackMsg) => {
     if (!errorPayload) return fallbackMsg;
     if (typeof errorPayload === 'string') return errorPayload;
@@ -59,7 +65,6 @@ function App() {
 
   const verifyUser = async (teleUser, startParam) => {
     try {
-      // 🛡️ NUEVO SISTEMA ANTI-FRAUDE BLINDADO (Token de Memoria Física)
       let localDeviceId = safeStorage.get('xpro_device_token');
       if (!localDeviceId) {
         localDeviceId = 'dev_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
@@ -102,6 +107,20 @@ function App() {
       if (data && data.success && data.user) {
         setUserData(data.user);
         setStats(data.stats || { n1: 0, c1: "0.00" });
+        
+        // 🔥 LECTURA DEL GATEKEEPER
+        if (data.mandatory) {
+           if (!data.mandatory.all_joined) {
+              setChannelStatus({
+                 c1: data.mandatory.c1_joined,
+                 c2: data.mandatory.c2_joined,
+                 c1_url: data.mandatory.c1_url,
+                 c2_url: data.mandatory.c2_url
+              });
+              setMustJoin(true); // Levanta el muro
+           }
+        }
+        
         setStatus('member');
       } else {
         setErrorMessage(safeErrorMessage(data, "Error al sincronizar con el servidor."));
@@ -181,6 +200,18 @@ function App() {
           <button style={neonTheme.btnRetry} onClick={() => window.location.reload()}>REINTENTAR</button>
         </div>
       </div>
+    );
+  }
+
+  // 🔥 DESPLIEGUE DEL MURO INFRANQUEABLE
+  if (mustJoin) {
+    return (
+      <ChannelJoin 
+        channelStatus={channelStatus} 
+        setChannelStatus={setChannelStatus} 
+        userData={userData} 
+        setMustJoin={setMustJoin} 
+      />
     );
   }
 
