@@ -446,14 +446,13 @@ export default function AdminDashboard({ userData }) {
            </div>
         </div>
 
-        {/* 🔥 NUEVO: CONTROLES DE REFERIDOS */}
+                {/* 🔥 NUEVO: CONTROLES DE REFERIDOS */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
            <div style={{ flex: 1 }}>
               <span style={neon.label}>% COMISIÓN REFERIDOS</span>
               <div style={{ position: 'relative' }}>
                 <input 
                    type="number" 
-                   placeholder="Ej: 10" 
                    style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center', marginBottom: 0 }} 
                    value={refPercent} 
                    onChange={(e) => setRefPercent(e.target.value)} 
@@ -465,12 +464,35 @@ export default function AdminDashboard({ userData }) {
               <span style={neon.label}>BONO ÚNICO (GEMAS)</span>
               <input 
                  type="number" 
-                 placeholder="Ej: 5" 
                  style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center', marginBottom: 0 }} 
                  value={refBonusGemas} 
                  onChange={(e) => setRefBonusGemas(e.target.value)} 
               />
            </div>
+        </div>
+
+        {/* 🔥 NUEVO: CANALES OBLIGATORIOS AL INICIO */}
+        <div style={{ background: 'rgba(255, 65, 180, 0.1)', border: '1px dashed #ff41b4', padding: '12px', borderRadius: '12px', marginBottom: '20px' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#ff99dd', textTransform: 'uppercase' }}>📢 Gatekeeper (Canales Obligatorios)</h4>
+            <span style={neon.label}>Canal Obligatorio 1 (URL)</span>
+            <input 
+              type="text" 
+              placeholder="Ej: https://t.me/AirdropsCriptoES (Opcional)" 
+              style={{ ...neon.input, borderColor: '#ff41b4' }} 
+              value={sysConfig.mandatory_channel_1 || ''} 
+              onChange={(e) => setSysConfig({ ...sysConfig, mandatory_channel_1: e.target.value })} 
+            />
+
+            <span style={neon.label}>Canal Obligatorio 2 (URL)</span>
+            <input 
+              type="text" 
+              placeholder="Ej: https://t.me/TONAirdropsES (Opcional)" 
+              style={{ ...neon.input, borderColor: '#ff41b4', marginBottom: 0 }} 
+              value={sysConfig.mandatory_channel_2 || ''} 
+              onChange={(e) => setSysConfig({ ...sysConfig, mandatory_channel_2: e.target.value })} 
+            />
+            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '6px' }}>Si dejas el campo vacío, no se exigirá ese canal. Recuerda que el bot debe ser admin en esos canales para leer los miembros.</div>
+        </div>
         </div>
         <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '20px', textAlign: 'center' }}>
           * El bono único se paga automáticamente cuando el recluta alcanza sus primeras 5 Gemas.
