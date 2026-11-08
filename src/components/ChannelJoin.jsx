@@ -1,8 +1,6 @@
 import WebApp from '@twa-dev/sdk';
 import toast, { Toaster } from 'react-hot-toast';
-import { botApi } from '../api/botApi';
 
-// --- ESTILOS LOCALES NEÓN PARA LA PANTALLA DE ACCESO ---
 const neonJoin = {
   wrapper: {
     minHeight: '100vh',
@@ -83,14 +81,25 @@ const neonJoin = {
 export default function ChannelJoin({ channelStatus, setChannelStatus, userData, setMustJoin }) {
 
   const handleCheckChannels = async () => {
-    const tid = toast.loading("Escaneando accesos...");
+    const tid = toast.loading("Escaneando accesos en la blockchain...");
     try {
-      const res = await botApi.checkChannels(userData.id);
-      if (res.allJoined) {
+      const res = await fetch('/api', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' },
+        body: JSON.stringify({ action: 'verify-channels', userId: userData.id })
+      });
+      const data = await res.json();
+      
+      if (data.allJoined) {
         setMustJoin(false);
         toast.success("¡Acceso Concedido! Bienvenido a la red.", { id: tid });
       } else {
-        setChannelStatus({ c1: res.channel1, c2: res.channel2 });
+        setChannelStatus({ 
+           c1: data.channel1, 
+           c2: data.channel2, 
+           c1_url: data.c1_url, 
+           c2_url: data.c2_url 
+        });
         toast.error("Aún faltan canales por unirte. Revisa la lista.", { id: tid });
       }
     } catch (e) {
@@ -100,8 +109,7 @@ export default function ChannelJoin({ channelStatus, setChannelStatus, userData,
 
   return (
     <div className="fade-in" style={neonJoin.wrapper}>
-      
-      {/* Notificaciones estilo neón adaptadas desde App.jsx */}
+
       <Toaster 
         position="top-center" 
         toastOptions={{
@@ -122,34 +130,34 @@ export default function ChannelJoin({ channelStatus, setChannelStatus, userData,
         Para activar tu cuenta y comenzar a generar tráfico, debes ser miembro de nuestras comunidades oficiales.
       </p>
 
-      {/* TARJETA DEL GRUPO 1 */}
-      {!channelStatus.c1 && (
+      {/* TARJETA DEL CANAL 1 (Solo se muestra si hay URL y NO está unido) */}
+      {(channelStatus.c1_url && !channelStatus.c1) && (
         <div style={neonJoin.card}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
             <span style={{ fontSize: '20px' }}>📢</span>
-            <p style={{ margin: 0, fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>Airdrops Crypto</p>
+            <p style={{ margin: 0, fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>Comunidad Primaria</p>
           </div>
           <button 
             style={neonJoin.btnJoin} 
-            onClick={() => WebApp.openTelegramLink('https://t.me/AirdropsCriptoES')}
+            onClick={() => WebApp.openTelegramLink(channelStatus.c1_url)}
           >
-            Únete al Grupo 1 ➔
+            Únete al Canal 1 ➔
           </button>
         </div>
       )}
 
-      {/* TARJETA DEL GRUPO 2 */}
-      {!channelStatus.c2 && (
+      {/* TARJETA DEL CANAL 2 (Solo se muestra si hay URL y NO está unido) */}
+      {(channelStatus.c2_url && !channelStatus.c2) && (
         <div style={neonJoin.card}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
             <span style={{ fontSize: '20px' }}>💎</span>
-            <p style={{ margin: 0, fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>Airdrops TON</p>
+            <p style={{ margin: 0, fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>Red Estratégica</p>
           </div>
           <button 
             style={neonJoin.btnJoin} 
-            onClick={() => WebApp.openTelegramLink('https://t.me/TONAirdropsES')}
+            onClick={() => WebApp.openTelegramLink(channelStatus.c2_url)}
           >
-            Únete al Grupo 2 ➔
+            Únete al Canal 2 ➔
           </button>
         </div>
       )}
