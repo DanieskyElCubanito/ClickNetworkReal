@@ -12,6 +12,50 @@ const toPositive = (v) => {
 
 const round4 = (n) => Number(n.toFixed(4));
 
+// Anuncios: NO dan recompensa. Solo cuentan para el objetivo diario de 5 (requisito de retiro).
+const AD_DAILY_GOAL = 5;
+const AD_TITLE = '📺 Anuncio Visto';
+const AD_DESC = 'Visualización para retiro [AdView] | sin recompensa';
+
+// Tipos de misión que el servidor SÍ comprueba (pertenencia a canal/grupo/socio).
+const CHECKED_TYPES = ['group', 'channel', 'partner'];
+
+const startOfTodayUTC = () => {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
+// Anuncios registrados hoy (UTC). Devuelve null si la base falla (no se adivina).
+async function adViewsToday(userId) {
+  const { count, error } = await supabase
+    .from('history_logs')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('title', AD_TITLE)
+    .like('description', '%[AdView]%')
+    .gte('created_at', startOfTodayUTC());
+  if (error) return null;
+  return count || 0;
+}
+
+// Mueve la bóveda (deposit_balance) con bloqueo optimista: solo escribe si el saldo
+// sigue siendo el que se leyó. Así dos peticiones a la vez no gastan el mismo saldo dos veces.
+async function moveVault(userId, expected, delta) {
+  const current = Number(expected || 0);
+  const next = round4(current + delta);
+  if (!(next >= 0)) return { ok: false, error: 'Saldo de Bóveda insuficiente.' };
+  const { data, error } = await supabase
+    .from('users')
+    .update({ deposit_balance: next })
+    .eq('id', userId)
+    .eq('deposit_balance', current)
+    .select('id');
+  if (error) return { ok: false, error: `Fallo BD: ${error.message}` };
+  if (!data || data.length === 0) return { ok: false, error: 'Tu saldo cambió mientras se procesaba. Inténtalo de nuevo.' };
+  return { ok: true, newBalance: next };
+}
+
 export async function handleTaskActions(action, targetId, reqBody) {
     if (action === 'get-tasks') {
         const { data: allTasks } = await supabase.from('tasks').select('*').or(`status.in.(active,paused),creator_id.eq.${targetId}`).order('created_at', { ascending: false });
@@ -19,20 +63,25 @@ export async function handleTaskActions(action, targetId, reqBody) {
         const completedIds = new Set((completedRows || []).map(r => String(r.task_id)));
 
         const mappedTasks = (allTasks || []).map(t => {
-            return { ...t, reward: (t.reward || 1), is_completed: completedIds.has(String(t.id)) };
+            const checked = CHECKED_TYPES.includes(t.type);
+            return {
+                ...t,
+                reward: (t.reward || 1),
+                is_completed: completedIds.has(String(t.id)),
+                // Honestidad: la app debe mostrar «Sin verificar» cuando verified es false.
+                verified: checked,
+                verification: checked ? 'membership_checked' : 'not_verified',
+            };
         });
         return { status: 200, body: { success: true, tasks: mappedTasks } };
     }
 
+    // COBRO: aquí se comprueba la misión; el cobro (cupo, registro único, saldo del usuario,
+    // contador y comisión del referidor) lo hace la función complete_task de la base en UNA transacción.
     if (action === 'complete-task') {
         const { taskId, validation_code_input } = reqBody;
 
-        const { data: lastLog } = await supabase.from('history_logs').select('created_at').eq('user_id', targetId).eq('title', '✅ Tarea Completada').order('created_at', { ascending: false }).limit(1).maybeSingle();
-        if (lastLog && (Date.now() - new Date(lastLog.created_at).getTime() < 1000)) {
-            return { status: 400, body: { success: false, error: 'Procesando. Espera 1 segundo entre cada cobro.' } };
-        }
-
-        const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
+        const { data: task } = await supabase.from('tasks').select('id, type, url, status, creator_id, validation_code').eq('id', taskId).maybeSingle();
         if (!task || task.status !== 'active') return { status: 400, body: { success: false, error: 'Misión inactiva o finalizada.' } };
         if (String(task.creator_id) === targetId) return { status: 400, body: { success: false, error: 'No puedes cobrar tu propia misión.' } };
 
@@ -40,69 +89,19 @@ export async function handleTaskActions(action, targetId, reqBody) {
             return { status: 400, body: { success: false, error: 'Código de validación incorrecto.' } };
         }
 
-        const { data: alreadyDone } = await supabase.from('user_completed_tasks').select('id').eq('task_id', taskId).eq('user_id', targetId).maybeSingle();
-        if (alreadyDone) return { status: 400, body: { success: false, error: 'Ya has completado esta misión.' } };
-
-        if (['group', 'channel', 'partner'].includes(task.type)) {
-            const chatId = extractTelegramUsername(task.url);
+        if (CHECKED_TYPES.includes(task.type)) {
+            const chatId = extractTelegramUsername(task.url || '');
             if (!chatId || !(await checkMembership(targetId, chatId))) {
                 return { status: 400, body: { success: false, error: 'No detectamos tu membresía en el canal. Únete para reclamar.' } };
             }
         }
 
-        const { data: dbUser } = await supabase.from('users').select('balance, total_earnings, referred_by').eq('id', targetId).maybeSingle();
-        if (!dbUser) return { status: 404, body: { success: false, error: 'Usuario no encontrado. Vuelve a abrir la app.' } };
-
-        // Reclamo atómico: la fila (task_id, user_id) debe tener clave única en la base.
-        // Si otra petición ya cobró, el insert choca (23505) y aquí no se paga nada.
-        const { error: claimError } = await supabase.from('user_completed_tasks').insert([{ task_id: taskId, user_id: targetId }]);
-        if (claimError) {
-            if (claimError.code === '23505') return { status: 400, body: { success: false, error: 'Ya has completado esta misión.' } };
-            return { status: 500, body: { success: false, error: `Fallo BD: ${claimError.message}` } };
+        const { data: result, error: rpcError } = await supabase.rpc('complete_task', { p_task_id: String(task.id), p_user_id: targetId });
+        if (rpcError) return { status: 500, body: { success: false, error: `Fallo BD: ${rpcError.message}` } };
+        if (!result || result.ok !== true) {
+            return { status: 400, body: { success: false, error: (result && result.error) || 'No se pudo completar la misión.' } };
         }
-
-        const rewardAmount = Number(task.reward || 1);
-        const newBalance = round4(Number(dbUser.balance || 0) + rewardAmount);
-        const newTotal = round4(Number(dbUser.total_earnings || 0) + rewardAmount);
-
-        const { error: creditError } = await supabase.from('users').update({ balance: newBalance, total_earnings: newTotal }).eq('id', targetId);
-        if (creditError) {
-            await supabase.from('user_completed_tasks').delete().eq('task_id', taskId).eq('user_id', targetId);
-            return { status: 500, body: { success: false, error: `Fallo BD al acreditar: ${creditError.message}` } };
-        }
-        await supabase.from('history_logs').insert([{ user_id: targetId, title: '✅ Tarea Completada', description: `Campaña: "${task.title}" | +${(rewardAmount * 1000).toFixed(2)} Gemas`, amount: rewardAmount }]);
-
-        if (dbUser.referred_by) {
-            const { data: config } = await supabase.from('system_settings').select('ref_percent, ref_bonus_gemas').eq('id', 1).maybeSingle();
-            const percent = config && config.ref_percent ? Number(config.ref_percent) / 100 : 0.10;
-            const bonusUsdt = config && config.ref_bonus_gemas ? Number(config.ref_bonus_gemas) / 1000 : 0.005;
-
-            const comm = round4(rewardAmount * percent);
-
-            let extraBonusUsdt = 0;
-            if (Number(dbUser.total_earnings || 0) < 0.005 && newTotal >= 0.005) {
-                extraBonusUsdt = bonusUsdt;
-            }
-
-            const totalToReferrer = comm + extraBonusUsdt;
-
-            const { data: ref } = await supabase.from('users').select('*').eq('id', dbUser.referred_by).maybeSingle();
-            if (ref && totalToReferrer > 0) {
-               await supabase.from('users').update({ balance: round4(Number(ref.balance) + totalToReferrer), referral_earnings: round4(Number(ref.referral_earnings) + totalToReferrer) }).eq('id', ref.id);
-
-               if (extraBonusUsdt > 0) {
-                   await supabase.from('history_logs').insert([{ user_id: ref.id, title: '🎯 Recluta Validado', description: `Tu recluta se activó. Bono único pagado.`, amount: extraBonusUsdt }]);
-               }
-               if (comm > 0) {
-                   await supabase.from('history_logs').insert([{ user_id: ref.id, title: '👥 Comisión de Red', description: `Misión de recluta (ID: ${targetId})`, amount: comm }]);
-               }
-            }
-        }
-
-        const newDoneCount = Number(task.completions_done || 0) + 1;
-        await supabase.from('tasks').update({ completions_done: newDoneCount, status: (newDoneCount >= Number(task.completions_total)) ? 'completed' : 'active' }).eq('id', taskId);
-
-        return { status: 200, body: { success: true, reward: rewardAmount, balance: newBalance } };
+        return { status: 200, body: { success: true, reward: result.reward, balance: result.balance } };
     }
 
     if (action === 'create-task') {
@@ -117,25 +116,30 @@ export async function handleTaskActions(action, targetId, reqBody) {
       const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).maybeSingle();
       if (!cUser || Number(cUser.deposit_balance) < totalCost) return { status: 400, body: { success: false, error: 'Bóveda insuficiente.' } };
 
-      const newVaultBalance = round4(Number(cUser.deposit_balance) - totalCost);
-      const { error: vaultError } = await supabase.from('users').update({ deposit_balance: newVaultBalance }).eq('id', targetId);
-      if (vaultError) return { status: 500, body: { success: false, error: `Fallo BD: ${vaultError.message}` } };
+      const debit = await moveVault(targetId, cUser.deposit_balance, -totalCost);
+      if (!debit.ok) return { status: 409, body: { success: false, error: debit.error } };
 
       const { data: newTask, error } = await supabase.from('tasks').insert([{ creator_id: targetId, type, title, url, bot_token: bot_token || null, completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active', validation_code: validation_code || null }]).select().single();
       if (error) {
-        await supabase.from('users').update({ deposit_balance: round4(newVaultBalance + totalCost) }).eq('id', targetId);
+        const back = await moveVault(targetId, debit.newBalance, totalCost);
+        if (!back.ok) return { status: 500, body: { success: false, error: 'Fallo BD. No se pudo devolver el cobro a tu bóveda: avisa al soporte.' } };
         return { status: 400, body: { success: false, error: `Fallo BD.` } };
       }
-      return { status: 200, body: { success: true, task: newTask, deposit_balance: newVaultBalance } };
+      return { status: 200, body: { success: true, task: newTask, deposit_balance: debit.newBalance } };
     }
 
+    // ANUNCIO: solo registra la visualización. NO toca el saldo. Máximo 5 al día (objetivo diario).
     if (action === 'watch-ad-progress') {
-        const { data: dbUser } = await supabase.from('users').select('balance, total_earnings').eq('id', targetId).maybeSingle();
+        const { data: dbUser } = await supabase.from('users').select('id').eq('id', targetId).maybeSingle();
         if (!dbUser) return { status: 404, body: { success: false, error: 'Usuario no encontrado. Vuelve a abrir la app.' } };
-        const newBalance = round4(Number(dbUser.balance || 0) + 0.0005);
-        await supabase.from('users').update({ balance: newBalance, total_earnings: round4(Number(dbUser.total_earnings || 0) + 0.0005) }).eq('id', targetId);
-        await supabase.from('history_logs').insert([{ user_id: targetId, title: '📺 Anuncio Visto', description: `Visualización para retiro [AdView] | +0.50 Gemas`, amount: 0.0005 }]);
-        return { status: 200, body: { success: true, balance: newBalance } };
+
+        const before = await adViewsToday(targetId);
+        if (before === null) return { status: 500, body: { success: false, error: 'No se pudieron leer tus anuncios de hoy. Inténtalo de nuevo.' } };
+        if (before >= AD_DAILY_GOAL) return { status: 400, body: { success: false, error: 'Ya registraste los 5 anuncios de hoy.', ads: before } };
+
+        const { error } = await supabase.from('history_logs').insert([{ user_id: targetId, title: AD_TITLE, description: AD_DESC, amount: 0 }]);
+        if (error) return { status: 500, body: { success: false, error: `Fallo BD: ${error.message}` } };
+        return { status: 200, body: { success: true, ads: before + 1, goal: AD_DAILY_GOAL } };
     }
 
     // PAUSAR / ACTIVAR: solo el creador (id verificado).
@@ -150,24 +154,27 @@ export async function handleTaskActions(action, targetId, reqBody) {
       return { status: 200, body: { success: true, status: newStatus } };
     }
 
-    // ELIMINAR: el creador o un admin (id verificado). Reembolsa lo no usado al creador.
+    // ELIMINAR: el creador o un admin (id verificado). Primero borra la misión y después devuelve lo no usado,
+    // así no se puede reembolsar dos veces si el borrado falla.
     if (action === 'delete-task') {
       const { taskId } = reqBody;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
       if (!task) return { status: 400, body: { success: false, error: 'Misión no encontrada.' } };
       if (String(task.creator_id) !== targetId && !isAdminCaller(targetId)) return { status: 403, body: { success: false, error: 'Sin permisos.' } };
 
+      const { data: deleted, error: delError } = await supabase.from('tasks').delete().eq('id', taskId).select('id');
+      if (delError) return { status: 500, body: { success: false, error: `Fallo BD: ${delError.message}` } };
+      if (!deleted || deleted.length === 0) return { status: 409, body: { success: false, error: 'La misión ya fue eliminada.' } };
+
       const remainingCompletions = Number(task.completions_total) - Number(task.completions_done || 0);
       if (remainingCompletions > 0) {
         const refundAmount = round4(remainingCompletions * Number(task.reward) * 1.30);
         const { data: user } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).maybeSingle();
-        if (!user) return { status: 400, body: { success: false, error: 'Creador de la misión no encontrado.' } };
-        const { error: refundError } = await supabase.from('users').update({ deposit_balance: round4(Number(user.deposit_balance) + refundAmount) }).eq('id', task.creator_id);
-        if (refundError) return { status: 500, body: { success: false, error: `Fallo BD: ${refundError.message}` } };
+        if (!user) return { status: 500, body: { success: false, error: 'Misión eliminada, pero el creador no existe: reembolso pendiente de revisión.' } };
+        const back = await moveVault(task.creator_id, user.deposit_balance, refundAmount);
+        if (!back.ok) return { status: 500, body: { success: false, error: `Misión eliminada, pero el reembolso falló: ${back.error}` } };
         await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: '💰 Reembolso', description: `Cancelación de campaña. +$${refundAmount.toFixed(2)} USDT`, amount: 0 }]);
       }
-      const { error: delError } = await supabase.from('tasks').delete().eq('id', taskId);
-      if (delError) return { status: 500, body: { success: false, error: `Fallo BD: ${delError.message}` } };
       return { status: 200, body: { success: true } };
     }
 
@@ -185,7 +192,7 @@ export async function handleTaskActions(action, targetId, reqBody) {
         return { status: 400, body: { success: false, error: 'Las URLs de Bots deben contener la palabra "bot".' } };
       }
 
-      if (['group', 'channel', 'partner'].includes(task.type) && url !== task.url) {
+      if (CHECKED_TYPES.includes(task.type) && url !== task.url) {
         const chatId = extractTelegramUsername(url);
         if (!chatId) return { status: 400, body: { success: false, error: 'Enlace de Telegram inválido.' } };
         const adminCheck = await checkAdminStatusDetailed(chatId);
@@ -216,15 +223,28 @@ export async function handleTaskActions(action, targetId, reqBody) {
       }
       netCost = round4(netCost);
 
-      const { error: updateError } = await supabase.from('tasks').update(updates).eq('id', taskId);
-      if (updateError) return { status: 400, body: { success: false, error: `Error interno: ${updateError.message}` } };
-
+      // 1) Primero se cobra (con comprobación de saldo y bloqueo optimista). Solo después cambia la misión.
+      //    Antes la misión cambiaba antes de comprobar el saldo: cupos gratis si la bóveda no alcanzaba.
+      let charged = null;
       if (netCost !== 0) {
         const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).maybeSingle();
         if (!cUser) return { status: 400, body: { success: false, error: 'Creador de la misión no encontrado.' } };
         if (netCost > 0 && Number(cUser.deposit_balance) < netCost) return { status: 400, body: { success: false, error: 'Saldo de Bóveda insuficiente para este ajuste.' } };
-        const { error: chargeError } = await supabase.from('users').update({ deposit_balance: round4(Number(cUser.deposit_balance) - netCost) }).eq('id', task.creator_id);
-        if (chargeError) return { status: 500, body: { success: false, error: `Fallo BD: ${chargeError.message}` } };
+        charged = await moveVault(task.creator_id, cUser.deposit_balance, -netCost);
+        if (!charged.ok) return { status: 409, body: { success: false, error: charged.error } };
+      }
+
+      // 2) Después cambia la misión; si falla, se devuelve el cobro.
+      const { error: updateError } = await supabase.from('tasks').update(updates).eq('id', taskId);
+      if (updateError) {
+        if (charged) {
+          const back = await moveVault(task.creator_id, charged.newBalance, netCost);
+          if (!back.ok) return { status: 500, body: { success: false, error: 'Fallo BD. No se pudo devolver el cobro del ajuste: avisa al soporte.' } };
+        }
+        return { status: 400, body: { success: false, error: `Error interno: ${updateError.message}` } };
+      }
+
+      if (netCost !== 0) {
         await supabase.from('history_logs').insert([{ user_id: task.creator_id, title: netCost > 0 ? '🔋 Ajuste de Campaña' : '💰 Reembolso', description: `Edición táctica de la misión`, amount: -netCost }]);
       }
 
