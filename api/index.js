@@ -36,6 +36,13 @@ export default async function handler(req, res) {
       }
     } catch (e) {}
 
+    // Id de Telegram del usuario, tomado de initData YA VERIFICADA por firma (no del cuerpo de la petición)
+    let verifiedUserId = '';
+    try {
+      const verifiedUser = JSON.parse(new URLSearchParams(telegramInitData).get('user') || '{}');
+      verifiedUserId = String(verifiedUser.id || '');
+    } catch (e) { verifiedUserId = ''; }
+
     if (!req.body) return res.status(400).json({ success: false, error: 'Cuerpo vacío.' });
     const { user, action, userId, start_param, turnstileToken } = req.body; 
     const targetId = String(userId || user?.id);
@@ -66,7 +73,7 @@ export default async function handler(req, res) {
     result = await handleBankingActions(action, targetId, req.body);
     if (result) return res.status(result.status).json(result.body);
 
-    result = await handleAdminActions(action, targetId, req.body);
+    result = await handleAdminActions(action, targetId, req.body, verifiedUserId);
     if (result) return res.status(result.status).json(result.body);
 
     return res.status(400).json({ success: false, error: `Acción no reconocida: ${action}` });
