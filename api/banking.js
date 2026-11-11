@@ -1,15 +1,7 @@
 import { supabase } from '../utils/supabase.js';
+import { extractTelegramUsername } from '../utils/telegram.js';
 
-// Paquetes de depósito: precio en TON que paga el usuario -> crédito que recibe.
-// El crédito SIEMPRE sale de esta tabla, nunca de lo que envíe el cliente.
-// Clave = precio con 4 decimales. Ejemplo: '1.0000': { credit: 1.5 },
-// Rellénala con tus precios reales. Mientras esté vacía, los depósitos se rechazan.
-const DEPOSIT_PACKAGES = {};
-
-// Destino del barrido de la wallet de depósito (la dirección que ya usabas).
 const SWEEP_ADDRESS = 'UQBW9toUVg75NhhayTPW2RzMhHJxF1_BOKULqSYDZIvZBoIk';
-
-const priceKey = (n) => Number(n).toFixed(4);
 
 export async function handleBankingActions(action, targetId, reqBody) {
     const id = String(targetId);
@@ -45,10 +37,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
             }
         }
 
-        // Saldo, baneo, billetera, descuento, registro y log: todo en una sola transacción en la base de datos.
-        const { data: result, error: rpcError } = await supabase.rpc('request_withdrawal', {
-            p_user_id: id, p_amount: withdrawAmount, p_address: address,
-        });
+        const { data: result, error: rpcError } = await supabase.rpc('request_withdrawal', { p_user_id: id, p_amount: withdrawAmount, p_address: address });
         if (rpcError) return { status: 500, body: { success: false, error: `Fallo BD (Retiro): ${rpcError.message}` } };
         if (!result?.ok) return { status: result?.status || 400, body: { success: false, error: result?.error || 'No se pudo registrar el retiro.' } };
 
@@ -59,7 +48,6 @@ export async function handleBankingActions(action, targetId, reqBody) {
         const todayStr = new Date(); todayStr.setUTCHours(0, 0, 0, 0);
         const { count: refCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', id).gte('total_earnings', 0.005);
         const { count: adsCount } = await supabase.from('history_logs').select('*', { count: 'exact', head: true }).eq('user_id', id).like('description', '%[AdView]%').gte('created_at', todayStr.toISOString());
-
         const { data: u } = await supabase.from('users').select('saved_wallet').eq('id', id).maybeSingle();
         const { data: config } = await supabase.from('system_settings').select('min_withdrawal').eq('id', 1).maybeSingle();
 
@@ -67,9 +55,6 @@ export async function handleBankingActions(action, targetId, reqBody) {
     }
 
     if (action === 'generate-payment-wallet') {
-        const pkg = DEPOSIT_PACKAGES[priceKey(reqBody.price)];
-        if (!pkg) return { status: 400, body: { success: false, error: 'Paquete de depósito no válido.' } };
-
         const { mnemonicNew, mnemonicToPrivateKey, WalletContractV4 } = await import('../utils/blockchain.js');
         const mnemonics = await mnemonicNew();
         const keyPair = await mnemonicToPrivateKey(mnemonics);
@@ -77,8 +62,10 @@ export async function handleBankingActions(action, targetId, reqBody) {
         const publicAddress = wallet.address.toString({ urlSafe: true, bounceable: false });
         const encryptedKey = (await import('../utils/security.js')).encryptText(mnemonics.join(' '));
 
+        const expectedAmt = Number(reqBody.price);
+
         const { data: newIntent, error } = await supabase.from('payment_intents').insert([{
-            user_id: id, expected_amount: Number(reqBody.price), public_wallet: publicAddress,
+            user_id: id, expected_amount: expectedAmt, public_wallet: publicAddress,
             encrypted_private_key: encryptedKey, status: 'pending',
         }]).select().single();
         if (error) return { status: 500, body: { success: false, error: `Fallo BD: ${error.message}` } };
@@ -87,21 +74,17 @@ export async function handleBankingActions(action, targetId, reqBody) {
 
     if (action === 'verify-crypto-payment') {
         const { intentId } = reqBody;
-        const { data: intent, error: iError } = await supabase.from('payment_intents').select('*')
-            .eq('id', intentId).eq('user_id', id).eq('status', 'pending').maybeSingle();
+        const { data: intent, error: iError } = await supabase.from('payment_intents').select('*').eq('id', intentId).eq('user_id', id).eq('status', 'pending').maybeSingle();
         if (iError) return { status: 500, body: { success: false, error: `Fallo BD (Pago): ${iError.message}` } };
         if (!intent) return { status: 400, body: { success: false, error: 'No procesado.' } };
 
-        const pkg = DEPOSIT_PACKAGES[priceKey(intent.expected_amount)];
-        if (!pkg) return { status: 400, body: { success: false, error: 'Paquete de depósito no válido.' } };
-        const credit = Number(pkg.credit);
+        const creditAmount = Number(intent.expected_amount);
 
-        // 1. Reclamar el pago: solo una petición puede procesarlo a la vez.
         const { data: claimed, error: cError } = await supabase.rpc('claim_payment_intent', { p_intent_id: String(intent.id), p_user_id: id });
         if (cError) return { status: 500, body: { success: false, error: `Fallo BD (Reclamar): ${cError.message}` } };
         if (!claimed) return { status: 400, body: { success: false, error: 'Este pago ya se está procesando.' } };
 
-        // 2. Comprobar la blockchain y barrer los fondos. Si algo falla, el pago vuelve a pendiente y NO se acredita.
+        let blockchainData;
         try {
             const { tonClient, mnemonicToPrivateKey, WalletContractV4, internal } = await import('../utils/blockchain.js');
             const balanceNano = await tonClient.getBalance(intent.public_wallet);
@@ -109,32 +92,39 @@ export async function handleBankingActions(action, targetId, reqBody) {
                 await supabase.rpc('release_payment_intent', { p_intent_id: String(intent.id) });
                 return { status: 400, body: { success: false, error: 'Saldo insuficiente en blockchain.' } };
             }
+            blockchainData = { tonClient, mnemonicToPrivateKey, WalletContractV4, internal };
+        } catch (e) {
+            await supabase.rpc('release_payment_intent', { p_intent_id: String(intent.id) });
+            return { status: 500, body: { success: false, error: `Error de verificación en blockchain: ${e.message}` } };
+        }
 
+        // 🔥 BLINDAJE: ACREDITAMOS EN BASE DE DATOS PRIMERO (Si esto falla, el dinero NO se barre).
+        const { data: done, error: fError } = await supabase.rpc('finish_payment_intent', {
+            p_intent_id: String(intent.id), p_user_id: id, p_credit: creditAmount,
+        });
+
+        if (fError || !done?.ok) {
+             await supabase.rpc('release_payment_intent', { p_intent_id: String(intent.id) });
+             return { status: 500, body: { success: false, error: `Error al acreditar fondos en BD: ${fError?.message || done?.error}` } };
+        }
+
+        // 🔥 ACREDITADO. Ahora sí barremos el dinero hacia tu bóveda principal de forma segura.
+        try {
             const { decryptText } = await import('../utils/security.js');
             const secretWords = decryptText(intent.encrypted_private_key);
-            const keyPair = await mnemonicToPrivateKey(secretWords.split(' '));
-            const contract = tonClient.open(WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey }));
+            const keyPair = await blockchainData.mnemonicToPrivateKey(secretWords.split(' '));
+            const contract = blockchainData.tonClient.open(blockchainData.WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey }));
             const seqno = await contract.getSeqno();
             await contract.sendTransfer({
                 seqno: seqno || 0, secretKey: keyPair.secretKey,
-                messages: [internal({ to: SWEEP_ADDRESS, value: 0n, bounce: false, body: 'Barrido' })],
+                messages: [blockchainData.internal({ to: SWEEP_ADDRESS, value: 0n, bounce: false, body: 'Barrido' })],
                 sendMode: 128,
             });
-        } catch (e) {
-            await supabase.rpc('release_payment_intent', { p_intent_id: String(intent.id) });
-            return { status: 500, body: { success: false, error: `No se pudo verificar o barrer el pago: ${e.message}` } };
+        } catch (sweepError) {
+            console.error(`Pago acreditado a usuario ${id}, pero barrido falló:`, sweepError);
         }
 
-        // 3. Acreditar el crédito de la tabla (no el del cliente), una sola vez.
-        const { data: done, error: fError } = await supabase.rpc('finish_payment_intent', {
-            p_intent_id: String(intent.id), p_user_id: id, p_credit: credit,
-        });
-        if (fError || !done?.ok) {
-            // El pago ya está en la blockchain y no acreditado: queda 'processing' para revisarlo a mano.
-            return { status: 500, body: { success: false, error: `Pago ${intent.id} recibido pero no acreditado: ${fError?.message || done?.error}` } };
-        }
-
-        // 4. Aviso al canal de pagos (un fallo aquí no afecta al saldo, pero se registra).
+        // Notificación de Pago exitosa
         try {
             const { data: dbUser } = await supabase.from('users').select('username').eq('id', id).maybeSingle();
             const { data: config } = await supabase.from('system_settings').select('payment_channel_id').eq('id', 1).maybeSingle();
@@ -144,7 +134,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
                 const usernameDisplay = dbUser?.username && dbUser.username !== 'Usuario' ? `@${dbUser.username}` : `ID: ${id}`;
                 const message = `🚀 <b>NUEVA INYECCIÓN DE LIQUIDEZ TÁCTICA</b>\n\n` +
                     `👤 <b>Anunciante:</b> ${usernameDisplay}\n` +
-                    `💰 <b>Suministro:</b> $${credit.toFixed(2)} USDT\n` +
+                    `💰 <b>Suministro:</b> $${creditAmount.toFixed(2)} USDT\n` +
                     `🛡️ <b>Blockchain:</b> GRAM (TON)\n` +
                     `⚡ <b>Estado:</b> Bóveda Cargada y Operativa\n\n` +
                     `🔥 ¡La red publicitaria se expande! ¿Listo para dominar Telegram con tus propias campañas?`;
