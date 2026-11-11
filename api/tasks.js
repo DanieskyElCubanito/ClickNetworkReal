@@ -1,10 +1,8 @@
 import { supabase } from '../utils/supabase.js';
 import { extractTelegramUsername, checkMembership, checkAdminStatusDetailed, ADMIN_IDS } from '../utils/telegram.js';
 
-// targetId llega de index.js y es SIEMPRE el id de la firma de Telegram (nunca del cuerpo).
 const isAdminCaller = (uid) => ADMIN_IDS.includes(String(uid));
 
-// Número > 0 o null: rechaza negativos, cero y basura.
 const toPositive = (v) => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -12,12 +10,10 @@ const toPositive = (v) => {
 
 const round4 = (n) => Number(n.toFixed(4));
 
-// Anuncios: NO dan recompensa. Solo cuentan para el objetivo diario de 5 (requisito de retiro).
 const AD_DAILY_GOAL = 5;
 const AD_TITLE = '📺 Anuncio Visto';
 const AD_DESC = 'Visualización para retiro [AdView] | sin recompensa';
 
-// Tipos de misión que el servidor SÍ comprueba (pertenencia a canal/grupo/socio).
 const CHECKED_TYPES = ['group', 'channel', 'partner'];
 
 const startOfTodayUTC = () => {
@@ -26,21 +22,6 @@ const startOfTodayUTC = () => {
   return d.toISOString();
 };
 
-// Anuncios registrados hoy (UTC). Devuelve null si la base falla (no se adivina).
-async function adViewsToday(userId) {
-  const { count, error } = await supabase
-    .from('history_logs')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('title', AD_TITLE)
-    .like('description', '%[AdView]%')
-    .gte('created_at', startOfTodayUTC());
-  if (error) return null;
-  return count || 0;
-}
-
-// Mueve la bóveda (deposit_balance) con bloqueo optimista: solo escribe si el saldo
-// sigue siendo el que se leyó. Así dos peticiones a la vez no gastan el mismo saldo dos veces.
 async function moveVault(userId, expected, delta) {
   const current = Number(expected || 0);
   const next = round4(current + delta);
@@ -68,7 +49,6 @@ export async function handleTaskActions(action, targetId, reqBody) {
                 ...t,
                 reward: (t.reward || 1),
                 is_completed: completedIds.has(String(t.id)),
-                // Honestidad: la app debe mostrar «Sin verificar» cuando verified es false.
                 verified: checked,
                 verification: checked ? 'membership_checked' : 'not_verified',
             };
@@ -76,8 +56,6 @@ export async function handleTaskActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true, tasks: mappedTasks } };
     }
 
-    // COBRO: aquí se comprueba la misión; el cobro (cupo, registro único, saldo del usuario,
-    // contador y comisión del referidor) lo hace la función complete_task de la base en UNA transacción.
     if (action === 'complete-task') {
         const { taskId, validation_code_input } = reqBody;
 
@@ -106,12 +84,29 @@ export async function handleTaskActions(action, targetId, reqBody) {
 
     if (action === 'create-task') {
       const { type, title, url, bot_token, completions_total, reward, validation_code } = reqBody;
+      const cleanUrl = String(url || '').trim();
+      
       const count = completions_total === undefined || completions_total === null ? 100 : Number(completions_total);
-      if (!Number.isInteger(count) || count <= 0) return { status: 400, body: { success: false, error: 'Los cupos deben ser un número entero mayor que 0.' } };
+      if (!Number.isInteger(count) || count <= 0) return { status: 400, body: { success: false, error: 'Los cupos deben ser un entero mayor que 0.' } };
+      
       const rew = reward === undefined || reward === null ? 0.001 : toPositive(reward);
       if (rew === null) return { status: 400, body: { success: false, error: 'La recompensa debe ser mayor que 0.' } };
+      
       const totalCost = round4(count * rew * 1.30);
       if (!(totalCost > 0)) return { status: 400, body: { success: false, error: 'Costo de campaña inválido.' } };
+
+      // 🔥 BLINDAJE: Validación estricta de bots
+      if (type === 'bot' && !cleanUrl.toLowerCase().includes('bot')) {
+        return { status: 400, body: { success: false, error: 'Las URLs de Bots deben contener la palabra "bot".' } };
+      }
+
+      // 🔥 BLINDAJE: Validación de permisos administrativos para canales y grupos
+      if (CHECKED_TYPES.includes(type)) {
+        const chatId = extractTelegramUsername(cleanUrl);
+        if (!chatId) return { status: 400, body: { success: false, error: 'Enlace de Telegram inválido.' } };
+        const adminCheck = await checkAdminStatusDetailed(chatId);
+        if (!adminCheck.isAdmin) return { status: 400, body: { success: false, error: adminCheck.error } };
+      }
 
       const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', targetId).maybeSingle();
       if (!cUser || Number(cUser.deposit_balance) < totalCost) return { status: 400, body: { success: false, error: 'Bóveda insuficiente.' } };
@@ -119,7 +114,7 @@ export async function handleTaskActions(action, targetId, reqBody) {
       const debit = await moveVault(targetId, cUser.deposit_balance, -totalCost);
       if (!debit.ok) return { status: 409, body: { success: false, error: debit.error } };
 
-      const { data: newTask, error } = await supabase.from('tasks').insert([{ creator_id: targetId, type, title, url, bot_token: bot_token || null, completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active', validation_code: validation_code || null }]).select().single();
+      const { data: newTask, error } = await supabase.from('tasks').insert([{ creator_id: targetId, type, title, url: cleanUrl, bot_token: bot_token || null, completions_total: count, completions_done: 0, reward: rew, total_cost: totalCost, status: 'active', validation_code: validation_code || null }]).select().single();
       if (error) {
         const back = await moveVault(targetId, debit.newBalance, totalCost);
         if (!back.ok) return { status: 500, body: { success: false, error: 'Fallo BD. No se pudo devolver el cobro a tu bóveda: avisa al soporte.' } };
@@ -128,25 +123,28 @@ export async function handleTaskActions(action, targetId, reqBody) {
       return { status: 200, body: { success: true, task: newTask, deposit_balance: debit.newBalance } };
     }
 
-    // ANUNCIO: solo registra la visualización. NO toca el saldo. Máximo 5 al día (objetivo diario).
     if (action === 'watch-ad-progress') {
-        const { data: dbUser } = await supabase.from('users').select('id').eq('id', targetId).maybeSingle();
-        if (!dbUser) return { status: 404, body: { success: false, error: 'Usuario no encontrado. Vuelve a abrir la app.' } };
+        // 🔥 BLINDAJE: Delegamos a la transacción atómica
+        const { data: result, error: rpcError } = await supabase.rpc('register_ad_view', {
+            p_user_id: targetId,
+            p_max_ads: AD_DAILY_GOAL,
+            p_title: AD_TITLE,
+            p_desc: AD_DESC,
+            p_date_start: startOfTodayUTC()
+        });
 
-        const before = await adViewsToday(targetId);
-        if (before === null) return { status: 500, body: { success: false, error: 'No se pudieron leer tus anuncios de hoy. Inténtalo de nuevo.' } };
-        if (before >= AD_DAILY_GOAL) return { status: 400, body: { success: false, error: 'Ya registraste los 5 anuncios de hoy.', ads: before } };
-
-        const { error } = await supabase.from('history_logs').insert([{ user_id: targetId, title: AD_TITLE, description: AD_DESC, amount: 0 }]);
-        if (error) return { status: 500, body: { success: false, error: `Fallo BD: ${error.message}` } };
-        return { status: 200, body: { success: true, ads: before + 1, goal: AD_DAILY_GOAL } };
+        if (rpcError) return { status: 500, body: { success: false, error: `Fallo BD: ${rpcError.message}` } };
+        if (!result || result.ok !== true) {
+            return { status: 400, body: { success: false, error: result?.error || 'No se pudo registrar la visita.', ads: result?.ads } };
+        }
+        
+        return { status: 200, body: { success: true, ads: result.ads, goal: result.goal } };
     }
 
-    // PAUSAR / ACTIVAR: solo el creador (id verificado).
     if (action === 'toggle-task-status') {
       const { taskId } = reqBody;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
-      if (!task || String(task.creator_id) !== targetId) return { status: 400, body: { success: false, error: 'Sin permisos o tarea no encontrada.' } };
+      if (!task || (String(task.creator_id) !== targetId && !isAdminCaller(targetId))) return { status: 400, body: { success: false, error: 'Sin permisos o tarea no encontrada.' } };
       if (!['active', 'paused'].includes(task.status)) return { status: 400, body: { success: false, error: 'Esta misión ya no se puede pausar.' } };
       const newStatus = task.status === 'active' ? 'paused' : 'active';
       const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
@@ -154,8 +152,6 @@ export async function handleTaskActions(action, targetId, reqBody) {
       return { status: 200, body: { success: true, status: newStatus } };
     }
 
-    // ELIMINAR: el creador o un admin (id verificado). Primero borra la misión y después devuelve lo no usado,
-    // así no se puede reembolsar dos veces si el borrado falla.
     if (action === 'delete-task') {
       const { taskId } = reqBody;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
@@ -178,7 +174,6 @@ export async function handleTaskActions(action, targetId, reqBody) {
       return { status: 200, body: { success: true } };
     }
 
-    // EDITAR: el creador o un admin (id verificado).
     if (action === 'edit-task') {
       const { taskId, newTitle, newUrl, addCompletions, newReward } = reqBody;
       const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
@@ -223,8 +218,6 @@ export async function handleTaskActions(action, targetId, reqBody) {
       }
       netCost = round4(netCost);
 
-      // 1) Primero se cobra (con comprobación de saldo y bloqueo optimista). Solo después cambia la misión.
-      //    Antes la misión cambiaba antes de comprobar el saldo: cupos gratis si la bóveda no alcanzaba.
       let charged = null;
       if (netCost !== 0) {
         const { data: cUser } = await supabase.from('users').select('deposit_balance').eq('id', task.creator_id).maybeSingle();
@@ -234,7 +227,6 @@ export async function handleTaskActions(action, targetId, reqBody) {
         if (!charged.ok) return { status: 409, body: { success: false, error: charged.error } };
       }
 
-      // 2) Después cambia la misión; si falla, se devuelve el cobro.
       const { error: updateError } = await supabase.from('tasks').update(updates).eq('id', taskId);
       if (updateError) {
         if (charged) {
