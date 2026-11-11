@@ -1,101 +1,95 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Conexión segura a Supabase
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
-const MAIN_ADMIN_ID = '8968109534'; // ID de la cuenta que recibirá los reenvíos de auditoría silenciosa
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const MAIN_ADMIN_ID = '8968109534'; // cuenta que recibe la copia silenciosa de auditoría
+
+// Solo estas descripciones significan que el anuncio fue borrado.
+// Cualquier otro error (red, límite de peticiones, bot fuera del canal) NO es fraude: se reintenta.
+const DELETED_MESSAGE_ERRORS = ['message to forward not found', 'message to copy not found', 'message_id_invalid'];
+
+async function checkMessage(chatId, messageId) {
+    let res;
+    let data;
+    try {
+        res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/forwardMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: MAIN_ADMIN_ID, from_chat_id: chatId, message_id: messageId, disable_notification: true }),
+        });
+        data = await res.json();
+    } catch (e) {
+        return { state: 'error', error: `Telegram no respondió: ${e.message}` };
+    }
+    if (data?.ok) return { state: 'exists' };
+    const desc = String(data?.description || `HTTP ${res?.status}`);
+    if (DELETED_MESSAGE_ERRORS.some((p) => desc.toLowerCase().includes(p))) return { state: 'deleted' };
+    return { state: 'error', error: desc };
+}
 
 export default async function handler(req, res) {
-  // 1. Seguridad: Verificar que la petición viene del sistema Cron de Vercel
-  const authHeader = req.headers.authorization;
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ success: false, error: 'No autorizado' });
-  }
-
-  try {
-    // 2. Buscar contratos activos cuyo tiempo haya expirado
-    const { data: expiredContracts, error } = await supabase
-      .from('ad_contracts')
-      .select('*')
-      .eq('status', 'active')
-      .lte('end_time', new Date().toISOString());
-
-    if (error || !expiredContracts || expiredContracts.length === 0) {
-      return res.status(200).json({ success: true, message: 'No hay contratos por procesar.' });
+    const authHeader = req.headers.authorization;
+    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ success: false, error: 'No autorizado' });
     }
 
-    let processedCount = 0;
-    let fraudCount = 0;
+    const { data: expired, error } = await supabase
+        .from('ad_contracts')
+        .select('*')
+        .eq('status', 'active')
+        .lte('end_time', new Date().toISOString());
+    if (error) return res.status(500).json({ success: false, error: `Fallo BD (contratos): ${error.message}` });
+    if (!expired || expired.length === 0) return res.status(200).json({ success: true, message: 'No hay contratos por procesar.' });
 
-    // 3. Evaluar cada contrato uno por uno
-    for (const contract of expiredContracts) {
-      const { id, channel_owner_id, advertiser_id, chat_id, message_id, price } = contract;
-      
-      // Costo original que pagó el anunciante (Precio + 20% comisión de la plataforma)
-      const refundAmount = Number((Number(price) * 1.20).toFixed(4));
-      
-      // Auditoría: Intentar reenviar el mensaje a tu chat de admin para ver si aún existe
-      const verifyRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/forwardMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: MAIN_ADMIN_ID,
-          from_chat_id: chat_id,
-          message_id: message_id,
-          disable_notification: true // Para que no te suene el celular a cada rato
-        })
-      });
-      const verifyData = await verifyRes.json();
+    let processed = 0;
+    let refunded = 0;
+    const errors = [];
 
-      if (verifyData.ok) {
-        // ✅ CUMPLIÓ: El mensaje sigue ahí tras 24 horas. Pagamos al dueño del canal.
-        const { data: owner } = await supabase.from('users').select('balance, total_earnings').eq('id', channel_owner_id).single();
-        if (owner) {
-          const newBal = Number((Number(owner.balance || 0) + Number(price)).toFixed(4));
-          const newTot = Number((Number(owner.total_earnings || 0) + Number(price)).toFixed(4));
-          await supabase.from('users').update({ balance: newBal, total_earnings: newTot }).eq('id', channel_owner_id);
-          await supabase.from('history_logs').insert([{ 
-            user_id: channel_owner_id, 
-            title: '💸 Contrato Completado', 
-            description: `Pago liberado por publicación en ${chat_id}.`, 
-            amount: Number(price) 
-          }]);
+    for (const c of expired) {
+        let claimed = false;
+        try {
+            // Reclamar el contrato: dos ejecuciones no pueden pagarlo ni reembolsarlo a la vez.
+            const { data: got, error: cErr } = await supabase.rpc('claim_ad_contract', { p_id: String(c.id) });
+            if (cErr) throw new Error(`reclamar: ${cErr.message}`);
+            if (!got) continue; // otra ejecución ya lo tiene
+            claimed = true;
+
+            const check = await checkMessage(c.chat_id, c.message_id);
+            if (check.state === 'error') throw new Error(`Telegram: ${check.error}`);
+
+            if (check.state === 'exists') {
+                const { error: sErr } = await supabase.rpc('settle_ad_contract', {
+                    p_id: String(c.id),
+                    p_owner_id: String(c.channel_owner_id),
+                    p_price: Number(c.price),
+                    p_chat_id: String(c.chat_id),
+                });
+                if (sErr) throw new Error(`pagar: ${sErr.message}`);
+                processed++;
+            } else {
+                const refund = Number((Number(c.price) * 1.2).toFixed(4));
+                const { error: rErr } = await supabase.rpc('refund_ad_contract', {
+                    p_id: String(c.id),
+                    p_advertiser_id: String(c.advertiser_id),
+                    p_refund: refund,
+                    p_chat_id: String(c.chat_id),
+                });
+                if (rErr) throw new Error(`reembolsar: ${rErr.message}`);
+                refunded++;
+            }
+        } catch (e) {
+            errors.push(`contrato ${c.id}: ${e.message}`);
+            if (claimed) {
+                const { error: uErr } = await supabase.rpc('release_ad_contract', { p_id: String(c.id) });
+                if (uErr) errors.push(`contrato ${c.id} sin liberar: ${uErr.message}`);
+            }
         }
-        await supabase.from('ad_contracts').update({ status: 'completed' }).eq('id', id);
-        processedCount++;
-
-      } else {
-        // ❌ FRAUDE: El mensaje fue borrado antes de tiempo. Reembolsamos al anunciante.
-        const { data: advertiser } = await supabase.from('users').select('balance').eq('id', advertiser_id).single();
-        if (advertiser) {
-          const refundBal = Number((Number(advertiser.balance || 0) + refundAmount).toFixed(4));
-          await supabase.from('users').update({ balance: refundBal }).eq('id', advertiser_id);
-          await supabase.from('history_logs').insert([{ 
-            user_id: advertiser_id, 
-            title: '🛡️ Reembolso por Fraude', 
-            description: `El canal ${chat_id} borró el anuncio. Se te ha devuelto el dinero.`, 
-            amount: refundAmount 
-          }]);
-        }
-        
-        // Penalización al canal (Bajar el rating)
-        const { data: canal } = await supabase.from('marketplace_canales').select('rating').eq('chat_id', chat_id).single();
-        if (canal) {
-          const newRating = Math.max(0, Number(canal.rating) - 1.5); // Le quita 1.5 estrellas por borrar el anuncio
-          await supabase.from('marketplace_canales').update({ rating: newRating }).eq('chat_id', chat_id);
-        }
-
-        await supabase.from('ad_contracts').update({ status: 'refunded' }).eq('id', id);
-        fraudCount++;
-      }
     }
 
-    return res.status(200).json({ success: true, processed: processedCount, frauds: fraudCount });
-
-  } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
-  }
+    // Fallos visibles: el cron los marca como error para que los veas en los registros.
+    if (errors.length > 0) return res.status(500).json({ success: false, processed, refunded, errors });
+    return res.status(200).json({ success: true, processed, refunded });
 }
