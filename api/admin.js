@@ -2,7 +2,7 @@ import { supabase } from '../utils/supabase.js';
 import { sendTonAutomated } from '../utils/blockchain.js';
 import { extractTelegramUsername, checkAdminStatusDetailed, ADMIN_IDS } from '../utils/telegram.js';
 
-export async function handleAdminActions(action, targetId, reqBody) {
+export async function handleAdminActions(action, targetId, reqBody, verifiedUserId) {
     if (action === 'verify-admin') {
       const chatId = extractTelegramUsername(reqBody.url);
       if (!chatId) return { status: 400, body: { success: false, error: 'Enlace inválido.' } };
@@ -13,8 +13,9 @@ export async function handleAdminActions(action, targetId, reqBody) {
 
     if (!action.startsWith('admin-')) return null;
 
-    const adminId = reqBody.adminId;
-    if (!ADMIN_IDS.includes(String(adminId))) return { status: 403, body: { success: false, error: 'Comando denegado.' } };
+    // Solo el id verificado por la firma de Telegram cuenta; reqBody.adminId se ignora
+    const adminId = verifiedUserId;
+    if (!verifiedUserId || !ADMIN_IDS.includes(String(adminId))) return { status: 403, body: { success: false, error: 'Comando denegado.' } };
 
     if (action === 'admin-get-all-tasks') {
         const { data: allTasks } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
