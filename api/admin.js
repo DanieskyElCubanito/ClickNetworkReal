@@ -83,63 +83,96 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
 
     if (action === 'admin-approve-withdrawal') {
         const { withdrawalId } = reqBody;
-        const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
+        const { data: withdrawal, error: readError } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).maybeSingle();
+        if (readError) return { status: 500, body: { success: false, error: `Fallo BD: ${readError.message}` } };
+        if (!withdrawal) return { status: 404, body: { success: false, error: 'Retiro no encontrado.' } };
         if (withdrawal.status === 'completed') return { status: 400, body: { success: false, error: 'Ya pagado.' } };
-        
-        try {
-            const realTxid = await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
-            await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
-            const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).like('title', '%Retiro%').order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank">Ver TX</a>` }).eq('id', lastLog.id);
-            
-            // 🔥 NOTIFICACIÓN AL CANAL DE PAGOS (Dinámica)
-            try {
-                const { data: config } = await supabase.from('system_settings').select('payment_channel_id').eq('id', 1).maybeSingle();
-                const payChannel = config?.payment_channel_id;
+        if (withdrawal.status !== 'pending') return { status: 400, body: { success: false, error: `El retiro está en estado "${withdrawal.status}" y no se puede pagar.` } };
 
-                if (payChannel) {
-                    const { data: wUser } = await supabase.from('users').select('username').eq('id', withdrawal.user_id).single();
-                    const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${withdrawal.user_id}`;
-                    const withdrawAmount = Number(withdrawal.amount);
-                    
-                    const resPrice = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
-                    if (resPrice.ok) {
-                       const dataPrice = await resPrice.json();
-                       if (dataPrice['the-open-network']?.usd) {
-                           const gramPrice = dataPrice['the-open-network'].usd;
-                           const gramAmount = (withdrawAmount / gramPrice).toFixed(4);
-                           const canjeGemas = (withdrawAmount * 1000).toFixed(2);
-                           const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${gramAmount} GRAM\n🔄 <b>Canje:</b> ${canjeGemas} Gemas\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<a href="https://tonscan.org/tx/${realTxid}">${realTxid}</a>\n\n🔥 ¡Retiros procesados con total transparencia!`;
-                           const keyboard = { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR GRAM AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
-                           
-                           const tgReq = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                             body: JSON.stringify({ chat_id: payChannel, text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
-                           });
-                           
-                           if(!tgReq.ok) {
-                               const tgErr = await tgReq.text();
-                               console.error("Fallo enviando notificación a Telegram (Retiro):", tgErr);
-                           }
-                       }
+        // Reserva el retiro antes de enviar: solo una petición puede pasar de pending a processing (evita pagar dos veces).
+        const { data: claimed, error: claimError } = await supabase.from('withdrawals').update({ status: 'processing' }).eq('id', withdrawalId).eq('status', 'pending').select('id');
+        if (claimError) return { status: 500, body: { success: false, error: `Fallo BD: ${claimError.message}` } };
+        if (!claimed || claimed.length === 0) return { status: 409, body: { success: false, error: 'Este retiro ya está siendo procesado.' } };
+
+        let realTxid;
+        try {
+            realTxid = await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
+        } catch (error) {
+            // No se envió: vuelve a pendiente para poder reintentar.
+            await supabase.from('withdrawals').update({ status: 'pending' }).eq('id', withdrawalId).eq('status', 'processing');
+            console.error('Fallo blockchain (retiro):', error?.message || error);
+            return { status: 400, body: { success: false, error: 'Fallo en blockchain. El retiro sigue pendiente.' } };
+        }
+
+        const { error: doneError } = await supabase.from('withdrawals').update({ status: 'completed' }).eq('id', withdrawalId);
+        if (doneError) return { status: 500, body: { success: false, error: `Pagado (TX ${realTxid}), pero no se pudo marcar como completado: ${doneError.message}. Avisa al soporte.` } };
+
+        const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).like('title', '%Retiro%').order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (lastLog) await supabase.from('history_logs').update({ title: '✅ Retiro Completado', description: `Acreditado | <a href="https://tonscan.org/tx/${realTxid}" target="_blank">Ver TX</a>` }).eq('id', lastLog.id);
+
+        // 🔥 NOTIFICACIÓN AL CANAL DE PAGOS (Dinámica)
+        try {
+            const { data: config } = await supabase.from('system_settings').select('payment_channel_id').eq('id', 1).maybeSingle();
+            const payChannel = config?.payment_channel_id;
+
+            if (payChannel) {
+                const { data: wUser } = await supabase.from('users').select('username').eq('id', withdrawal.user_id).single();
+                const usernameDisplay = wUser?.username && wUser.username !== 'Usuario' ? `@${wUser.username}` : `ID: ${withdrawal.user_id}`;
+                const withdrawAmount = Number(withdrawal.amount);
+
+                const resPrice = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
+                if (resPrice.ok) {
+                    const dataPrice = await resPrice.json();
+                    if (dataPrice['the-open-network']?.usd) {
+                        const gramPrice = dataPrice['the-open-network'].usd;
+                        const gramAmount = (withdrawAmount / gramPrice).toFixed(4);
+                        const canjeGemas = (withdrawAmount * 1000).toFixed(2);
+                        const message = `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n👤 <b>Beneficiario:</b> ${usernameDisplay}\n💸 <b>Monto Total:</b> ${gramAmount} GRAM\n🔄 <b>Canje:</b> ${canjeGemas} Gemas\n🛡️ <b>Red:</b> Toncoin (Ton)\n⚡ <b>Estado:</b> Finalizado / 100%\n\n🔹 <b>TXID:</b>\n<a href="https://tonscan.org/tx/${realTxid}">${realTxid}</a>\n\n🔥 ¡Retiros procesados con total transparencia!`;
+                        const keyboard = { inline_keyboard: [[{ text: "💰 ¡QUIERO GANAR GRAM AHORA!", url: "https://t.me/TeleGemAds_bot/app", style: "primary" }]] };
+
+                        const tgReq = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ chat_id: payChannel, text: message, parse_mode: 'HTML', reply_markup: keyboard, disable_web_page_preview: true })
+                        });
+
+                        if (!tgReq.ok) {
+                            const tgErr = await tgReq.text();
+                            console.error("Fallo enviando notificación a Telegram (Retiro):", tgErr);
+                        }
                     }
                 }
-            } catch (e) { console.error("Error crítico al notificar retiro:", e.message); }
+            }
+        } catch (e) { console.error("Error crítico al notificar retiro:", e.message); }
 
-            return { status: 200, body: { success: true } };
-        } catch (error) { 
-            return { status: 400, body: { success: false, error: 'Fallo en blockchain.' } }; 
-        }
+        return { status: 200, body: { success: true, txid: realTxid } };
     }
 
     if (action === 'admin-reject-withdrawal') {
         const { withdrawalId, reason } = reqBody;
-        const { data: withdrawal } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).single();
-        const { data: userToRefund } = await supabase.from('users').select('balance').eq('id', withdrawal.user_id).single();
-        
-        await supabase.from('users').update({ balance: Number((Number(userToRefund.balance) + Number(withdrawal.amount)).toFixed(4)) }).eq('id', withdrawal.user_id);
-        await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId);
-        
+        const { data: withdrawal, error: readError } = await supabase.from('withdrawals').select('*').eq('id', withdrawalId).maybeSingle();
+        if (readError) return { status: 500, body: { success: false, error: `Fallo BD: ${readError.message}` } };
+        if (!withdrawal) return { status: 404, body: { success: false, error: 'Retiro no encontrado.' } };
+        if (withdrawal.status !== 'pending') return { status: 400, body: { success: false, error: `Solo se pueden rechazar retiros pendientes (estado actual: "${withdrawal.status}").` } };
+
+        // Primero se marca como rechazado, solo si sigue pendiente: así el saldo nunca se devuelve dos veces.
+        const { data: claimed, error: claimError } = await supabase.from('withdrawals').update({ status: 'rejected' }).eq('id', withdrawalId).eq('status', 'pending').select('id');
+        if (claimError) return { status: 500, body: { success: false, error: `Fallo BD: ${claimError.message}` } };
+        if (!claimed || claimed.length === 0) return { status: 409, body: { success: false, error: 'Este retiro ya fue procesado.' } };
+
+        const revert = () => supabase.from('withdrawals').update({ status: 'pending' }).eq('id', withdrawalId).eq('status', 'rejected');
+
+        const { data: userToRefund, error: userError } = await supabase.from('users').select('balance').eq('id', withdrawal.user_id).maybeSingle();
+        if (userError || !userToRefund) {
+            await revert();
+            return { status: 500, body: { success: false, error: 'No se pudo devolver el saldo: usuario no encontrado. El retiro sigue pendiente.' } };
+        }
+
+        const { error: refundError } = await supabase.from('users').update({ balance: Number((Number(userToRefund.balance) + Number(withdrawal.amount)).toFixed(4)) }).eq('id', withdrawal.user_id);
+        if (refundError) {
+            await revert();
+            return { status: 500, body: { success: false, error: `Fallo BD al devolver el saldo: ${refundError.message}` } };
+        }
+
         const { data: lastLog } = await supabase.from('history_logs').select('id').eq('user_id', withdrawal.user_id).like('title', '%Retiro%').order('created_at', { ascending: false }).limit(1).maybeSingle();
         if (lastLog) await supabase.from('history_logs').update({ title: '❌ Retiro Rechazado', description: reason ? `Reembolso. Motivo: ${reason}` : `Fondos devueltos.`, amount: Number(withdrawal.amount) }).eq('id', lastLog.id);
         return { status: 200, body: { success: true } };
