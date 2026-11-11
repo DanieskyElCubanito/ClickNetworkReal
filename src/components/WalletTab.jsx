@@ -112,9 +112,10 @@ export default function WalletTab({ userData, setUserData, t }) {
           });
           const data = await res.json();
           if (data.success) {
-            toast.success("¡Anuncio contabilizado!");
-            setReqs(prev => ({ ...prev, ads: prev.ads + 1 }));
-            if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
+            toast.success("¡Anuncio registrado! (sin recompensa)");
+            setReqs(prev => ({ ...prev, ads: typeof data.ads === "number" ? data.ads : Math.min(prev.ads + 1, 5) }));
+          } else {
+            toast.error(data.error || "No se pudo registrar el anuncio.");
           }
         } catch (err) {
           toast.error("Error guardando el progreso.");
@@ -348,7 +349,7 @@ export default function WalletTab({ userData, setUserData, t }) {
 
             <div style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>
-                <span>{t('bank_req_opt2') || "Opción 2: Tareas Web / Anuncios"}</span>
+                <span>{t('bank_req_opt2') || "Opción 2: 5 Anuncios al día (sin recompensa)"}</span>
                 <span style={{ color: reqs.ads >= 5 ? '#00ffaa' : '#ff99dd' }}>{reqs.ads} / 5</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', marginBottom: '12px' }}>
@@ -359,7 +360,7 @@ export default function WalletTab({ userData, setUserData, t }) {
                 disabled={playingAd || reqs.ads >= 5 || reqs.referrals >= 5}
                 style={{ width: '100%', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214', border: 'none', borderRadius: '12px', padding: '10px', fontWeight: '900', fontSize: '13px', cursor: (reqs.ads >= 5 || reqs.referrals >= 5) ? 'not-allowed' : 'pointer', opacity: (reqs.ads >= 5 || reqs.referrals >= 5) ? 0.5 : 1 }}
               >
-                {playingAd ? (t('bank_req_btn_loading') || 'CARGANDO...') : (t('bank_req_btn_watch') || '▶ EJECUTAR TAREA WEB')}
+                {playingAd ? (t('bank_req_btn_loading') || 'CARGANDO...') : (t('bank_req_btn_watch') || '▶ VER ANUNCIO (SIN RECOMPENSA)')}
               </button>
             </div>
           </div>
