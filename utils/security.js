@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 
-// 🛡️ 1. CIFRADO AES-256-GCM (Vulnerabilidad Criptográfica)
+// 🛡️ 1. CIFRADO AES-256-GCM
 const RAW_KEY = process.env.ENCRYPTION_KEY || 'TeleGemFallbackKey2026NeedsToChangeNow';
-const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest(); 
+const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest();
 
 export function encryptText(text) {
   const iv = crypto.randomBytes(16);
@@ -26,7 +26,7 @@ export function decryptText(text) {
   }
 }
 
-// 🛡️ 2. MEMORIA DE RATE LIMITING (Ataques DDoS)
+// 🛡️ 2. RATE LIMITING (en memoria, por instancia)
 const rateLimitMap = new Map();
 export function checkRateLimit(ip) {
   const now = Date.now();
@@ -35,37 +35,60 @@ export function checkRateLimit(ip) {
     return true;
   }
   const data = rateLimitMap.get(ip);
-  if (now - data.firstRequest > 60000) { 
+  if (now - data.firstRequest > 60000) {
     data.count = 1;
     data.firstRequest = now;
     return true;
   }
   data.count++;
-  return data.count <= 30; 
+  return data.count <= 30;
 }
 
-// 🛡️ 3. FIRMA ANTI-SPOOFING (auth_date)
-export function verifyTelegramWebAppData(telegramInitData) {
-  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
-  if (!telegramInitData || !BOT_TOKEN) return false;
-  
-  const urlParams = new URLSearchParams(telegramInitData);
-  const hash = urlParams.get('hash');
+// 🛡️ 3. VERIFICACIÓN DE TELEGRAM WEBAPP (firma HMAC-SHA256)
+// Devuelve { id, user } si la firma es válida, o null. Falla cerrado.
+export function verifyTelegramUser(telegramInitData) {
+  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+  if (!telegramInitData || !BOT_TOKEN) return null;
 
-  const authDate = urlParams.get('auth_date');
-  if (authDate) {
-    const timeDiff = (Date.now() / 1000) - Number(authDate);
-    if (timeDiff > 86400) return false; // Bloquea firmas caducadas (24h)
-  }
+  const params = new URLSearchParams(telegramInitData);
+  const hash = params.get('hash');
+  const authDate = params.get('auth_date');
 
-  urlParams.delete('hash');
-  urlParams.sort();
-  let dataCheckString = '';
-  for (const [key, value] of urlParams.entries()) { dataCheckString += `${key}=${value}\n`; }
-  dataCheckString = dataCheckString.slice(0, -1);
+  // Sin hash válido o sin auth_date: se rechaza (antes se aceptaba sin auth_date)
+  if (!hash || !/^[0-9a-f]{64}$/i.test(hash)) return null;
+  if (!authDate || !/^\d+$/.test(authDate)) return null;
+
+  const age = Math.floor(Date.now() / 1000) - Number(authDate);
+  if (age < -300 || age > 86400) return null; // caducada (24h) o fecha futura
+
+  params.delete('hash');
+  const dataCheckString = [...params.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n');
+
   const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
-  const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-  return calculatedHash === hash;
+  const calc = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest();
+  const given = Buffer.from(hash, 'hex');
+
+  // Comparación en tiempo constante (antes era ===)
+  if (given.length !== calc.length || !crypto.timingSafeEqual(calc, given)) return null;
+
+  // El id sale de los datos YA firmados, no del cuerpo de la petición
+  let user;
+  try {
+    user = JSON.parse(params.get('user') || 'null');
+  } catch {
+    return null;
+  }
+  if (!user || user.id === undefined || user.id === null) return null;
+
+  return { id: String(user.id), user };
+}
+
+// Compatibilidad: true/false como antes (ahora también exige auth_date y compara en tiempo constante)
+export function verifyTelegramWebAppData(telegramInitData) {
+  return verifyTelegramUser(telegramInitData) !== null;
 }
 
 // 🛡️ 4. HERRAMIENTAS DE PARSEO
