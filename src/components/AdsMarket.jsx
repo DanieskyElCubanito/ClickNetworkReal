@@ -11,7 +11,9 @@ export default function AdsMarket({ props }) {
 
   const [category, setCategory] = useState('pagadas'); // pagadas | diarias | partners
 
+  // Una misión sin tipo no debe romper la pantalla: se trata como «Tarea».
   const communityTasks = tasks.filter(t => t.status === 'active')
+    .map(t => ({ ...t, type: t.type || 'unknown' }))
     .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
 
   const pagadas = communityTasks.filter(t => !t.type.includes('daily') && t.type !== 'partner');
