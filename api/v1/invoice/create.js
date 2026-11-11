@@ -21,14 +21,38 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
-    // 2. Extraer parámetros y validar la API Key
+    // 2. Leer el cuerpo con seguridad (puede venir vacío o no ser un objeto)
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+
     // Soporta recibir la API Key en los headers (más seguro) o en el body
-    const apiKey = req.headers['x-api-key'] || req.body.apiKey;
-    const { currency, network, amount, orderId, webhookUrl } = req.body;
+    const apiKey = req.headers['x-api-key'] || body.apiKey;
+    const { currency, network, orderId } = body;
+    const webhookUrl = body.webhookUrl;
+    const amount = Number(body.amount);
 
     if (!apiKey) return res.status(401).json({ success: false, error: 'API Key de Kuba Pay requerida' });
-    if (!currency || !network || !amount || !orderId) {
-        return res.status(400).json({ success: false, error: 'Faltan parámetros: currency, network, amount, orderId' });
+
+    // Validar parámetros: amount debe ser un número finito y mayor que 0
+    if (
+        typeof currency !== 'string' || !currency ||
+        typeof network !== 'string' || !network ||
+        !orderId ||
+        !Number.isFinite(amount) || amount <= 0
+    ) {
+        return res.status(400).json({ success: false, error: 'Faltan parámetros o amount no válido: currency, network, amount (mayor que 0), orderId' });
+    }
+
+    // Validar webhookUrl: si viene, debe ser una URL https válida
+    if (webhookUrl !== undefined && webhookUrl !== null && webhookUrl !== '') {
+        let validUrl = false;
+        try {
+            validUrl = typeof webhookUrl === 'string' && new URL(webhookUrl).protocol === 'https:';
+        } catch {
+            validUrl = false;
+        }
+        if (!validUrl) {
+            return res.status(400).json({ success: false, error: 'webhookUrl debe ser una URL https válida' });
+        }
     }
 
     try {
@@ -52,30 +76,30 @@ export default async function handler(req, res) {
             const wallet = ethers.Wallet.createRandom();
             address = wallet.address;
             rawPrivateKey = wallet.privateKey;
-        } 
+        }
         else if (net === 'TRON' || net === 'TRC20') {
             const tronWeb = new TronWeb({ fullHost: 'https://api.trongrid.io' });
             const account = await tronWeb.createAccount();
             address = account.address.base58;
             rawPrivateKey = account.privateKey;
-        } 
+        }
         else if (net === 'TON' || net === 'GRAM') {
             const mnemonic = await mnemonicNew();
             const keyPair = await mnemonicToPrivateKey(mnemonic);
             const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
             address = wallet.address.toString({ bounceable: false }); // Fundamental para depósitos
             rawPrivateKey = mnemonic.join(" ");
-        } 
+        }
         else if (net === 'DOGE' || net === 'DOGECOIN') {
             const privateKey = new doge.PrivateKey();
             address = privateKey.toAddress().toString();
             rawPrivateKey = privateKey.toString();
-        } 
+        }
         else {
             return res.status(400).json({ success: false, error: 'Red blockchain no soportada' });
         }
 
-        // 5. Cifrado Militar de la Clave Privada
+        // 5. Cifrado de la Clave Privada
         const encryptedKey = encryptKey(rawPrivateKey);
 
         // 6. Guardar la Factura (Invoice) en Supabase
@@ -100,16 +124,16 @@ export default async function handler(req, res) {
 
         if (insertError) throw insertError;
 
-        // 7. Respuesta exitosa y segura para el frontend/bot del cliente
+        // 7. Respuesta exitosa
         return res.status(200).json({
             success: true,
             result: {
                 invoice_id: invoice.id,        // ID interno de Kuba Pay
-                order_id: orderId,             // El ID que mandó el desarrollador (su ID de usuario)
+                order_id: orderId,             // El ID que mandó el desarrollador
                 network: net,
                 currency: currency.toUpperCase(),
                 amount: amount,
-                address: address,              // 🟢 La dirección pública para depositar
+                address: address,              // La dirección pública para depositar
                 status: 'PENDING',
                 expires_at: expiresAt.toISOString()
             }
