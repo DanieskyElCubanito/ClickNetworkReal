@@ -27,31 +27,33 @@ const postAction = async (action, payload = {}) => {
 };
 
 export const botApi = {
+  // El backend extrae el ID de la firma de Telegram (initData), por lo que no es necesario pasar el userId en el payload.
   verifyUser: (user, startParam) => postAction('verify', { user, start_param: startParam }),
-  verifyHuman: (userId, method) => postAction('verify-human', { userId, method }),
+  verifyHuman: (method) => postAction('verify-human', { method }),
 
-  claimBonus: (userId) => postAction('claim-bonus', { userId }),
-  getReferrals: (userId) => postAction('get-referrals', { userId }),
-  getHistory: (userId) => postAction('get-history', { userId }),
+  claimBonus: () => postAction('claim-bonus'),
+  getReferrals: () => postAction('get-referrals'),
+  getHistory: () => postAction('get-history'),
 
   verifyBotAdmin: (url) => postAction('verify-admin', { url }),
   createTask: (payload) => postAction('create-task', payload),
-  getTasks: (userId) => postAction('get-tasks', { userId }),
-  completeTask: (userId, taskId) => postAction('complete-task', { userId, taskId }),
+  getTasks: () => postAction('get-tasks'),
+  completeTask: (taskId, validation_code_input) => postAction('complete-task', { taskId, validation_code_input }),
 
-  // 🔥 NUEVOS MÓDULOS DE BÓVEDA USDT Y GRAM
+  // Módulos de Bóveda USDT y GRAM
   generateUsdtWallet: (payload) => postAction('generate-usdt-wallet', payload),
   verifyUsdtPayment: (payload) => postAction('verify-usdt-payment', payload),
 
   generatePaymentWallet: (payload) => postAction('generate-payment-wallet', payload),
   verifyCryptoPayment: (payload) => postAction('verify-crypto-payment', payload),
 
-  adminGetConfig: (adminId) => postAction('admin-get-config', { adminId }),
-  adminUpdateConfig: (adminId, config) => postAction('admin-update-config', { adminId, config }),
-  adminStats: (adminId) => postAction('admin-stats', { adminId }),
-  adminSearchUser: (adminId, targetId) => postAction('admin-search-user', { adminId, targetId }),
-  adminUpdateUser: (adminId, targetId, update) => postAction('admin-update-user', { adminId, targetId, update }),
-  adminGetTasks: (adminId) => postAction('admin-get-tasks', { adminId })
+  // Panel Admin (El backend valida criptográficamente si el firmante es Administrador en ADMIN_IDS)
+  adminGetConfig: () => postAction('admin-get-config'),
+  adminUpdateConfig: (config) => postAction('admin-update-config', { config }),
+  adminStats: () => postAction('admin-stats'),
+  adminSearchUser: (targetId) => postAction('admin-search-user', { targetId }),
+  adminUpdateUser: (targetId, update) => postAction('admin-update-user', { targetId, update }),
+  adminGetTasks: () => postAction('admin-get-all-tasks')
 };
 
 export default botApi;
