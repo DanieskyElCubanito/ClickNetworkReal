@@ -141,7 +141,15 @@ export default function AdsTab({ userData, setUserData, t }) {
       const data = await res.json();
       if (data && data.success) {
         setTasks(data.tasks || []);
-        if (data.gigaPubClaimed) setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
+        
+        // 🔥 BLINDAJE DE UI: Verificamos tanto la respuesta del servidor como el LocalStorage por fecha
+        const todayKey = `gigapub_claimed_${new Date().toISOString().slice(0, 10)}_${userData?.id}`;
+        const localClaimed = localStorage.getItem(todayKey) === 'true';
+
+        if (data.gigaPubClaimed || localClaimed) {
+          setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
+        }
+
         if (data.streakCount !== undefined) {
           setUserData(prev => ({ ...prev, streak_count: data.streakCount }));
         }
@@ -162,7 +170,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     } catch (e) { toast.error("Error al redireccionar."); }
   };
 
-      const handlePlayGigaPub = () => {
+  const handlePlayGigaPub = () => {
     if (!window.showGiga) return toast.error("Conexión inestable.");
     setPlayingAd(true); const tid = toast.loading("Sincronizando...");
     window.showGiga().then(async () => {
@@ -177,10 +185,12 @@ export default function AdsTab({ userData, setUserData, t }) {
             balance: data.balance !== undefined ? data.balance : prev.balance,
             streak_count: Math.round(Number(data.earned_gemas)) 
           }));
-          
-          // 🔥 BLINDAJE INMEDIATO DEL ESTADO VISUAL
+
+          // 🔥 BLINDAJE INMEDIATO DEL ESTADO VISUAL Y PERSISTENCIA EN LOCALSTORAGE
           setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
-          
+          const todayKey = `gigapub_claimed_${new Date().toISOString().slice(0, 10)}_${userData?.id}`;
+          localStorage.setItem(todayKey, 'true');
+
           // Forzamos la recarga de tareas para sincronizar con la DB
           fetchTasks();
         } else { 
@@ -239,7 +249,7 @@ export default function AdsTab({ userData, setUserData, t }) {
   const calculateEditCost = () => {
     let cost = 0;
     if (!editingTask) return 0;
-    
+
     // Si ajusta la recompensa de los cupos pendientes:
     if (editingTask.reward !== originalReward && remainingCompletions > 0) {
       cost += (remainingCompletions * editingTask.reward * 1.30) - (remainingCompletions * originalReward * 1.30);
@@ -254,7 +264,7 @@ export default function AdsTab({ userData, setUserData, t }) {
   const handleSaveEdit = async () => {
     const totalExtraCost = calculateEditCost();
     if (totalExtraCost > 0 && depositBalanceUsdt < totalExtraCost) return toast.error(`Capital insuficiente.`);
-    
+
     const tid = toast.loading("Configurando...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'edit-task', taskId: editingTask.id, requestingUserId: userData.id, newTitle: editingTask.title, newUrl: editingTask.url, addCompletions: editingTask.addCompletions, newReward: editingTask.reward, newLogo: editingTask.logo }) });
@@ -356,17 +366,17 @@ export default function AdsTab({ userData, setUserData, t }) {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 7, 10, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100000, backdropFilter: 'blur(8px)' }}>
           <div style={{ ...neon.card, width: '100%', maxWidth: '340px', marginBottom: 0, borderColor: 'rgba(255,255,255,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#F9FAFB', fontSize: '16px', fontWeight: '800', letterSpacing: '0.5px' }}>{t('ads_edit_title') || 'CONFIGURAR CAMPAÑA'}</h3>
-            
+
             <div style={{ marginBottom: '12px' }}>
               <label style={neon.label}>{t('ads_label_title') || 'TÍTULO PÚBLICO'}</label>
               <input style={neon.input} value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} />
             </div>
-            
+
             <div style={{ marginBottom: '12px' }}>
               <label style={neon.label}>{t('ads_label_url') || 'ENLACE / DESTINO'}</label>
               <input style={neon.input} value={editingTask.url} onChange={(e) => setEditingTask({ ...editingTask, url: e.target.value })} />
             </div>
-            
+
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               <div style={{ flex: 1 }}>
                 <label style={neon.label}>USDT POR USUARIO</label>
@@ -392,7 +402,7 @@ export default function AdsTab({ userData, setUserData, t }) {
                 <input type="number" style={{...neon.inputCalc, padding: '8px', fontSize: '18px'}} value={editingTask.addCompletions} onChange={(e) => setEditingTask(prev => ({...prev, addCompletions: Number(e.target.value) || 0}))} />
                 <button onClick={() => setEditingTask(prev => ({...prev, addCompletions: prev.addCompletions + 10}))} style={{...neon.btnActionCalc, width: '40px', height: '40px', fontSize: '20px'}}>+</button>
               </div>
-              
+
               {calculatedEditCost !== 0 && (
                 <div style={{ fontSize: '12px', color: depositBalanceUsdt >= calculatedEditCost ? '#10B981' : '#EF4444', marginTop: '12px', fontWeight: '800', textAlign: 'center' }}>
                   {calculatedEditCost > 0 ? `Costo total del ajuste: $${calculatedEditCost} USDT` : `Reembolso por ajuste: +$${Math.abs(calculatedEditCost)} USDT`}
