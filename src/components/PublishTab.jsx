@@ -1,53 +1,53 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
-const neonStyles = {
-  container: { color: '#ffffff', paddingBottom: '20px' },
+const modernStyles = {
+  container: { color: '#F3F4F6', paddingBottom: '20px' },
   title: {
     fontSize: '22px', fontWeight: '900', textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase',
-    margin: '10px 0 20px 0', color: '#00f0ff', textShadow: '0 0 15px rgba(0, 240, 255, 0.4)'
+    margin: '10px 0 20px 0', color: '#06B6D4'
   },
   card: {
-    background: 'linear-gradient(145deg, rgba(20, 8, 38, 0.9), rgba(15, 5, 28, 0.95))',
-    border: '1px solid rgba(0, 240, 255, 0.3)', borderRadius: '20px', padding: '18px', marginBottom: '16px',
-    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.5), inset 0 2px 10px rgba(0, 240, 255, 0.05)'
+    background: 'linear-gradient(145deg, #171923, #11131a)',
+    border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: '24px', padding: '20px', marginBottom: '16px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(10px)'
   },
   cardInteractive: {
-    background: 'rgba(25, 10, 45, 0.6)',
-    border: '1.5px solid rgba(255, 20, 147, 0.4)', borderRadius: '16px', padding: '14px 16px', marginBottom: '12px',
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '16px', marginBottom: '12px',
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
-    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)', transition: 'all 0.2s ease'
+    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)', transition: 'all 0.2s ease'
   },
   btnPrimary: {
-    width: '100%', padding: '15px', background: 'linear-gradient(90deg, #ff1493, #d80073)',
-    color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '15px',
-    letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 6px 0 #8b004b, 0 10px 20px rgba(255, 20, 147, 0.3)',
-    textTransform: 'uppercase'
+    width: '100%', padding: '16px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
+    color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '14px',
+    letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(124, 58, 237, 0.3)',
+    textTransform: 'uppercase', transition: 'transform 0.2s'
   },
   btnCyan: {
-    width: '100%', padding: '15px', background: 'linear-gradient(90deg, #00f0ff, #0088ff)',
-    color: '#050214', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '15px',
-    letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.3)',
-    textTransform: 'uppercase'
+    width: '100%', padding: '16px', background: 'linear-gradient(135deg, #06B6D4, #3B82F6)',
+    color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '14px',
+    letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(6, 182, 212, 0.3)',
+    textTransform: 'uppercase', transition: 'transform 0.2s'
   },
   input: {
-    width: '100%', background: 'rgba(10, 2, 20, 0.8)', border: '1.5px solid #8a2be2', borderRadius: '14px',
-    padding: '14px', fontSize: '14px', color: '#ffffff', outline: 'none', boxSizing: 'border-box',
+    width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px',
+    padding: '16px', fontSize: '14px', color: '#F3F4F6', outline: 'none', boxSizing: 'border-box',
     transition: 'border 0.3s'
   },
-  progressBarContainer: { display: 'flex', justifyContent: 'center', gap: '6px', margin: '10px 0 24px 0' },
+  progressBarContainer: { display: 'flex', justifyContent: 'center', gap: '8px', margin: '10px 0 24px 0' },
   progressStep: (active) => ({
-    flex: 1, height: '6px', maxWidth: '40px',
-    background: active ? 'linear-gradient(90deg, #00f0ff, #ff1493)' : 'rgba(255, 255, 255, 0.1)',
-    borderRadius: '10px', boxShadow: active ? '0 0 10px #00f0ff' : 'none', transition: 'all 0.3s ease'
+    flex: 1, height: '4px', maxWidth: '40px',
+    background: active ? 'linear-gradient(90deg, #06B6D4, #3B82F6)' : 'rgba(255, 255, 255, 0.05)',
+    borderRadius: '10px', boxShadow: active ? '0 0 10px rgba(6,182,212,0.4)' : 'none', transition: 'all 0.3s ease'
   })
 };
 
 const TEMPLATES = [
-  { title: 'Airdrop Boom', icon: '🚀', accent: '#ff007f', text: '🚀 Nuevo Airdrop confirmado. Participa gratis completando las tareas y asegura tus tokens.' },
-  { title: 'Sorteo Neón', icon: '💎', accent: '#00f0ff', text: '💎 Gran recompensa activa para la comunidad. Entra al enlace y participa ahora mismo.' },
-  { title: 'Red de Tráfico', icon: '⚡', accent: '#ffe600', text: '⚡ Únete a nuestra red. Gana USDT gratis todos los días completando tareas simples.' }
+  { title: 'Airdrop Boom', icon: '🚀', accent: '#EC4899', text: '🚀 Nuevo Airdrop confirmado. Participa gratis completando las tareas y asegura tus tokens.' },
+  { title: 'Sorteo Élite', icon: '💎', accent: '#06B6D4', text: '💎 Gran recompensa activa para la comunidad. Entra al enlace y participa ahora mismo.' },
+  { title: 'Red de Tráfico', icon: '⚡', accent: '#F59E0B', text: '⚡ Únete a nuestra red. Gana USDT gratis todos los días completando tareas simples.' }
 ];
 
 export default function PublishTab({ userData, setUserData, t }) {
@@ -82,7 +82,6 @@ export default function PublishTab({ userData, setUserData, t }) {
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
   const fetchGroups = async () => {
-    if (!userData?.id) return;
     setLoadingData(true);
     try {
       const resComm = await fetch('/api', {
@@ -110,7 +109,6 @@ export default function PublishTab({ userData, setUserData, t }) {
   };
 
   const fetchPublishHistory = async () => {
-    if (!userData?.id) return;
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
@@ -126,14 +124,14 @@ export default function PublishTab({ userData, setUserData, t }) {
 
   useEffect(() => { 
     fetchGroups(); 
-  }, [userData?.id]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'history') {
       fetchGroups();
       fetchPublishHistory();
     }
-  }, [activeTab, userData?.id]);
+  }, [activeTab]);
 
   const handleToggleGroup = (groupId) => {
     setSelectedGroups(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
@@ -161,13 +159,13 @@ export default function PublishTab({ userData, setUserData, t }) {
   const handleNextStep2 = () => setStep(3);
   const handleNextStep3 = () => {
     if (selectedGroups.length === 0) return toast.error("Selecciona al menos un canal del mercado.");
-    if (balance < totalCost) return toast.error(`Saldo insuficiente. Necesitas ${totalCost} USDT.`);
+    if (balance < totalCost) return toast.error(`Saldo insuficiente. Necesitas ${totalCost.toFixed(4)} USDT.`);
     setStep(4);
   };
 
   const handlePublish = async () => {
     setIsPublishing(true);
-    const tid = toast.loading("Enviando al Escrow...");
+    const tid = toast.loading("Autorizando Smart-Contract (Escrow)...");
 
     try {
       for (const chatId of selectedGroups) {
@@ -182,83 +180,82 @@ export default function PublishTab({ userData, setUserData, t }) {
         if (!data.success) throw new Error(data.error);
         if (data.balance !== undefined) setUserData((prev) => ({ ...prev, balance: data.balance }));
       }
-      toast.success("Pago retenido. Pendiente de aprobación.", { id: tid });
+      toast.success("Pago retenido en Escrow. Pendiente de publicación.", { id: tid });
       setPostText(''); setImageUrl(''); setButtonConfig({ text: '', url: '', style: 'default' }); setSelectedGroups([]); setStep(1);
       setActiveTab('history');
-    } catch (err) { toast.error(err.message || "Error", { id: tid }); } 
+    } catch (err) { toast.error(err.message || "Error al procesar el pago", { id: tid }); } 
     finally { setIsPublishing(false); }
   };
 
   const handleAddCommunityGroup = async () => {
     if (!newGroupUrl.trim() || newGroupPrice <= 0) return toast.error("Datos inválidos");
     setIsVerifyingGroup(true);
-    const tid = toast.loading("Verificando permisos...");
+    const tid = toast.loading("Analizando métricas del canal...");
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        // 🔥 CORRECCIÓN: Se envía explícitamente el userId
-        body: JSON.stringify({ action: 'add-publish-group', userId: userData.id, url: newGroupUrl, price: newGroupPrice })
+        body: JSON.stringify({ action: 'add-publish-group', url: newGroupUrl, price: newGroupPrice })
       });
       const data = await res.json();
       if (data.success) {
-        toast.success("¡Canal listado en el Mercado!", { id: tid });
+        toast.success("¡Canal validado e integrado al Mercado!", { id: tid });
         setNewGroupUrl(''); setNewGroupPrice(1);
         setShowAddGroupModal(false);
         fetchGroups(); 
       } else {
-        toast.error(data.error || "Error", { id: tid });
+        toast.error(data.error || "Fallo en validación", { id: tid });
       }
-    } catch (err) { toast.error("Error de conexión", { id: tid }); } 
+    } catch (err) { toast.error("Fallo de red", { id: tid }); } 
     finally { setIsVerifyingGroup(false); }
   };
 
   const myCommunityGroups = availableGroups.filter(g => String(g.creator_id) === String(userData?.id));
 
   return (
-    <div style={neonStyles.container}>
-      <Toaster position="top-center" />
-      <h2 style={neonStyles.title}>Marketplace</h2>
+    <div style={modernStyles.container}>
+      <Toaster position="top-center" toastOptions={{ style: { background: '#111827', color: '#F3F4F6', border: '1px solid rgba(255,255,255,0.1)' } }} />
+      <h2 style={modernStyles.title}>Marketplace</h2>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', padding: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '20px' }}>
-        <button onClick={() => setActiveTab('create')} style={{ flex: 1, padding: '12px', borderRadius: '16px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.2s', background: activeTab === 'create' ? 'linear-gradient(90deg, #00f0ff, #0088ff)' : 'transparent', color: activeTab === 'create' ? '#050214' : '#00f0ff' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', padding: '6px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <button onClick={() => setActiveTab('create')} style={{ flex: 1, padding: '12px', borderRadius: '12px', fontWeight: '800', fontSize: '12px', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease', background: activeTab === 'create' ? '#ffffff' : 'transparent', color: activeTab === 'create' ? '#111827' : '#9CA3AF', textTransform: 'uppercase' }}>
           PUBLICAR ANUNCIO
         </button>
-        <button onClick={() => setActiveTab('history')} style={{ flex: 1, padding: '12px', borderRadius: '16px', fontWeight: '900', fontSize: '13px', border: 'none', cursor: 'pointer', transition: '0.2s', background: activeTab === 'history' ? 'linear-gradient(90deg, #ff1493, #8a2be2)' : 'transparent', color: activeTab === 'history' ? '#fff' : '#ff99dd' }}>
-          MIS CANALES / PAGOS
+        <button onClick={() => setActiveTab('history')} style={{ flex: 1, padding: '12px', borderRadius: '12px', fontWeight: '800', fontSize: '12px', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease', background: activeTab === 'history' ? '#ffffff' : 'transparent', color: activeTab === 'history' ? '#111827' : '#9CA3AF', textTransform: 'uppercase' }}>
+          MIS CANALES
         </button>
       </div>
 
       {activeTab === 'create' && (
         <div className="fade-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff41b4' }}>PASO {step} DE 4</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 4px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '800', color: '#06B6D4', letterSpacing: '1px' }}>PASO {step} DE 4</div>
           </div>
-          <div style={neonStyles.progressBarContainer}>
-            <div style={neonStyles.progressStep(step >= 1)} />
-            <div style={neonStyles.progressStep(step >= 2)} />
-            <div style={neonStyles.progressStep(step >= 3)} />
-            <div style={neonStyles.progressStep(step >= 4)} />
+          <div style={modernStyles.progressBarContainer}>
+            <div style={modernStyles.progressStep(step >= 1)} />
+            <div style={modernStyles.progressStep(step >= 2)} />
+            <div style={modernStyles.progressStep(step >= 3)} />
+            <div style={modernStyles.progressStep(step >= 4)} />
           </div>
 
           {step === 1 && (
             <div className="fade-in">
-              <h3 style={{ fontSize: '18px', fontWeight: '900', marginBottom: '14px', color: '#fff' }}>Diseña tu Anuncio</h3>
-              <div style={neonStyles.card}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px', color: '#F9FAFB', letterSpacing: '0.5px' }}>CONFIGURACIÓN BASE</h3>
+              <div style={modernStyles.card}>
                 <textarea
-                  style={{ ...neonStyles.input, height: '120px', resize: 'none', background: 'rgba(0,0,0,0.3)', border: '1px dashed #00f0ff' }}
-                  placeholder="Ej: 🔥 Únete a mi canal y gana..."
+                  style={{ ...modernStyles.input, height: '120px', resize: 'none', border: '1px dashed rgba(6,182,212,0.5)' }}
+                  placeholder="Redacta el texto de tu campaña publicitaria..."
                   maxLength={1000} value={postText} onChange={(e) => setPostText(e.target.value)}
                 />
-                <div style={{ textAlign: 'right', fontSize: '11px', color: '#00f0ff', marginTop: '8px' }}>{postText.length} / 1000</div>
-                <button onClick={handleNextStep1} style={{ ...neonStyles.btnCyan, marginTop: '16px' }}>SIGUIENTE ➔</button>
+                <div style={{ textAlign: 'right', fontSize: '11px', color: '#6B7280', marginTop: '10px', fontWeight: '600' }}>{postText.length} / 1000 Caracteres</div>
+                <button onClick={handleNextStep1} style={{ ...modernStyles.btnCyan, marginTop: '20px' }}>CONTINUAR ➔</button>
               </div>
 
-              <div style={{ fontSize: '12px', fontWeight: '900', color: '#ff99dd', marginBottom: '10px', textTransform: 'uppercase' }}>Plantillas Rápidas</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              <div style={{ fontSize: '11px', fontWeight: '800', color: '#9CA3AF', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '24px' }}>Plantillas Rápidas</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                 {TEMPLATES.map((tmpl, idx) => (
-                  <div key={idx} onClick={() => setPostText(tmpl.text)} style={{ ...neonStyles.card, padding: '14px 8px', cursor: 'pointer', marginBottom: 0, borderColor: tmpl.accent, textAlign: 'center', background: 'rgba(20,8,38,0.6)' }}>
-                    <div style={{ fontSize: '28px', marginBottom: '6px' }}>{tmpl.icon}</div>
-                    <div style={{ fontWeight: '900', fontSize: '11px', color: '#fff' }}>{tmpl.title}</div>
+                  <div key={idx} onClick={() => setPostText(tmpl.text)} style={{ ...modernStyles.card, padding: '16px 8px', cursor: 'pointer', marginBottom: 0, borderColor: `${tmpl.accent}40`, textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
+                    <div style={{ fontSize: '28px', marginBottom: '10px', filter: `drop-shadow(0 4px 6px ${tmpl.accent}40)` }}>{tmpl.icon}</div>
+                    <div style={{ fontWeight: '800', fontSize: '11px', color: '#F3F4F6' }}>{tmpl.title}</div>
                   </div>
                 ))}
               </div>
@@ -267,68 +264,68 @@ export default function PublishTab({ userData, setUserData, t }) {
 
           {step === 2 && (
             <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <button onClick={() => setStep(1)} style={{ background: 'transparent', border: 'none', color: '#00f0ff', fontSize: '20px', cursor: 'pointer' }}>◀</button>
-                <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#fff' }}>Elementos (Opcional)</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <button onClick={() => setStep(1)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '6px 12px', color: '#F3F4F6', cursor: 'pointer' }}>◀</button>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#F9FAFB', letterSpacing: '0.5px' }}>MÓDULOS (OPCIONALES)</h3>
               </div>
 
-              <div onClick={() => fileInputRef.current.click()} style={neonStyles.cardInteractive}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div onClick={() => fileInputRef.current.click()} style={{...modernStyles.cardInteractive, border: '1px dashed rgba(255,255,255,0.1)'}}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ fontSize: '32px' }}>🖼️</div>
                   <div>
-                    <div style={{ fontWeight: '900', color: '#ffffff', fontSize: '15px' }}>Adjuntar Imagen</div>
-                    <div style={{ fontSize: '12px', color: imageUrl ? '#00ffaa' : '#ff99dd' }}>{imageUrl ? 'Imagen lista' : 'Sube un banner para tu anuncio'}</div>
+                    <div style={{ fontWeight: '800', color: '#F9FAFB', fontSize: '14px' }}>Banner Gráfico</div>
+                    <div style={{ fontSize: '11px', color: imageUrl ? '#10B981' : '#9CA3AF', marginTop: '4px' }}>{imageUrl ? 'Archivo adjuntado correctamente' : 'Máx. 3MB (JPG, PNG)'}</div>
                   </div>
                 </div>
-                {imageUrl && <button onClick={(e) => { e.stopPropagation(); setImageUrl(''); }} style={{ background: 'transparent', border: 'none', color: '#ff1493', fontWeight: 'bold' }}>✕</button>}
+                {imageUrl && <button onClick={(e) => { e.stopPropagation(); setImageUrl(''); }} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', borderRadius: '50%', width: '28px', height: '28px', color: '#EF4444', fontWeight: 'bold' }}>✕</button>}
               </div>
               <input type="file" ref={fileInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
 
-              <div onClick={() => setShowButtonModal(true)} style={{...neonStyles.cardInteractive, borderColor: '#00f0ff'}}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div onClick={() => setShowButtonModal(true)} style={{...modernStyles.cardInteractive, border: '1px dashed rgba(6,182,212,0.4)'}}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ fontSize: '32px' }}>🔘</div>
                   <div>
-                    <div style={{ fontWeight: '900', color: '#ffffff', fontSize: '15px' }}>Botón Interactivo</div>
-                    <div style={{ fontSize: '12px', color: buttonConfig.url ? '#00ffaa' : '#00f0ff' }}>{buttonConfig.url ? `Botón: "${buttonConfig.text}"` : 'Agrega un botón con enlace'}</div>
+                    <div style={{ fontWeight: '800', color: '#F9FAFB', fontSize: '14px' }}>Enlace de Acción</div>
+                    <div style={{ fontSize: '11px', color: buttonConfig.url ? '#10B981' : '#06B6D4', marginTop: '4px' }}>{buttonConfig.url ? `Botón configurado` : 'Añadir redirección (CTA)'}</div>
                   </div>
                 </div>
-                <div style={{ color: '#00f0ff', fontWeight: '900', fontSize: '18px' }}>+</div>
+                <div style={{ color: '#06B6D4', fontWeight: '900', fontSize: '20px' }}>+</div>
               </div>
 
-              <button onClick={handleNextStep2} style={{ ...neonStyles.btnCyan, marginTop: '20px' }}>SIGUIENTE ➔</button>
+              <button onClick={handleNextStep2} style={{ ...modernStyles.btnCyan, marginTop: '24px' }}>CONTINUAR ➔</button>
             </div>
           )}
 
           {step === 3 && (
             <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <button onClick={() => setStep(2)} style={{ background: 'transparent', border: 'none', color: '#00f0ff', fontSize: '20px', cursor: 'pointer' }}>◀</button>
-                <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#fff' }}>¿Dónde publicar?</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <button onClick={() => setStep(2)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '6px 12px', color: '#F3F4F6', cursor: 'pointer' }}>◀</button>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#F9FAFB', letterSpacing: '0.5px' }}>REDES DISPONIBLES</h3>
               </div>
 
               {loadingData ? (
-                <div style={{ textAlign: 'center', color: '#00f0ff', padding: '20px' }}>Cargando mercado...</div>
+                <div style={{ textAlign: 'center', color: '#06B6D4', padding: '24px', fontWeight: '800', fontSize: '12px', letterSpacing: '1px' }}>Sincronizando Nodos...</div>
               ) : availableGroups.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', marginBottom: '14px' }}>
-                  <p style={{ fontSize: '13px', color: '#ff99dd', margin: 0 }}>El mercado está vacío. ¡Añade tu canal y sé el primero en cobrar!</p>
+                <div style={{ textAlign: 'center', padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '13px', color: '#9CA3AF', margin: 0, lineHeight: '1.5' }}>El mercado de anuncios está vacío actualmente. Integra tu propio canal y comienza a monetizar.</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '40vh', overflowY: 'auto', paddingRight: '4px' }}>
                   {availableGroups.map((grp) => {
                     const isSelected = selectedGroups.includes(grp.id);
                     const isMyGroup = String(grp.creator_id) === String(userData?.id);
 
                     return (
-                      <div key={grp.id} onClick={() => handleToggleGroup(grp.id)} style={{ ...neonStyles.cardInteractive, borderColor: isSelected ? '#00f0ff' : '#3d1b63', background: isSelected ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(46, 16, 77, 0.9))' : 'rgba(25, 10, 45, 0.6)' }}>
+                      <div key={grp.id} onClick={() => handleToggleGroup(grp.id)} style={{ ...modernStyles.cardInteractive, borderColor: isSelected ? '#06B6D4' : 'rgba(255,255,255,0.08)', background: isSelected ? 'rgba(6,182,212,0.1)' : 'rgba(255,255,255,0.02)', marginBottom: 0 }}>
                         <div>
-                          <div style={{ fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>
-                            {grp.name} {isMyGroup && <span style={{fontSize: '10px', background: '#ff1493', color: '#fff', padding: '2px 6px', borderRadius: '8px'}}>Mío</span>}
+                          <div style={{ fontWeight: '800', fontSize: '14px', color: '#F9FAFB', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {grp.name} {isMyGroup && <span style={{fontSize: '9px', background: '#3B82F6', color: '#fff', padding: '2px 6px', borderRadius: '6px', textTransform: 'uppercase'}}>Propio</span>}
                           </div>
-                          <div style={{ fontSize: '12px', color: isMyGroup ? '#ff99dd' : '#00f0ff', fontWeight: 'bold' }}>
-                            {isMyGroup ? `Publicas gratis` : `Precio: ${(grp.price * 1.20).toFixed(4)} USDT`}
+                          <div style={{ fontSize: '11px', color: isMyGroup ? '#3B82F6' : '#9CA3AF', fontWeight: '600', marginTop: '6px' }}>
+                            {isMyGroup ? `Publicación sin costo` : `Tarifa (24H): ${(grp.price * 1.20).toFixed(4)} USDT`}
                           </div>
                         </div>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: isSelected ? '#00f0ff' : 'transparent', border: '2px solid #00f0ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#050214', fontWeight: '900', fontSize: '14px' }}>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: isSelected ? '#06B6D4' : 'transparent', border: isSelected ? 'none' : '2px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111827', fontWeight: '900', fontSize: '12px' }}>
                           {isSelected ? '✓' : ''}
                         </div>
                       </div>
@@ -337,52 +334,57 @@ export default function PublishTab({ userData, setUserData, t }) {
                 </div>
               )}
 
-              <button onClick={() => setShowAddGroupModal(true)} style={{ width: '100%', padding: '14px', background: 'rgba(255,20,147,0.1)', color: '#ff1493', border: '2px dashed #ff1493', borderRadius: '16px', fontWeight: '900', fontSize: '14px', cursor: 'pointer', margin: '20px 0' }}>
-                + AÑADIR MI CANAL AL MERCADO
+              <button onClick={() => setShowAddGroupModal(true)} style={{ width: '100%', padding: '16px', background: 'rgba(255,255,255,0.02)', color: '#F3F4F6', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '16px', fontWeight: '800', fontSize: '13px', cursor: 'pointer', margin: '20px 0', transition: 'background 0.2s' }}>
+                + INTEGRAR UN NUEVO CANAL AL MERCADO
               </button>
 
-              <div style={{ background: 'linear-gradient(90deg, #10061e, #1a0b33)', border: '1px solid #00f0ff', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: '15px', marginBottom: '16px' }}>
-                <span style={{ color: '#fff' }}>Seleccionados: <span style={{ color: '#00f0ff' }}>{selectedGroups.length}</span></span>
-                <span style={{ color: '#fff' }}>Costo: <span style={{ color: '#ff41b4' }}>{totalCost.toFixed(4)} USDT</span></span>
+              <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                    <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase' }}>Nodos Seleccionados</div>
+                    <div style={{ fontSize: '18px', color: '#F9FAFB', fontWeight: '900' }}>{selectedGroups.length}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase' }}>Costo de Orden</div>
+                    <div style={{ fontSize: '18px', color: '#06B6D4', fontWeight: '900' }}>{totalCost.toFixed(4)} <span style={{fontSize: '12px', color: '#D1D5DB'}}>USDT</span></div>
+                </div>
               </div>
 
-              <button onClick={handleNextStep3} style={neonStyles.btnCyan}>REVISAR COMPRA ➔</button>
+              <button onClick={handleNextStep3} style={modernStyles.btnCyan}>REVISAR ORDEN ➔</button>
             </div>
           )}
 
           {step === 4 && (
             <div className="fade-in">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <button onClick={() => setStep(3)} style={{ background: 'transparent', border: 'none', color: '#ff1493', fontSize: '20px', cursor: 'pointer' }}>◀</button>
-                <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#fff' }}>Confirmar Escrow</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <button onClick={() => setStep(3)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '6px 12px', color: '#F3F4F6', cursor: 'pointer' }}>◀</button>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#F9FAFB', letterSpacing: '0.5px' }}>CONTRATO ESCROW</h3>
               </div>
 
-              <div style={{...neonStyles.card, borderColor: '#00ffaa'}}>
-                <div style={{ fontSize: '11px', color: '#00ffaa', fontWeight: '900', marginBottom: '10px', textTransform: 'uppercase' }}>Vista Previa</div>
-                <div style={{ fontSize: '14px', marginBottom: '14px', color: '#fff', lineHeight: '1.5' }} dangerouslySetInnerHTML={{ __html: postText.replace(/\n/g, '<br/>') }} />
+              <div style={{...modernStyles.card, borderColor: 'rgba(16,185,129,0.3)', padding: '24px'}}>
+                <div style={{ fontSize: '10px', color: '#10B981', fontWeight: '800', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>Previsualización en Telegram</div>
+                <div style={{ fontSize: '14px', marginBottom: '20px', color: '#E5E7EB', lineHeight: '1.6', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }} dangerouslySetInnerHTML={{ __html: postText.replace(/\n/g, '<br/>') }} />
 
                 {buttonConfig.url && (
-                  <div style={{ padding: '12px', textAlign: 'center', borderRadius: '12px', fontSize: '14px', fontWeight: '900', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214' }}>
+                  <div style={{ padding: '14px', textAlign: 'center', borderRadius: '12px', fontSize: '13px', fontWeight: '800', background: 'rgba(6,182,212,0.1)', color: '#06B6D4', border: '1px solid rgba(6,182,212,0.3)', letterSpacing: '0.5px' }}>
                     {buttonConfig.text || 'Abrir Enlace'}
                   </div>
                 )}
               </div>
 
-              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '16px', padding: '16px', fontSize: '14px', marginBottom: '20px', color: '#fff', border: '1px dashed #ff1493' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>Saldo actual:</span> <strong style={{ color: '#00f0ff' }}>{balance.toFixed(4)} USDT</strong>
+              <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '20px', padding: '20px', fontSize: '14px', marginBottom: '24px', color: '#F3F4F6', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                  <span style={{ color: '#9CA3AF', fontWeight: '500' }}>Balance Disponible:</span> <strong style={{ color: '#06B6D4' }}>{balance.toFixed(4)} USDT</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>A retener:</span> <strong style={{ color: '#ff1493' }}>-{totalCost.toFixed(4)} USDT</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ color: '#9CA3AF', fontWeight: '500' }}>Reserva Escrow:</span> <strong style={{ color: '#EF4444' }}>-{totalCost.toFixed(4)} USDT</strong>
                 </div>
-                <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '10px 0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900' }}>
-                  <span>Saldo restante:</span> <strong style={{ color: '#ffe600' }}>{(balance - totalCost).toFixed(4)} USDT</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <span>Balance Final:</span> <strong style={{ color: '#10B981', fontSize: '16px' }}>{(balance - totalCost).toFixed(4)} USDT</strong>
                 </div>
               </div>
 
-              <button onClick={handlePublish} disabled={isPublishing} style={{ ...neonStyles.btnPrimary, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', boxShadow: '0 6px 0 #007744', color: '#050214' }}>
-                {isPublishing ? 'PROCESANDO...' : 'PAGAR CON ESCROW'}
+              <button onClick={handlePublish} disabled={isPublishing} style={{ ...modernStyles.btnPrimary, background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)' }}>
+                {isPublishing ? 'AUTORIZANDO...' : 'FIRMAR Y PAGAR (ESCROW)'}
               </button>
             </div>
           )}
@@ -391,46 +393,46 @@ export default function PublishTab({ userData, setUserData, t }) {
 
       {activeTab === 'history' && (
         <div className="fade-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0, color: '#00f0ff', fontSize: '18px', fontWeight: '900' }}>Mi Ecosistema</h3>
-            <button onClick={() => setShowAddGroupModal(true)} style={{ background: '#ff1493', border: 'none', borderRadius: '10px', padding: '8px 12px', color: '#fff', fontWeight: '900', fontSize: '12px' }}>+ AÑADIR CANAL</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '0 4px' }}>
+            <h3 style={{ margin: 0, color: '#06B6D4', fontSize: '18px', fontWeight: '900' }}>Mi Ecosistema</h3>
+            <button onClick={() => setShowAddGroupModal(true)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '8px 14px', color: '#F3F4F6', fontWeight: '800', fontSize: '11px', cursor: 'pointer', textTransform: 'uppercase' }}>+ Añadir Canal</button>
           </div>
 
-          <div style={{ fontSize: '12px', color: '#00ffaa', fontWeight: '900', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Canales Monetizando</div>
+          <div style={{ fontSize: '11px', color: '#10B981', fontWeight: '800', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 4px' }}>Canales Monetizando</div>
           {myCommunityGroups.length === 0 ? (
-            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '16px', textAlign: 'center', marginBottom: '20px', border: '1px dashed #ff99dd' }}>
-              <p style={{ color: '#ff99dd', fontSize: '13px', margin: 0 }}>No has añadido ningún canal al mercado para ganar USDT.</p>
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: '20px', textAlign: 'center', marginBottom: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+              <p style={{ color: '#9CA3AF', fontSize: '13px', margin: 0, fontWeight: '500' }}>No tienes redes operativas vendiendo anuncios. Añade una para ganar USDT.</p>
             </div>
           ) : (
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {myCommunityGroups.map(grp => (
-                <div key={grp.id} style={{ ...neonStyles.cardInteractive, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.05)' }}>
+                <div key={grp.id} style={{ ...modernStyles.cardInteractive, borderColor: 'rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.05)', marginBottom: 0 }}>
                   <div>
-                    <div style={{ color: '#fff', fontSize: '15px', fontWeight: '900' }}>{grp.name}</div>
-                    <div style={{ color: '#00ffaa', fontSize: '12px', fontWeight: 'bold' }}>Tus ganancias por anuncio: {grp.price} USDT</div>
+                    <div style={{ color: '#F9FAFB', fontSize: '14px', fontWeight: '900', letterSpacing: '0.5px' }}>{grp.name}</div>
+                    <div style={{ color: '#10B981', fontSize: '11px', fontWeight: '700', marginTop: '4px' }}>Retorno por anuncio: {grp.price} USDT</div>
                   </div>
-                  <div style={{ color: '#00ffaa', fontSize: '24px' }}>💰</div>
+                  <div style={{ color: '#10B981', fontSize: '24px', opacity: 0.8 }}>💰</div>
                 </div>
               ))}
             </div>
           )}
 
-          <div style={{ fontSize: '12px', color: '#ff41b4', fontWeight: '900', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Historial Publicitario</div>
+          <div style={{ fontSize: '11px', color: '#8B5CF6', fontWeight: '800', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 4px' }}>Historial Operativo</div>
           {historyList.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px 10px', background: 'rgba(0,0,0,0.3)', borderRadius: '16px' }}>
-              <p style={{ fontSize: '13px', color: '#aaa', margin: 0 }}>Aún no has comprado ni vendido anuncios.</p>
+            <div style={{ textAlign: 'center', padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, fontWeight: '500' }}>Sin registros de compra/venta publicitaria.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {historyList.map(item => (
-                <div key={item.id} style={{ background: '#120822', padding: '14px', borderRadius: '14px', border: '1px solid #3d1b63' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <strong style={{ fontSize: '14px', color: '#fff' }}>{item.title}</strong>
-                    <span style={{ fontSize: '14px', fontWeight: '900', color: item.amount >= 0 ? '#00ffaa' : '#ff1493' }}>
+                <div key={item.id} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <strong style={{ fontSize: '13px', color: '#F9FAFB' }}>{item.title}</strong>
+                    <span style={{ fontSize: '14px', fontWeight: '900', color: item.amount >= 0 ? '#10B981' : '#EF4444' }}>
                       {item.amount > 0 ? `+${item.amount}` : item.amount} USDT
                     </span>
                   </div>
-                  <div style={{ fontSize: '12px', color: '#ff99dd' }}>{item.description}</div>
+                  <div style={{ fontSize: '12px', color: '#9CA3AF', lineHeight: '1.5' }}>{item.description}</div>
                 </div>
               ))}
             </div>
@@ -438,42 +440,42 @@ export default function PublishTab({ userData, setUserData, t }) {
         </div>
       )}
 
-      {/* MODALES */}
+      {/* MODALES CON ESTILO GLASSMORPHISM */}
       {showButtonModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 100000 }}>
-          <div style={{ ...neonStyles.card, width: '100%', maxWidth: '360px', borderColor: '#00f0ff' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontWeight: '900', color: '#00f0ff', fontSize: '18px' }}>Configurar Botón</h3>
-            
-            <label style={{ fontSize: '12px', color: '#ff99dd', fontWeight: '900', display: 'block', marginBottom: '6px' }}>Texto del Botón</label>
-            <input style={{...neonStyles.input, marginBottom: '16px'}} value={buttonConfig.text} onChange={(e) => setButtonConfig({ ...buttonConfig, text: e.target.value })} placeholder="Ej: Únete Ahora" />
-            
-            <label style={{ fontSize: '12px', color: '#ff99dd', fontWeight: '900', display: 'block', marginBottom: '6px' }}>Enlace (URL)</label>
-            <input style={{...neonStyles.input, marginBottom: '20px'}} value={buttonConfig.url} onChange={(e) => setButtonConfig({ ...buttonConfig, url: e.target.value })} placeholder="https://t.me/..." />
-            
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => { setButtonConfig({ text: '', url: '', style: 'default' }); setShowButtonModal(false); }} style={{ flex: 1, padding: '14px', background: 'transparent', color: '#ff1493', border: '2px solid #ff1493', borderRadius: '14px', fontWeight: '900' }}>BORRAR</button>
-              <button onClick={handleSaveButton} style={{ flex: 1, padding: '14px', background: '#00f0ff', color: '#050214', border: 'none', borderRadius: '14px', fontWeight: '900' }}>GUARDAR</button>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 7, 10, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 100000, backdropFilter: 'blur(8px)' }}>
+          <div style={{ ...modernStyles.card, width: '100%', maxWidth: '360px', borderColor: 'rgba(6,182,212,0.3)', padding: '24px' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontWeight: '900', color: '#06B6D4', fontSize: '16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CONFIGURAR BOTÓN CTA</h3>
+
+            <label style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '800', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Texto Visible</label>
+            <input style={{...modernStyles.input, marginBottom: '20px'}} value={buttonConfig.text} onChange={(e) => setButtonConfig({ ...buttonConfig, text: e.target.value })} placeholder="Ej: Registrarse Ahora" />
+
+            <label style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '800', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Enlace de Redirección (URL)</label>
+            <input style={{...modernStyles.input, marginBottom: '24px'}} value={buttonConfig.url} onChange={(e) => setButtonConfig({ ...buttonConfig, url: e.target.value })} placeholder="https://..." />
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => { setButtonConfig({ text: '', url: '', style: 'default' }); setShowButtonModal(false); }} style={{ flex: 1, padding: '16px', background: 'rgba(255,255,255,0.05)', color: '#F3F4F6', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', fontWeight: '800', fontSize: '13px' }}>DESCARTAR</button>
+              <button onClick={handleSaveButton} style={{ flex: 1, padding: '16px', background: 'linear-gradient(135deg, #06B6D4, #3B82F6)', color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '13px', boxShadow: '0 4px 15px rgba(6,182,212,0.3)' }}>GUARDAR</button>
             </div>
           </div>
         </div>
       )}
 
       {showAddGroupModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 2, 20, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 100000 }}>
-          <div style={{ ...neonStyles.card, width: '100%', maxWidth: '360px', borderColor: '#ff1493' }}>
-            <h3 style={{ margin: '0 0 10px 0', fontWeight: '900', color: '#ff1493', fontSize: '20px' }}>Vender Publicidad</h3>
-            <p style={{ fontSize: '12px', color: '#ff99dd', marginBottom: '20px', lineHeight: '1.4' }}>El Bot debe ser Administrador de tu canal/grupo para poder publicar los anuncios automáticamente.</p>
-            
-            <label style={{ fontSize: '12px', color: '#fff', fontWeight: '900', display: 'block', marginBottom: '6px' }}>Enlace de tu Canal</label>
-            <input style={{...neonStyles.input, borderColor: '#ff1493', marginBottom: '16px'}} value={newGroupUrl} onChange={(e) => setNewGroupUrl(e.target.value)} placeholder="Ej: @MiCanal" />
-            
-            <label style={{ fontSize: '12px', color: '#fff', fontWeight: '900', display: 'block', marginBottom: '6px' }}>¿Cuánto cobrarás en USDT?</label>
-            <input type="number" step="0.1" min="0.5" style={{...neonStyles.input, borderColor: '#00f0ff', marginBottom: '24px'}} value={newGroupPrice} onChange={(e) => setNewGroupPrice(Number(e.target.value))} placeholder="1.0" />
-            
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setShowAddGroupModal(false)} style={{ flex: 1, padding: '14px', background: 'transparent', color: '#ff99dd', border: '2px solid #ff99dd', borderRadius: '14px', fontWeight: '900' }}>CANCELAR</button>
-              <button onClick={handleAddCommunityGroup} disabled={isVerifyingGroup} style={{ flex: 2, padding: '14px', background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#fff', border: 'none', borderRadius: '14px', fontWeight: '900' }}>
-                {isVerifyingGroup ? 'VERIFICANDO...' : 'AÑADIR AL MERCADO'}
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 7, 10, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 100000, backdropFilter: 'blur(8px)' }}>
+          <div style={{ ...modernStyles.card, width: '100%', maxWidth: '360px', borderColor: 'rgba(139, 92, 246, 0.3)', padding: '24px' }}>
+            <h3 style={{ margin: '0 0 12px 0', fontWeight: '900', color: '#8B5CF6', fontSize: '18px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>INTEGRAR RED AL MERCADO</h3>
+            <p style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '24px', lineHeight: '1.5', fontWeight: '500' }}>Para monetizar, el Smart Bot oficial debe tener permisos de Administrador en el destino seleccionado.</p>
+
+            <label style={{ fontSize: '11px', color: '#D1D5DB', fontWeight: '800', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Enlace del Destino</label>
+            <input style={{...modernStyles.input, borderColor: 'rgba(255,255,255,0.1)', marginBottom: '20px'}} value={newGroupUrl} onChange={(e) => setNewGroupUrl(e.target.value)} placeholder="Ej: @MiCanal" />
+
+            <label style={{ fontSize: '11px', color: '#D1D5DB', fontWeight: '800', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>TARIFA POR ANUNCIO (USDT)</label>
+            <input type="number" step="0.1" min="0.5" style={{...modernStyles.input, borderColor: 'rgba(255,255,255,0.1)', marginBottom: '32px'}} value={newGroupPrice} onChange={(e) => setNewGroupPrice(Number(e.target.value))} placeholder="1.0" />
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowAddGroupModal(false)} style={{ flex: 1, padding: '16px', background: 'rgba(255,255,255,0.05)', color: '#F3F4F6', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', fontWeight: '800', fontSize: '13px' }}>CANCELAR</button>
+              <button onClick={handleAddCommunityGroup} disabled={isVerifyingGroup} style={{ flex: 1.5, padding: '16px', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '13px', boxShadow: '0 4px 15px rgba(124, 58, 237, 0.3)' }}>
+                {isVerifyingGroup ? 'ANALIZANDO...' : 'REGISTRAR'}
               </button>
             </div>
           </div>
