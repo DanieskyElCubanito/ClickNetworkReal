@@ -3,7 +3,7 @@ import { neon, TaskIcons } from './AdsStyles';
 
 export default function AdsActivity({ props }) {
   const { tasks, userData, handleToggleStatus, handleOpenEdit, handleDeleteTask, loadingTasks, setView, fetchTasks, t } = props;
-  
+
   const myTasks = tasks.filter(t => t.creator_id === String(userData?.id));
   const getTaskIconType = (task) => task.logo || (task.type === 'publish_group' ? 'channel' : task.type);
 
