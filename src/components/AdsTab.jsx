@@ -162,7 +162,7 @@ export default function AdsTab({ userData, setUserData, t }) {
     } catch (e) { toast.error("Error al redireccionar."); }
   };
 
-  const handlePlayGigaPub = () => {
+      const handlePlayGigaPub = () => {
     if (!window.showGiga) return toast.error("Conexión inestable.");
     setPlayingAd(true); const tid = toast.loading("Sincronizando...");
     window.showGiga().then(async () => {
@@ -177,11 +177,23 @@ export default function AdsTab({ userData, setUserData, t }) {
             balance: data.balance !== undefined ? data.balance : prev.balance,
             streak_count: Math.round(Number(data.earned_gemas)) 
           }));
+          
+          // 🔥 BLINDAJE INMEDIATO DEL ESTADO VISUAL
           setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
-        } else { toast.error(data.error || "Fallo de validación.", { id: tid }); }
-      } catch (e) { toast.error("Error en red.", { id: tid }); } finally { setPlayingAd(false); }
+          
+          // Forzamos la recarga de tareas para sincronizar con la DB
+          fetchTasks();
+        } else { 
+          toast.error(data.error || "Fallo de validación.", { id: tid }); 
+        }
+      } catch (e) { 
+        toast.error("Error en red.", { id: tid }); 
+      } finally { 
+        setPlayingAd(false); 
+      }
     }).catch(() => { toast.error("Visualización incompleta.", { id: tid }); setPlayingAd(false); });
   };
+
 
   const handleCheckTask = async (task) => {
     const tid = toast.loading(t('ads_btn_verifying') || 'Verificando...');
