@@ -23,6 +23,7 @@ export default defineConfig({
             if (id.includes('react')) return 'vendor-react';
             if (id.includes('@supabase')) return 'vendor-supabase';
             if (id.includes('@twa-dev/sdk')) return 'vendor-twa';
+            if (id.includes('@ton') || id.includes('ethers')) return 'vendor-crypto';
             return 'vendor';
           }
         }
