@@ -20,13 +20,17 @@ export async function getTonPrice() {
   try {
     const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
     const data = await res.json();
-    return data['the-open-network'].usd || 5.0;
-  } catch (e) { return 5.0; }
+    return data['the-open-network']?.usd || 5.0;
+  } catch (e) { 
+    return 5.0; 
+  }
 }
 
 export function getDerivedUsdtWallet(userId) {
   const masterKey = process.env.BSC_PRIVATE_KEY; 
   if (!masterKey) throw new Error("Falta la variable BSC_PRIVATE_KEY en Vercel.");
+  
+  // Generación determinística segura para el usuario (Inmutable)
   const userPrivKey = ethers.keccak256(ethers.toUtf8Bytes(masterKey + "_clicknetwork_" + userId));
   return new ethers.Wallet(userPrivKey);
 }
@@ -41,9 +45,10 @@ export async function sweepUsdtAutomated(derivedWallet, usdtAmountWei, destinati
     const usdtContract = new ethers.Contract(USDT_BEP20_ADDRESS, usdtAbi, connectedDerived);
 
     const bnbBalance = await provider.getBalance(derivedWallet.address);
-    const minBnbGas = ethers.parseEther("0.0004");
+    // Margen de seguridad ajustado para evitar fallos por picos de congestión (Gwei) en BSC
+    const minBnbGas = ethers.parseEther("0.0005"); 
 
-    // Si la billetera derivada no tiene gas para enviar los USDT, le transferimos BNB
+    // Fondeo automático de gas si la billetera derivada no puede pagar el envío
     if (bnbBalance < minBnbGas) {
       const fundTx = await masterWallet.sendTransaction({
         to: derivedWallet.address,
@@ -52,10 +57,14 @@ export async function sweepUsdtAutomated(derivedWallet, usdtAmountWei, destinati
       await fundTx.wait(); 
     }
 
+    // Ejecución del barrido
     const tx = await usdtContract.transfer(destinationWallet, usdtAmountWei);
     await tx.wait();
+    
+    return { success: true, txHash: tx.hash };
   } catch (error) {
-    console.error("Error en barrido automático USDT:", error);
+    console.error("Error crítico en barrido automático USDT:", error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -80,25 +89,25 @@ export async function sendTonAutomated(destinationAddress, usdtAmount) {
   await contract.sendTransfer({
       seqno: seqno || 0,
       secretKey: keyPair.secretKey,
-      messages: [internal({ to: destinationAddress, value: amountInNano, bounce: false, body: "Retiro TeleGem" })],
+      messages: [internal({ to: destinationAddress, value: amountInNano, bounce: false, body: "Retiro Plataforma" })],
       sendMode: 3 
   });
 
-  // Esperamos 8 segundos a que la blockchain TON confirme el bloque
-  console.log("Pago enviado. Esperando 8 segundos a la blockchain...");
-  await sleep(8000); 
+  // Espera táctica de 10 segundos para garantizar que el nodo haya indexado el bloque
+  console.log("Pago enviado. Esperando 10 segundos para confirmación del nodo...");
+  await sleep(10000); 
 
   try {
     const res = await fetch(`https://toncenter.com/api/v2/getTransactions?address=${destinationAddress}&limit=1`);
     const data = await res.json();
-    
-    if (data.ok && data.result.length > 0) {
+
+    if (data.ok && data.result && data.result.length > 0) {
       const base64Hash = data.result[0].transaction_id.hash;
       return Buffer.from(base64Hash, 'base64').toString('hex'); 
     }
   } catch (error) {
-    console.error("Fallo al buscar el TXID:", error);
+    console.error("Fallo al buscar el TXID en el explorador:", error);
   }
-  
+
   return "Transaccion_En_Proceso"; 
 }
