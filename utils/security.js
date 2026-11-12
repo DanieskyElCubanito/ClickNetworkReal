@@ -1,14 +1,21 @@
 import crypto from 'crypto';
 
 // 🛡️ 1. CIFRADO AES-256-GCM
-const RAW_KEY = process.env.ENCRYPTION_KEY || 'TeleGemFallbackKey2026NeedsToChangeNow';
-const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest();
+// Sin ENCRYPTION_KEY no se cifra con una clave pública: el cifrado falla y se avisa.
+function getEncryptionKey() {
+  const raw = process.env.ENCRYPTION_KEY;
+  if (!raw || !String(raw).trim()) {
+    throw new Error('ENCRYPTION_KEY no configurada en el servidor.');
+  }
+  return crypto.createHash('sha256').update(String(raw)).digest();
+}
 
 export function encryptText(text) {
   if (!text) return null;
+  const key = getEncryptionKey(); // si falta la clave, lanza error (no se guarda nada en claro ni con clave pública)
   try {
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     let encrypted = cipher.update(String(text), 'utf8', 'hex');
     encrypted += cipher.final('hex');
     const authTag = cipher.getAuthTag().toString('hex');
@@ -22,17 +29,18 @@ export function encryptText(text) {
 export function decryptText(text) {
   if (!text || typeof text !== 'string') return null;
   try {
+    const key = getEncryptionKey();
     const parts = text.split(':');
     if (parts.length !== 3) return null; // Previene fallos de desestructuración
-    
+
     const [ivHex, authTagHex, encryptedHex] = parts;
-    const decipher = crypto.createDecipheriv('aes-256-gcm', ENCRYPTION_KEY, Buffer.from(ivHex, 'hex'));
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivHex, 'hex'));
     decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
     let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
   } catch (e) {
-    console.error('[Seguridad] Fallo en desencriptado. Datos corruptos o llave incorrecta.');
+    console.error('[Seguridad] Fallo en desencriptado. Datos corruptos, llave incorrecta o ENCRYPTION_KEY ausente.');
     return null; // Falla de manera silenciosa para no tumbar la función serverless
   }
 }
