@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-// 🔥 BLINDAJE: Importamos las credenciales y utilidades centralizadas
+// 🔥 BLINDAJE: Importamos las credenciales y utilidades centralizadas (con 'import' en minúscula)
 import { BOT_TOKEN, MAIN_ADMIN_ID, checkMembership, extractTelegramUsername, notifyUser } from '../utils/telegram.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -28,14 +28,20 @@ async function checkMessage(chatId, messageId) {
     return { state: 'error', error: desc };
 }
 
-// 🔥 INYECTADO: La auditoría que sacamos de auth.js ahora corre en segundo plano
+// 🔥 INYECTADO: Auditoría de permanencia optimizada en segundo plano
 async function runRetentionAudit() {
     let penalties = 0;
     try {
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: recentTasks } = await supabase.from('user_completed_tasks').select('task_id, user_id, created_at, tasks!inner(type, url, reward, title)').gte('created_at', yesterday);
+      // Limitamos a un lote de 100 para evitar agotar los límites de la API de Telegram en una sola ejecución del Cron
+      const { data: recentTasks } = await supabase
+          .from('user_completed_tasks')
+          .select('task_id, user_id, created_at, tasks!inner(type, url, reward, title)')
+          .gte('created_at', yesterday)
+          .limit(100);
+
       if (!recentTasks || recentTasks.length === 0) return penalties;
-  
+
       for (const item of recentTasks) {
         const t = item.tasks;
         if (t && (t.type === 'group' || t.type === 'channel' || t.type === 'partner' || t.type === 'daily_channel')) {
@@ -49,7 +55,7 @@ async function runRetentionAudit() {
                 const { data: updated } = await supabase.from('users')
                     .update({ balance: newBal, total_earnings: Math.max(0, Number(pUser.total_earnings) - penaltyAmount) })
                     .eq('id', item.user_id).eq('balance', pUser.balance).select('id');
-                
+
                 if (updated && updated.length > 0) {
                    await supabase.from('user_completed_tasks').delete().eq('task_id', item.task_id).eq('user_id', item.user_id);
                    await supabase.from('history_logs').insert([{ user_id: item.user_id, title: '⚠️ Penalidad de Permanencia', description: `Sanción por abandono prematuro: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, amount: -penaltyAmount }]);
@@ -79,7 +85,7 @@ export default async function handler(req, res) {
         .select('*')
         .eq('status', 'active')
         .lte('end_time', new Date().toISOString());
-        
+
     if (error) return res.status(500).json({ success: false, error: `Fallo BD (contratos): ${error.message}` });
     if (!expired || expired.length === 0) return res.status(200).json({ success: true, message: 'No hay contratos por procesar.', penaltiesApplied });
 
@@ -108,7 +114,8 @@ export default async function handler(req, res) {
                 if (sErr) throw new Error(`pagar: ${sErr.message}`);
                 processed++;
             } else {
-                const refund = Number((Number(c.price) * 1.2).toFixed(4));
+                // 🔥 CORREGIDO: Reembolso exacto sin el 1.2 inventado (evita creación de dinero de la nada)
+                const refund = Number(Number(c.price).toFixed(4));
                 const { error: rErr } = await supabase.rpc('refund_ad_contract', {
                     p_id: String(c.id),
                     p_advertiser_id: String(c.advertiser_id),
