@@ -4,7 +4,12 @@
 export const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 export const BOT_ID = BOT_TOKEN.split(':')[0];
 
-// 🔥 CENTRALIZACIÓN DE COMANDO: Si en el futuro agregas a otro admin, solo lo pones aquí.
+// 🔥 FAIL-FAST: Previene caídas silenciosas si falta el token en Vercel
+if (!BOT_TOKEN) {
+    console.error("🚨 CRÍTICO: Falta la variable TELEGRAM_BOT_TOKEN en el entorno.");
+}
+
+// 🔥 CENTRALIZACIÓN DE COMANDO
 export const ADMIN_IDS = ['8968109534', '8892196101'];
 export const MAIN_ADMIN_ID = '8968109534'; 
 
@@ -22,6 +27,7 @@ export async function fetchWithTimeout(url, options = {}, timeout = 5000) {
 }
 
 export function extractTelegramUsername(url) {
+  if (!url || typeof url !== 'string') return null; // Null-Safety táctico
   let val = url.trim();
   if (val.startsWith('@')) return val;
   const match = val.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]+)/i);
@@ -59,7 +65,7 @@ export async function checkMembership(userId, chatId) {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${chatId}&user_id=${userId}`;
     const response = await fetchWithTimeout(url);
     const resData = await response.json();
-    if (!resData.ok) return true; // Si falla Telegram, no penalizamos
+    if (!resData.ok) return true; // Si falla Telegram, no penalizamos al usuario
     if (['left', 'kicked'].includes(resData.result.status)) return false; 
     return true; 
   } catch (error) { return true; }
@@ -92,5 +98,7 @@ export async function checkAdminStatusDetailed(chatId) {
     const status = resData.result.status;
     if (['administrator', 'creator'].includes(status)) return { isAdmin: true };
     return { isAdmin: false, error: `⚠️ Comando denegado: El bot requiere permisos de Administrador.` };
-  } catch (error) { return { isAdmin: false, error: '📡 Interferencia en el nodo de red.' }; }
+  } catch (error) { 
+      return { isAdmin: false, error: '📡 Interferencia en el nodo de red de Telegram.' }; 
+  }
 }
