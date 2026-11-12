@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     const urlParams = new URLSearchParams(telegramInitData);
     const authDate = Number(urlParams.get('auth_date') || 0);
     const currentTime = Math.floor(Date.now() / 1000);
-    
+
     // Caducidad de sesión (3 horas)
     if (currentTime - authDate > 10800) {
       return res.status(403).json({ success: false, error: 'Sesión expirada por seguridad. Cierra la app y vuelve a abrirla.' });
@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     // Identidad: SOLO el usuario de initData firmada por Telegram.
     let verifiedUser = null;
     try { verifiedUser = JSON.parse(urlParams.get('user') || 'null'); } catch { verifiedUser = null; }
-    
+
     const verifiedUserId = String(verifiedUser?.id || '').trim();
     if (!verifiedUserId) {
       return res.status(403).json({ success: false, error: 'No se pudo identificar tu cuenta de Telegram.' });
@@ -62,9 +62,6 @@ export default async function handler(req, res) {
       username: verifiedUser?.username ? String(verifiedUser.username).trim() : '',
       deviceId: user?.deviceId ? String(user.deviceId).trim() : 'unknown_device'
     };
-
-    // 🔥 BLINDAJE 2: Eliminamos el baneo masivo por IP compartida (evita suspender cuentas inocentes por CGNAT en redes móviles).
-    // Mantenemos solo el registro de la última IP para auditoría y control de velocidad con checkRateLimit.
 
     if (action === 'verify' && !authUser.username) {
       return res.status(403).json({ success: false, error: 'Debes configurar un @NombreDeUsuario en Telegram para usar la plataforma.' });
