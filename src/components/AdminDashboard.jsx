@@ -25,7 +25,7 @@ const neon = {
   label: { fontSize: '10px', color: '#ff99dd', fontWeight: '900', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }
 };
 
-export default function AdminDashboard({ userData }) {
+export default function AdminDashboard() {
   const [stats, setStats] = useState({ users: 0, tasks: 0 });
   const [searchId, setSearchId] = useState('');
   const [foundUser, setFoundUser] = useState(null);
@@ -45,15 +45,13 @@ export default function AdminDashboard({ userData }) {
       ref_percent: 10, 
       ref_bonus_gemas: 5,
       mandatory_channel_1: '',
-      mandatory_channel_2: ''
+      mandatory_channel_2: '',
+      payment_channel_id: ''
   });
-  
+
   const [minWithdrawalGemas, setMinWithdrawalGemas] = useState('');
-  
-  // ESTADOS DE REFERIDOS
   const [refPercent, setRefPercent] = useState('10');
   const [refBonusGemas, setRefBonusGemas] = useState('5');
-  
   const [savingConfig, setSavingConfig] = useState(false);
 
   const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
@@ -89,24 +87,24 @@ export default function AdminDashboard({ userData }) {
 
   const loadStats = async () => {
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-stats', adminId: userData.id }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-stats' }) });
       const data = await res.json();
       if (data.success) setStats(data.stats);
-    } catch (e) {}
+    } catch {}
   };
 
   const loadAllTasks = async () => {
     setLoadingTasks(true);
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-all-tasks', adminId: userData.id }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-all-tasks' }) });
       const data = await res.json();
       if (data.success) setAllTasks(data.tasks || []);
-    } catch (e) {} finally { setLoadingTasks(false); }
+    } catch {} finally { setLoadingTasks(false); }
   };
 
   const loadSysConfig = async () => {
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-config', adminId: userData.id }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-config' }) });
       const data = await res.json();
       if (data.success && data.config) {
         setSysConfig(data.config);
@@ -114,23 +112,23 @@ export default function AdminDashboard({ userData }) {
         setRefPercent(String(data.config.ref_percent || 10));
         setRefBonusGemas(String(data.config.ref_bonus_gemas || 5));
       }
-    } catch (e) {}
+    } catch {}
   };
 
   const loadPendingWithdrawals = async () => {
     setLoadingWithdrawals(true);
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-withdrawals', adminId: userData.id }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-withdrawals' }) });
       const data = await res.json();
       if (data.success) setPendingWithdrawals(data.withdrawals || []);
-    } catch (e) {} finally { setLoadingWithdrawals(false); }
+    } catch {} finally { setLoadingWithdrawals(false); }
   };
 
   const handleApproveWithdrawal = async (withdrawalId) => {
     if (!window.confirm("¿Confirmas la liquidación de estos activos hacia la billetera del usuario?")) return;
     const tid = toast.loading("Autorizando extracción...");
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-approve-withdrawal', adminId: userData.id, withdrawalId }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-approve-withdrawal', withdrawalId }) });
       const data = await res.json();
       if (data.success) { toast.success("Extracción autorizada y procesada", { id: tid }); loadPendingWithdrawals(); } 
       else throw new Error(data.error);
@@ -142,7 +140,7 @@ export default function AdminDashboard({ userData }) {
     if (reason === null) return; 
     const tid = toast.loading("Aplicando retención...");
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-reject-withdrawal', adminId: userData.id, withdrawalId, reason }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-reject-withdrawal', withdrawalId, reason }) });
       const data = await res.json();
       if (data.success) { toast.success("Extracción denegada. Fondos reembolsados.", { id: tid }); loadPendingWithdrawals(); } 
       else throw new Error(data.error);
@@ -152,7 +150,7 @@ export default function AdminDashboard({ userData }) {
   const handleSaveConfig = async () => {
     if (!minWithdrawalGemas || Number(minWithdrawalGemas) <= 0) return toast.error("Ingresa un mínimo de retiro válido.");
     const usdtMin = Number(minWithdrawalGemas) / 1000;
-    
+
     const tid = toast.loading("Asegurando coordenadas maestras...");
     setSavingConfig(true);
     try {
@@ -161,7 +159,6 @@ export default function AdminDashboard({ userData }) {
         headers: apiHeaders, 
         body: JSON.stringify({ 
           action: 'admin-update-config', 
-          adminId: userData.id, 
           config: { 
               ...sysConfig, 
               min_withdrawal: usdtMin,
@@ -181,7 +178,7 @@ export default function AdminDashboard({ userData }) {
     if (!window.confirm("¿Seguro que deseas purgar esta misión del radar? El capital restante volverá a la bóveda del creador.")) return;
     const tid = toast.loading("Ejecutando eliminación táctica...");
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'delete-task', taskId: taskId, requestingUserId: userData.id, isAdminAction: true }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'delete-task', taskId: taskId, isAdminAction: true }) });
       const data = await res.json();
       if (data.success) { toast.success("Misión eliminada permanentemente", { id: tid }); loadAllTasks(); loadStats(); } 
       else throw new Error(data.error);
@@ -192,7 +189,7 @@ export default function AdminDashboard({ userData }) {
     if (!searchId) return toast.error("Introduce un ID de jugador");
     const tid = toast.loading("Rastreando jugador...");
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-search-user', adminId: userData.id, targetId: searchId }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-search-user', targetId: searchId }) });
       const data = await res.json();
       if (data.success && data.user) {
         setFoundUser(data.user);
@@ -200,33 +197,33 @@ export default function AdminDashboard({ userData }) {
         setNewDepositBalance(data.user.deposit_balance ?? 0);
         toast.success("Jugador localizado en la base de datos", { id: tid });
       } else { toast.error("Jugador no encontrado", { id: tid }); setFoundUser(null); }
-    } catch (e) { toast.error("Error en la red de búsqueda", { id: tid }); }
+    } catch { toast.error("Error en la red de búsqueda", { id: tid }); }
   };
 
   const handleUpdateBalance = async () => {
     if (!foundUser) return;
     const tid = toast.loading("Alterando inventario de gemas...");
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { balance: Number(newBalance) } }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', targetId: foundUser.id, update: { balance: Number(newBalance) } }) });
       const data = await res.json();
       if (data.success) { 
         toast.success("Inventario de Gemas actualizado", { id: tid }); 
         setFoundUser(prev => ({ ...prev, balance: Number(newBalance) })); 
       } else throw new Error();
-    } catch (e) { toast.error("Error en la alteración", { id: tid }); }
+    } catch { toast.error("Error en la alteración", { id: tid }); }
   };
 
   const handleUpdateDepositBalance = async () => {
     if (!foundUser) return;
     const tid = toast.loading("Actualizando Bóveda Táctica...");
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { deposit_balance: Number(newDepositBalance) } }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', targetId: foundUser.id, update: { deposit_balance: Number(newDepositBalance) } }) });
       const data = await res.json();
       if (data.success) { 
         toast.success("Bóveda USDT actualizada", { id: tid }); 
         setFoundUser(prev => ({ ...prev, deposit_balance: Number(newDepositBalance) })); 
       } else throw new Error();
-    } catch (e) { toast.error("Error al inyectar fondos", { id: tid }); }
+    } catch { toast.error("Error al inyectar fondos", { id: tid }); }
   };
 
   const handleSendSorteo = async () => {
@@ -239,7 +236,6 @@ export default function AdminDashboard({ userData }) {
         method: 'POST', headers: apiHeaders, 
         body: JSON.stringify({ 
           action: 'admin-send-sorteo', 
-          adminId: userData.id, 
           targetId: foundUser.id, 
           amount: Number(sorteoAmount) 
         }) 
@@ -260,11 +256,11 @@ export default function AdminDashboard({ userData }) {
     const isBanning = !foundUser.is_banned;
     const tid = toast.loading(isBanning ? "Aplicando sanción disciplinaria..." : "Levantando sanción...");
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', adminId: userData.id, targetId: foundUser.id, update: { is_banned: isBanning } }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', targetId: foundUser.id, update: { is_banned: isBanning } }) });
       const data = await res.json();
       if (data.success) { toast.success(isBanning ? "Jugador expulsado de la red" : "Jugador restaurado en el sistema", { id: tid }); setFoundUser(prev => ({ ...prev, is_banned: isBanning })); } 
       else throw new Error();
-    } catch (e) { toast.error("Fallo de comando", { id: tid }); }
+    } catch { toast.error("Fallo de comando", { id: tid }); }
   };
 
   const loadActiveEvent = async () => {
@@ -274,16 +270,16 @@ export default function AdminDashboard({ userData }) {
       const data = await res.json();
       if (data.success && data.activeEvent) setActiveEvent(data.activeEvent);
       else setActiveEvent(null);
-    } catch (e) {} finally { setLoadingEvent(false); }
+    } catch {} finally { setLoadingEvent(false); }
   };
 
   const loadPastEvents = async () => {
     setLoadingPast(true);
     try {
-      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-past-events', adminId: userData.id }) });
+      const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-get-past-events' }) });
       const data = await res.json();
       if (data.success) setPastEvents(data.pastEvents || []);
-    } catch (e) {} finally { setLoadingPast(false); }
+    } catch {} finally { setLoadingPast(false); }
   };
 
   const handleCreateEvent = async () => {
@@ -296,7 +292,7 @@ export default function AdminDashboard({ userData }) {
 
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'admin-create-event', adminId: userData.id, title: eventTitle, event_type: eventType, start_date: startDate, end_date: endDate.toISOString(), prizes: [prize1, prize2, prize3] })
+        body: JSON.stringify({ action: 'admin-create-event', title: eventTitle, event_type: eventType, start_date: startDate, end_date: endDate.toISOString(), prizes: [prize1, prize2, prize3] })
       });
       const data = await res.json();
       if (data.success) { toast.success("¡Temporada clasificatoria activada!", { id: tid }); loadActiveEvent(); } 
@@ -313,7 +309,7 @@ export default function AdminDashboard({ userData }) {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ action: 'admin-manage-event', adminId: userData.id, eventId: String(activeEvent.id), newStatus })
+        body: JSON.stringify({ action: 'admin-manage-event', eventId: String(activeEvent.id), newStatus })
       });
       const data = await res.json();
       if (data.success) { toast.success("Temporada actualizada con éxito", { id: tid }); loadActiveEvent(); loadPastEvents(); } 
@@ -338,7 +334,6 @@ export default function AdminDashboard({ userData }) {
         method: 'POST', headers: apiHeaders,
         body: JSON.stringify({ 
           action: 'admin-create-master-task', 
-          adminId: userData.id, 
           title: masterTaskTitle, 
           url: masterTaskUrl, 
           type: masterTaskType, 
@@ -346,7 +341,7 @@ export default function AdminDashboard({ userData }) {
         })
       });
       const data = await res.json();
-      
+
       if (data.success) {
         toast.success(`¡Misión ${masterTaskType.toUpperCase()} activada!`, { id: tid });
         setMasterTaskTitle('');
@@ -546,7 +541,7 @@ export default function AdminDashboard({ userData }) {
         )}
       </div>
 
-            {/* CONFIGURACIÓN DE SISTEMA */}
+      {/* CONFIGURACIÓN DE SISTEMA */}
       <div style={{ ...neon.card, borderColor: '#ff41b4' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff99dd', display: 'flex', alignItems: 'center', gap: '6px' }}>
           {Icons.wallet} Configuración del Sistema
@@ -589,7 +584,7 @@ export default function AdminDashboard({ userData }) {
               />
            </div>
         </div>
-        
+
         <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '20px', textAlign: 'center' }}>
           * El bono único se paga automáticamente cuando el recluta alcanza sus primeras 5 Gemas.
         </div>
@@ -617,7 +612,7 @@ export default function AdminDashboard({ userData }) {
             <div style={{ fontSize: '10px', color: '#aaa', marginTop: '6px' }}>Si dejas el campo vacío, no se exigirá ese canal. Recuerda que el bot debe ser admin en esos canales para leer los miembros.</div>
         </div>
 
-        {/* 🔥 NUEVO: CANAL DE PAGOS */}
+        {/* CANAL DE PAGOS */}
         <span style={neon.label}>Canal de Notificaciones de Pago (ID o @Username)</span>
         <input 
           type="text" 
@@ -654,7 +649,6 @@ export default function AdminDashboard({ userData }) {
           {savingConfig ? 'Sincronizando...' : 'GUARDAR CONFIGURACIÓN'}
         </button>
       </div>
-
 
       {/* BUSCADOR DE USUARIOS Y SORTEOS */}
       <div style={neon.card}>
