@@ -4,29 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
-    <!-- Evita parpadeos blancos en la barra de estado del celular -->
-    <meta name="theme-color" content="#0a0314" />
+    <!-- Sincronización nativa con la barra de estado del móvil (Dark Glassmorphism) -->
+    <meta name="theme-color" content="#050505" />
 
-    <title>Red Neón ⚡</title>
+    <title>TeleGem Web3</title>
 
     <!-- 1. Telegram Web App SDK (Carga prioritaria) -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <!-- 2. Cloudflare Turnstile -->
+    <!-- 2. Cloudflare Turnstile (Seguridad Anti-Bot) -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
-    <!-- 3. Monetización Giga Pub (Cuenta nueva sin auto-popups) -->
+    <!-- 3. Monetización Giga Pub -->
     <script src="https://ad.gigapub.tech/script?id=8567"></script>
 
     <style>
-      /* FONDO NEÓN Y SCROLL DESBLOQUEADO */
+      /* FONDO OBSIDIANA Y SCROLL NATIVO */
       body, html {
         margin: 0;
         padding: 0;
         height: 100%;
-        background-color: #0a0314;
-        color: #ffffff;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: #050505;
+        color: #F3F4F6;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
         /* Bloqueamos el rebote nativo de iOS/Android pero PERMITIMOS el deslizamiento táctil */
         overflow: hidden; 
@@ -37,7 +37,7 @@
         height: 100%;
       }
 
-      /* Pantalla de carga inicial (Antes de que React despierte) */
+      /* Pantalla de carga inicial (Antes de que el DOM virtual de React despierte) */
       #fallback-loader {
         display: flex;
         flex-direction: column;
@@ -49,20 +49,20 @@
         top: 0;
         left: 0;
         z-index: 9999;
-        background-color: #0a0314;
-        background-image: radial-gradient(circle at center, #260b3f 0%, #0a0314 85%);
+        background-color: #050505;
+        background-image: radial-gradient(circle at center, #111827 0%, #050505 85%);
       }
 
-      /* Círculo de carga con brillo Neón */
+      /* Círculo de carga con brillo Web3 */
       .spinner {
-        width: 50px;
-        height: 50px;
-        border: 4px solid rgba(255, 65, 180, 0.2);
-        border-top-color: #00f0ff;
-        border-right-color: #ff1493;
+        width: 56px;
+        height: 56px;
+        border: 4px solid rgba(6, 182, 212, 0.1);
+        border-top-color: #06B6D4;
+        border-right-color: #3B82F6;
         border-radius: 50%;
-        animation: spin 0.9s linear infinite;
-        box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
       }
 
       @keyframes spin {
@@ -84,7 +84,7 @@
     <div id="root">
       <div id="fallback-loader">
         <div class="spinner"></div>
-        <p style="margin-top: 20px; font-size: 14px; font-weight: 900; color: #ff66cc; letter-spacing: 1px;">CARGANDO Click Network...</p>
+        <p style="margin-top: 24px; font-size: 13px; font-weight: 800; color: #06B6D4; letter-spacing: 1px; text-transform: uppercase;">SINCRONIZANDO SISTEMA...</p>
       </div>
     </div>
     <script type="module" src="/src/main.jsx"></script>
