@@ -1,98 +1,101 @@
 import WebApp from '@twa-dev/sdk';
 import toast, { Toaster } from 'react-hot-toast';
 
-const neonJoin = {
+const modernJoin = {
   wrapper: {
     minHeight: '100vh',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0314',
-    backgroundImage: 'radial-gradient(circle at center, #2b0b47 0%, #0a0314 85%)',
+    backgroundColor: '#050505',
+    backgroundImage: 'radial-gradient(circle at center, #111827 0%, #000000 100%)',
     padding: '24px',
     boxSizing: 'border-box',
-    color: '#ffffff',
+    color: '#F3F4F6',
     textAlign: 'center'
   },
   icon: {
     fontSize: '56px',
     marginBottom: '16px',
-    filter: 'drop-shadow(0 0 20px rgba(0, 240, 255, 0.5))'
+    filter: 'drop-shadow(0 4px 15px rgba(6, 182, 212, 0.4))'
   },
   title: {
     fontSize: '26px',
     fontWeight: '900',
-    color: '#00f0ff',
+    color: '#06B6D4',
     textTransform: 'uppercase',
-    margin: '0 0 10px 0',
-    textShadow: '0 0 15px rgba(0, 240, 255, 0.5)'
+    margin: '0 0 12px 0',
+    letterSpacing: '1px'
   },
   subtitle: {
-    fontSize: '14px',
-    color: '#ff99dd',
-    lineHeight: '1.5',
+    fontSize: '13px',
+    color: '#9CA3AF',
+    lineHeight: '1.6',
     marginBottom: '32px',
-    fontWeight: 'bold',
+    fontWeight: '600',
     maxWidth: '340px'
   },
   card: {
-    background: 'linear-gradient(135deg, rgba(38, 14, 66, 0.9), rgba(18, 7, 36, 0.9))',
-    border: '2px solid #8a2be2',
+    background: 'rgba(255, 255, 255, 0.02)',
+    border: '1px solid rgba(255, 255, 255, 0.05)',
     borderRadius: '20px',
     padding: '20px',
     width: '100%',
     maxWidth: '360px',
     marginBottom: '16px',
-    boxShadow: '0 4px 15px rgba(138, 43, 226, 0.3)'
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+    backdropFilter: 'blur(10px)'
   },
   btnJoin: {
     width: '100%',
-    background: 'linear-gradient(90deg, #ff1493, #d80073)',
-    color: '#ffffff',
-    border: 'none',
+    background: 'rgba(6, 182, 212, 0.1)',
+    color: '#06B6D4',
+    border: '1px solid #06B6D4',
     borderRadius: '14px',
     padding: '14px',
     fontSize: '13px',
-    fontWeight: '900',
+    fontWeight: '800',
     cursor: 'pointer',
-    boxShadow: '0 4px 15px rgba(255, 20, 147, 0.4)',
+    boxShadow: '0 4px 15px rgba(6, 182, 212, 0.2)',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px'
+    letterSpacing: '0.5px',
+    transition: 'all 0.2s ease'
   },
   btnVerify: {
     width: '100%',
     maxWidth: '360px',
-    background: 'linear-gradient(180deg, #00f0ff 0%, #0099ff 100%)',
-    color: '#050214',
+    background: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
+    color: '#ffffff',
     border: 'none',
-    borderRadius: '18px',
+    borderRadius: '16px',
     padding: '16px',
     fontSize: '15px',
     fontWeight: '900',
     marginTop: '24px',
     cursor: 'pointer',
-    boxShadow: '0 6px 0 #0066aa, 0 10px 20px rgba(0, 240, 255, 0.4)',
+    boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px'
+    letterSpacing: '1px',
+    transition: 'transform 0.2s ease'
   }
 };
 
-export default function ChannelJoin({ channelStatus, setChannelStatus, userData, setMustJoin }) {
+export default function ChannelJoin({ channelStatus, setChannelStatus, setMustJoin }) {
 
   const handleCheckChannels = async () => {
-    const tid = toast.loading("Escaneando accesos en la blockchain...");
+    const tid = toast.loading("Verificando accesos en la red...");
     try {
       const res = await fetch('/api', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' },
-        body: JSON.stringify({ action: 'verify-channels', userId: userData.id })
+        body: JSON.stringify({ action: 'verify-channels' }) // ID extraído en el backend vía HMAC
       });
       const data = await res.json();
-      
+
       if (data.allJoined) {
         setMustJoin(false);
-        toast.success("¡Acceso Concedido! Bienvenido a la red.", { id: tid });
+        toast.success("¡Acceso Concedido! Bienvenido a la plataforma.", { id: tid });
       } else {
         setChannelStatus({ 
            c1: data.channel1, 
@@ -103,70 +106,70 @@ export default function ChannelJoin({ channelStatus, setChannelStatus, userData,
         toast.error("Aún faltan canales por unirte. Revisa la lista.", { id: tid });
       }
     } catch (e) {
-      toast.error("Error de comunicación. Intenta de nuevo.", { id: tid });
+      toast.error("Error de conexión. Intenta de nuevo.", { id: tid });
     }
   };
 
   return (
-    <div className="fade-in" style={neonJoin.wrapper}>
+    <div className="fade-in" style={modernJoin.wrapper}>
 
       <Toaster 
         position="top-center" 
         toastOptions={{
           style: {
-            background: '#1d0833',
-            color: '#fff',
-            border: '2px solid #00f0ff',
-            boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)',
-            fontWeight: '800',
+            background: '#111827',
+            color: '#F3F4F6',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)',
+            fontWeight: '600',
             fontSize: '13px'
           }
         }} 
       />
 
-      <div style={neonJoin.icon}>🛡️</div>
-      <h2 style={neonJoin.title}>Acceso Restringido</h2>
-      <p style={neonJoin.subtitle}>
-        Para activar tu cuenta y comenzar a generar tráfico, debes ser miembro de nuestras comunidades oficiales.
+      <div style={modernJoin.icon}>🛡️</div>
+      <h2 style={modernJoin.title}>Acceso Restringido</h2>
+      <p style={modernJoin.subtitle}>
+        Para activar tu cuenta y acceder a las misiones, debes ser miembro de nuestras comunidades estratégicas oficiales.
       </p>
 
-      {/* TARJETA DEL CANAL 1 (Solo se muestra si hay URL y NO está unido) */}
+      {/* TARJETA DEL CANAL 1 */}
       {(channelStatus.c1_url && !channelStatus.c1) && (
-        <div style={neonJoin.card}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
-            <span style={{ fontSize: '20px' }}>📢</span>
-            <p style={{ margin: 0, fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>Comunidad Primaria</p>
+        <div style={modernJoin.card}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '14px' }}>
+            <span style={{ fontSize: '22px' }}>📢</span>
+            <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#F9FAFB', letterSpacing: '0.5px' }}>Red Primaria</p>
           </div>
           <button 
-            style={neonJoin.btnJoin} 
+            style={modernJoin.btnJoin} 
             onClick={() => WebApp.openTelegramLink(channelStatus.c1_url)}
           >
-            Únete al Canal 1 ➔
+            INGRESAR AL CANAL ➔
           </button>
         </div>
       )}
 
-      {/* TARJETA DEL CANAL 2 (Solo se muestra si hay URL y NO está unido) */}
+      {/* TARJETA DEL CANAL 2 */}
       {(channelStatus.c2_url && !channelStatus.c2) && (
-        <div style={neonJoin.card}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
-            <span style={{ fontSize: '20px' }}>💎</span>
-            <p style={{ margin: 0, fontWeight: '900', fontSize: '15px', color: '#ffffff' }}>Red Estratégica</p>
+        <div style={modernJoin.card}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '14px' }}>
+            <span style={{ fontSize: '22px' }}>💎</span>
+            <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#F9FAFB', letterSpacing: '0.5px' }}>Alianza Estratégica</p>
           </div>
           <button 
-            style={neonJoin.btnJoin} 
+            style={modernJoin.btnJoin} 
             onClick={() => WebApp.openTelegramLink(channelStatus.c2_url)}
           >
-            Únete al Canal 2 ➔
+            INGRESAR AL CANAL ➔
           </button>
         </div>
       )}
 
       <button 
-        style={neonJoin.btnVerify} 
+        style={modernJoin.btnVerify} 
         onClick={handleCheckChannels}
       >
-        🔄 YA ME UNÍ, VERIFICAR
+        🔄 YA ME UNÍ, CONTINUAR
       </button>
 
     </div>
