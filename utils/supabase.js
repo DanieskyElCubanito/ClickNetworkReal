@@ -4,11 +4,16 @@ import WebSocket from 'ws';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// 🔥 BLINDAJE: Validación temprana para evitar caídas silenciosas del servidor
+if (!supabaseUrl || !supabaseKey) {
+    console.error("🚨 CRÍTICO: Faltan las credenciales maestras de Supabase (URL o SERVICE_ROLE_KEY) en las variables de entorno.");
+}
+
 export const supabase = createClient(
   supabaseUrl,
   supabaseKey,
   { 
-    auth: { persistSession: false }, 
+    auth: { persistSession: false }, // Evita fugas de memoria en entornos Serverless
     realtime: { transport: WebSocket }, 
     global: { WebSocket: WebSocket } 
   }
