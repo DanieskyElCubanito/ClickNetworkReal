@@ -5,30 +5,42 @@ const RAW_KEY = process.env.ENCRYPTION_KEY || 'TeleGemFallbackKey2026NeedsToChan
 const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest();
 
 export function encryptText(text) {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const authTag = cipher.getAuthTag().toString('hex');
-  return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+  if (!text) return null;
+  try {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
+    let encrypted = cipher.update(String(text), 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag().toString('hex');
+    return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+  } catch (error) {
+    console.error('[Seguridad] Error al encriptar:', error.message);
+    return null;
+  }
 }
 
 export function decryptText(text) {
+  if (!text || typeof text !== 'string') return null;
   try {
-    const [ivHex, authTagHex, encryptedHex] = text.split(':');
+    const parts = text.split(':');
+    if (parts.length !== 3) return null; // Previene fallos de desestructuración
+    
+    const [ivHex, authTagHex, encryptedHex] = parts;
     const decipher = crypto.createDecipheriv('aes-256-gcm', ENCRYPTION_KEY, Buffer.from(ivHex, 'hex'));
     decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
     let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
   } catch (e) {
-    throw new Error('Fallo en desencriptado. Llave incorrecta o datos corruptos.');
+    console.error('[Seguridad] Fallo en desencriptado. Datos corruptos o llave incorrecta.');
+    return null; // Falla de manera silenciosa para no tumbar la función serverless
   }
 }
 
 // 🛡️ 2. RATE LIMITING (en memoria, por instancia)
 const rateLimitMap = new Map();
 export function checkRateLimit(ip) {
+  if (!ip) return true;
   const now = Date.now();
   if (!rateLimitMap.has(ip)) {
     rateLimitMap.set(ip, { count: 1, firstRequest: now });
@@ -54,7 +66,7 @@ export function verifyTelegramUser(telegramInitData) {
   const hash = params.get('hash');
   const authDate = params.get('auth_date');
 
-  // Sin hash válido o sin auth_date: se rechaza (antes se aceptaba sin auth_date)
+  // Sin hash válido o sin auth_date: se rechaza
   if (!hash || !/^[0-9a-f]{64}$/i.test(hash)) return null;
   if (!authDate || !/^\d+$/.test(authDate)) return null;
 
@@ -71,10 +83,9 @@ export function verifyTelegramUser(telegramInitData) {
   const calc = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest();
   const given = Buffer.from(hash, 'hex');
 
-  // Comparación en tiempo constante (antes era ===)
+  // Comparación en tiempo constante
   if (given.length !== calc.length || !crypto.timingSafeEqual(calc, given)) return null;
 
-  // El id sale de los datos YA firmados, no del cuerpo de la petición
   let user;
   try {
     user = JSON.parse(params.get('user') || 'null');
@@ -86,13 +97,13 @@ export function verifyTelegramUser(telegramInitData) {
   return { id: String(user.id), user };
 }
 
-// Compatibilidad: true/false como antes (ahora también exige auth_date y compara en tiempo constante)
 export function verifyTelegramWebAppData(telegramInitData) {
   return verifyTelegramUser(telegramInitData) !== null;
 }
 
 // 🛡️ 4. HERRAMIENTAS DE PARSEO
 export function extractTelegramUsername(url) {
+  if (!url || typeof url !== 'string') return null; // Null-Safety
   let val = url.trim();
   if (val.startsWith('@')) return val;
   const match = val.match(/(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]+)/i);
