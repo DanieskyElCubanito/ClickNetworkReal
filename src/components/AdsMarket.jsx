@@ -37,7 +37,11 @@ export default function AdsMarket({ props }) {
   };
 
   const streakCount = userData?.streak_count || 1; 
-  const gigaClaimed = taskStatus['gigapub_daily'] === 'completed';
+
+  // 🔥 BLINDAJE VISUAL INSTANTÁNEO: Comprobamos el estado global y el LocalStorage por fecha
+  const todayKey = userData?.id ? `gigapub_claimed_${new Date().toISOString().slice(0, 10)}_${userData.id}` : '';
+  const localClaimed = todayKey ? localStorage.getItem(todayKey) === 'true' : false;
+  const gigaClaimed = taskStatus['gigapub_daily'] === 'completed' || localClaimed;
 
   const renderTaskItem = (task) => {
     const iconType = getTaskIconType(task);
