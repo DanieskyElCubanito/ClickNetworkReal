@@ -47,7 +47,14 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
             };
         }
 
-        // 2. Verificación Cloudflare Turnstile (Fail-Closed si REQUIRE_TURNSTILE=true o si el cliente envía token)
+        // 2. Verificación Cloudflare Turnstile
+        // Fail-closed: en producción, sin TURNSTILE_SECRET_KEY el login se rechaza con error de configuración.
+        const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+        if (isProduction && !process.env.TURNSTILE_SECRET_KEY) {
+            console.error('[Turnstile] TURNSTILE_SECRET_KEY no configurada en producción.');
+            return { status: 500, body: { success: false, error: 'Configuración de seguridad incompleta (Turnstile).' } };
+        }
+
         const requireTurnstile = process.env.REQUIRE_TURNSTILE === 'true';
         if (requireTurnstile || turnstileToken) {
             if (!process.env.TURNSTILE_SECRET_KEY) {
@@ -175,13 +182,19 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
             return { status: 400, body: { success: false, error: result?.error || 'No se pudo reclamar el bono.' } };
         }
 
-        // earned_gemas ya viene en Gemas (1 a 7) desde PostgreSQL
+        // Gemas ganadas hoy (1 a 7). Son la recompensa, NO el día de la racha.
         const gemasGanadas = Number(result.earned_gemas ?? result.earned ?? 1);
+
+        // Día de la racha que devuelve la función. Solo se acepta un entero de 1 a 7.
+        const rawDay = Number(result.streak_day ?? result.day);
+        const streakDay = Number.isInteger(rawDay) && rawDay >= 1 && rawDay <= 7 ? rawDay : null;
+
         return {
             status: 200,
             body: {
                 success: true,
                 earned_gemas: gemasGanadas.toFixed(2),
+                streak_day: streakDay,
                 balance: result.balance
             }
         };
