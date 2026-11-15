@@ -36,6 +36,9 @@ export default function AdsActivity({ props }) {
             const isPaused = task.status === 'paused';
             const isCompleted = task.status === 'completed' || task.completions_done >= task.completions_total;
             const iconType = getTaskIconType(task);
+            
+            // 🔥 Conversión a la nueva economía para mostrar el pago por usuario
+            const rewardTGM = Number((Number(task.reward) * 1000).toFixed(2));
 
             return (
               <div key={task.id} style={{...neon.taskCard, borderColor: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff41b4', opacity: (isPaused || isCompleted) ? 0.7 : 1}}>
@@ -51,6 +54,9 @@ export default function AdsActivity({ props }) {
                         {isCompleted && <span style={{ color: '#00ffaa', fontSize: '10px', verticalAlign: 'top', marginLeft: '4px' }}>({t('ads_completed') || 'COMPLETADA'})</span>}
                       </div>
                       <div style={{ color: isCompleted ? '#00ffaa' : isPaused ? '#ffaa00' : '#ff99dd', fontSize: '11px', marginTop: '4px', fontWeight: 'bold', fontFamily: 'monospace' }}>{task.url.substring(0, 25)}...</div>
+                      <div style={{ color: '#00f0ff', fontSize: '10px', marginTop: '6px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                        PAGO POR USUARIO: {rewardTGM} $TGM
+                      </div>
                     </div>
                   </div>
 
