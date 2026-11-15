@@ -47,7 +47,7 @@ export default function AdsMarket({ props }) {
     const iconType = getTaskIconType(task);
     const status = taskStatus[task.id];
     const isCompleted = task.is_completed || status === 'completed';
-    const displayGemas = Number((Number(task.reward) * 1000).toFixed(2));
+    const displayTGM = Number((Number(task.reward) * 1000).toFixed(2));
 
     const isCreator = task.creator_id === String(userData?.id); 
     const requiresRetention = ['channel', 'group', 'partner', 'daily_channel'].includes(task.type);
@@ -108,7 +108,7 @@ export default function AdsMarket({ props }) {
                  {task.validation_code && <input style={{ ...neon.input, padding: '6px', fontSize: '11px', width: '120px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', borderColor: '#00ffaa' }} placeholder="Código..." value={verifyInputs[task.id] || ''} onChange={(e) => setVerifyInputs({ ...verifyInputs, [task.id]: e.target.value })} />}
                  <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '120px' : 'auto', background: 'linear-gradient(90deg, #00ffaa, #00bb77)', color: '#050214', border: 'none'}}>{TaskIcons.check} RECLAMAR</button>
                </div>
-             ) : <button onClick={() => handleStartTask(task)} style={{...neon.taskButton, background: `linear-gradient(180deg, ${badgeColor}, ${badgeColor}aa)`, color: '#050214', border: 'none', boxShadow: `0 4px 0 ${badgeColor}60`}}>{`+${displayGemas} 💎`}</button>}
+             ) : <button onClick={() => handleStartTask(task)} style={{...neon.taskButton, background: `linear-gradient(180deg, ${badgeColor}, ${badgeColor}aa)`, color: '#050214', border: 'none', boxShadow: `0 4px 0 ${badgeColor}60`}}>{`+${displayTGM} $TGM`}</button>}
           </div>
         </div>
       </div>
@@ -156,7 +156,7 @@ export default function AdsMarket({ props }) {
                   <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: color, color: '#050214', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '900', boxShadow: (isToday && !gigaClaimed) ? '0 0 10px #ffe600' : 'none' }}>
                     {(isPast || (isToday && gigaClaimed)) ? '✓' : day}
                   </div>
-                  <span style={{ fontSize: '10px', marginTop: '6px', color: '#fff', fontWeight: 'bold' }}>{day} 💎</span>
+                  <span style={{ fontSize: '10px', marginTop: '6px', color: '#fff', fontWeight: 'bold' }}>{day} $TGM</span>
                 </div>
               );
             })}
@@ -178,7 +178,7 @@ export default function AdsMarket({ props }) {
                <button disabled style={neon.taskButtonDisabled}>{t('ads_daily_come_back') || 'VUELVE MAÑANA'}</button>
             ) : (
                <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
-                 {playingAd ? 'CARGANDO...' : `+${streakCount}.00 💎`}
+                 {playingAd ? 'CARGANDO...' : `+${streakCount}.00 $TGM`}
                </button>
             )}
           </div>
