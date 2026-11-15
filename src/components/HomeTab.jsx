@@ -1,10 +1,11 @@
 import React from 'react';
 
 const Icons = {
-  gem: (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 4px 6px rgba(245, 158, 11, 0.4))' }}>
-      <path d="M12 22L2 9L6 2H18L22 9L12 22Z" fill="rgba(245,158,11,0.2)"/>
-      <path d="M2 9H22"/><path d="M6 2L12 22M18 2L12 22" opacity="0.6"/>
+  // 🔥 Nuevo ícono de Token ($TGM) para reemplazar la Gema
+  token: (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 4px 6px rgba(245, 158, 11, 0.4))' }}>
+      <circle cx="12" cy="12" r="10" fill="rgba(245,158,11,0.15)"/>
+      <path d="M8 9h8M12 9v7"/>
     </svg>
   ),
   vault: (
@@ -47,11 +48,12 @@ const modernStyles = {
 };
 
 export default function HomeTab({ userData, setActiveTab, t }) {
-  const gemBalance = Number((Number(userData?.balance || 0) * 1000).toFixed(2));
-  const gemEarned = Number((Number(userData?.total_earnings || 0) * 1000).toFixed(2));
-  const usdtVault = Number(userData?.deposit_balance || 0).toFixed(2);
+  // 🔥 Matemática Fintech: 1 USDT en DB = 1000 Monedas visuales
+  const tgmBalance = Number((Number(userData?.balance || 0) * 1000).toFixed(2));
+  const tgmEarned = Number((Number(userData?.total_earnings || 0) * 1000).toFixed(2));
+  const creditVault = Number((Number(userData?.deposit_balance || 0) * 1000).toFixed(2));
 
-  // 🎮 GAMIFICACIÓN: Cálculos de Nivel
+  // 🎮 GAMIFICACIÓN: Cálculos de Nivel basados en Tokens ganados
   const calculateLevel = (earned) => {
     if (earned < 1000) return { rank: "Novato (Nvl 1)", next: 1000, progress: (earned / 1000) * 100, color: "#9CA3AF" };
     if (earned < 5000) return { rank: "Cazador (Nvl 2)", next: 5000, progress: (earned / 5000) * 100, color: "#06B6D4" };
@@ -59,50 +61,50 @@ export default function HomeTab({ userData, setActiveTab, t }) {
     return { rank: "Leyenda (MAX)", next: earned, progress: 100, color: "#F59E0B" };
   };
 
-  const userRank = calculateLevel(gemEarned);
+  const userRank = calculateLevel(tgmEarned);
 
   return (
     <div className="fade-in" style={{ color: '#F3F4F6', paddingBottom: '20px' }}>
 
-      {/* 🎮 TARJETA DE RANGO MILITAR (Glassmorphism) */}
+      {/* 🎮 TARJETA DE RANGO MILITAR */}
       <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', padding: '16px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px', backdropFilter: 'blur(10px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: userRank.color }}>
             {Icons.shield}
             <span style={{ fontSize: '13px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{userRank.rank}</span>
           </div>
-          <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: '700' }}>EXP: <span style={{color: '#D1D5DB'}}>{gemEarned}</span> / {userRank.next}</div>
+          <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: '700' }}>EXP: <span style={{color: '#D1D5DB'}}>{tgmEarned}</span> / {userRank.next}</div>
         </div>
         <div style={modernStyles.progressBg}>
           <div style={{ height: '100%', width: `${userRank.progress}%`, background: `linear-gradient(90deg, transparent, ${userRank.color})`, borderRadius: '10px', transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }}></div>
         </div>
       </div>
 
-      {/* BÓVEDA USDT */}
+      {/* BÓVEDA DE CRÉDITOS (Anunciantes) */}
       <div style={{ ...modernStyles.card, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '80px', height: '80px', background: '#10B981', filter: 'blur(50px)', opacity: '0.15' }}></div>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>{Icons.vault}</div>
-        <h3 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#9CA3AF', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1.5px' }}>{t('home_vault_title')}</h3>
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#9CA3AF', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1.5px' }}>FONDOS DE CAMPAÑA</h3>
         <div style={{ fontSize: '40px', fontWeight: '900', color: '#10B981', letterSpacing: '-1px', lineHeight: '1', textShadow: '0 4px 15px rgba(16, 185, 129, 0.2)' }}>
-          ${usdtVault} <span style={{ fontSize: '14px', color: '#6B7280', fontWeight: '700' }}>USDT</span>
+          {creditVault} <span style={{ fontSize: '14px', color: '#6B7280', fontWeight: '700' }}>CRÉDITOS</span>
         </div>
         <p style={{ margin: '10px 0 0 0', fontSize: '11px', color: '#4B5563', fontWeight: '600' }}>
-          {t('home_vault_desc')}
+          Para creación de anuncios y tráfico
         </p>
       </div>
 
-      {/* BALANCE GEMAS */}
+      {/* BALANCE TOKENS (Usuarios) */}
       <div style={{ ...modernStyles.card, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '-30px', left: '-30px', width: '80px', height: '80px', background: '#F59E0B', filter: 'blur(50px)', opacity: '0.15' }}></div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>{Icons.gem}</div>
-        <h3 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#9CA3AF', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1.5px' }}>{t('home_gems_title')}</h3>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>{Icons.token}</div>
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#9CA3AF', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1.5px' }}>SALDO DISPONIBLE</h3>
         <div style={{ fontSize: '40px', fontWeight: '900', color: '#F59E0B', letterSpacing: '-1px', lineHeight: '1', textShadow: '0 4px 15px rgba(245, 158, 11, 0.2)' }}>
-          {gemBalance} <span style={{ fontSize: '14px', color: '#6B7280', fontWeight: '700' }}>💎</span>
+          {tgmBalance} <span style={{ fontSize: '14px', color: '#6B7280', fontWeight: '700' }}>$TGM</span>
         </div>
         <p style={{ margin: '10px 0 0 0', fontSize: '11px', color: '#6B7280', fontWeight: '600' }}>
-          {t('home_gems_desc')} <span style={{color: '#9CA3AF'}}>{gemEarned} 💎</span>
+          Generado en red: <span style={{color: '#9CA3AF'}}>{tgmEarned} $TGM</span>
         </p>
       </div>
 
