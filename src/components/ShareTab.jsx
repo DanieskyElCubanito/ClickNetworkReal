@@ -5,11 +5,10 @@ import WebApp from '@twa-dev/sdk';
 
 // --- ÍCONOS SVG PREMIUM (Trazo Fino 1.8) ---
 const Icons = {
-  gem: (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 4px 6px rgba(6, 182, 212, 0.3))' }}>
-      <path d="M12 22L2 9L6 2H18L22 9L12 22Z" fill="rgba(6, 182, 212, 0.2)" stroke="#06B6D4" strokeWidth="1.8" strokeLinejoin="round"/>
-      <path d="M2 9H22" stroke="#06B6D4" strokeWidth="1.8"/>
-      <path d="M6 2L12 22M18 2L12 22" stroke="#06B6D4" strokeWidth="1.8" opacity="0.6"/>
+  token: (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 4px 6px rgba(245, 158, 11, 0.4))' }}>
+      <circle cx="12" cy="12" r="10" fill="rgba(245,158,11,0.15)"/>
+      <path d="M8 9h8M12 9v7"/>
     </svg>
   ),
   network: (
@@ -63,13 +62,13 @@ const modernStyles = {
     textAlign: 'center'
   },
   totalCard: {
-    background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.1))',
+    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(16, 185, 129, 0.1))',
     padding: '24px',
     borderRadius: '20px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    border: '1px solid rgba(6, 182, 212, 0.3)'
+    border: '1px solid rgba(245, 158, 11, 0.3)'
   },
   refItem: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -84,7 +83,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
   const [loading, setLoading] = useState(false);
 
   // ESTADOS PARA PORCENTAJES DINÁMICOS
-  const [sysPercent, setSysPercent] = useState(10);
+  const [sysPercent, setSysPercent] = useState(20); // Ajustado al 20% como definimos en el Wizard
   const [sysBonus, setSysBonus] = useState(5);
 
   useEffect(() => {
@@ -115,7 +114,8 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
   const fraudCount = referralsList.filter(r => !r.is_human).length;
   const pendingCount = n1 - activeCount - fraudCount;
 
-  const gemEarnings = Number((Number(earnings) * 1000).toFixed(2));
+  // 🔥 ECONOMÍA INSTITUCIONAL: Mostramos $TGM
+  const tgmEarnings = Number((Number(earnings) * 1000).toFixed(2));
   const inviteLink = `https://t.me/TeleGemAds_bot/app?startapp=${userId}`;
 
   const handleCopy = () => {
@@ -127,7 +127,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
 
   const handleShare = () => {
     if (!userId) return toast.error("Error al identificar la cuenta");
-    const text = t('share_text') || "💎 ¡Entra a mi red, completa misiones y gana recompensas cripto gratis! 🚀";
+    const text = t('share_text') || "🌐 ¡Entra a mi red, completa misiones y gana recompensas cripto gratis! 🚀";
     WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(text)}`);
   };
 
@@ -173,15 +173,15 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
       <div style={{ ...modernStyles.card, padding: 0, background: 'transparent', boxShadow: 'none', border: 'none' }}>
         <div style={modernStyles.totalCard}>
           <div>
-            <p style={{ fontSize: '11px', color: '#06B6D4', margin: '0 0 8px 0', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <p style={{ fontSize: '11px', color: '#F59E0B', margin: '0 0 8px 0', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
               {t('ref_earnings_title') || "Comisiones Generadas"}
             </p>
             <p style={{ fontSize: '38px', fontWeight: '900', color: '#F9FAFB', margin: 0 }}>
-              {gemEarnings} <span style={{ fontSize: '16px', color: '#9CA3AF' }}>💎</span>
+              {tgmEarnings} <span style={{ fontSize: '14px', color: '#9CA3AF' }}>$TGM</span>
             </p>
           </div>
-          <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', padding: '16px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(6, 182, 212, 0.3)' }}>
-            {Icons.gem}
+          <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '16px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+            {Icons.token}
           </div>
         </div>
       </div>
@@ -217,7 +217,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
               if (childTotalUSDT >= 0.005) {
                  generatedTotalUSDT += (sysBonus / 1000); 
               }
-              const generatedGemas = Number((generatedTotalUSDT * 1000).toFixed(2));
+              const generatedTGM = Number((generatedTotalUSDT * 1000).toFixed(2));
 
               const isHuman = ref.is_human;
               const isActive = isHuman && childTotalUSDT >= 0.005;
@@ -259,8 +259,8 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
                     )}
 
                     {isHuman && isActive && (
-                       <div style={{ color: '#06B6D4', fontSize: '13px', fontWeight: '900', marginTop: '8px' }}>
-                         +{generatedGemas} 💎
+                       <div style={{ color: '#F59E0B', fontSize: '13px', fontWeight: '900', marginTop: '8px' }}>
+                         +{generatedTGM} $TGM
                        </div>
                     )}
                   </div>
@@ -273,7 +273,7 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
         <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '16px', padding: '16px', marginTop: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
           <p style={{ textAlign: 'center', fontSize: '11px', color: '#9CA3AF', margin: 0, lineHeight: '1.6', fontWeight: '600' }}>
             RENDIMIENTO CONTRACTUAL:<br/>
-            <strong style={{color: '#10B981', fontSize: '12px', display: 'inline-block', margin: '4px 0'}}>{sysPercent}% POR MISIÓN + {sysBonus} GEMAS (BONO ÚNICO)</strong><br/>
+            <strong style={{color: '#10B981', fontSize: '12px', display: 'inline-block', margin: '4px 0'}}>{sysPercent}% POR MISIÓN + {sysBonus} $TGM (BONO ÚNICO)</strong><br/>
             <span style={{ color: '#D1D5DB' }}>AL VALIDAR CADA REFERIDO EN TU RED.</span>
           </p>
         </div>
