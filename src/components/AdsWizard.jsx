@@ -8,7 +8,7 @@ export default function AdsWizard({ props }) {
     currentStepIndex, totalSteps, stepsFlow, currentStepId,
     taskType, setTaskType, targetUrl, setTargetUrl, botToken, setBotToken, validationCode, setValidationCode,
     completions, setCompletions, rewardPerGema, setRewardPerGema, isVerifying, handleVerifyUrl, 
-    depositBalanceUsdt, campaignCostUsdt, baseCostGemas, referralFeeGemas, adminFeeGemas, totalGemasCost,
+    depositBalanceUsdt, baseCostCredits, referralFeeCredits, adminFeeCredits, totalCreditsCost, totalUsdtCost,
     handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, nextStep, prevStep, closeWizard, TASK_TYPES, t,
     recharging, rechargeMethod, setRechargeMethod, rechargeAmount, checkoutView, tempWallet, intentId, liveGramUsd, handleStartRecharge, handleVerifyPayment, cancelCheckout
   } = props;
@@ -19,10 +19,11 @@ export default function AdsWizard({ props }) {
       catch (e) { toast.error("Aplicación Tonkeeper no detectada."); } 
   };
 
+  // El rango ahora escala hasta 50 para permitir mejores incentivos, el mínimo sigue siendo 1
   const safeSetReward = (val) => {
       const num = Number(val);
       if (!Number.isFinite(num)) return;
-      setRewardPerGema(Math.min(2.5, Math.max(1, Number(num.toFixed(1)))));
+      setRewardPerGema(Math.min(50, Math.max(1, Number(num.toFixed(1)))));
   };
 
   if (recharging) {
@@ -81,17 +82,17 @@ export default function AdsWizard({ props }) {
             <div style={neon.calcContainer}>
               <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '900', color: '#ffffff', textAlign: 'center' }}>Bóveda Publicitaria</h2>
               <div style={{ textAlign: 'center', marginBottom: '24px', color: '#9CA3AF', fontSize: '12px' }}>
-                Balance actual: <b style={{color:'#10B981'}}>${depositBalanceUsdt.toFixed(2)} USDT</b>. (No retirable).
+                Fondos disponibles: <b style={{color:'#10B981'}}>{(depositBalanceUsdt * 1000).toFixed(2)} CRÉDITOS</b>.
               </div>
 
-              <span style={neon.label}>Volumen USDT</span>
+              <span style={neon.label}>Volumen a FONDear (USDT)</span>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
                 <button onClick={() => setRechargeAmount(p => Math.max(5, p - 5))} style={neon.btnActionCalc}>-</button>
                 <input type="number" value={rechargeAmount} onChange={(e) => setRechargeAmount(Number(e.target.value) || 0)} style={neon.inputCalc} />
                 <button onClick={() => setRechargeAmount(p => p + 5)} style={neon.btnActionCalc}>+</button>
               </div>
 
-              <span style={neon.label}>Protocolo</span>
+              <span style={neon.label}>Protocolo de Transferencia</span>
               <div style={{ display: 'flex', background: 'rgba(0, 0, 0, 0.3)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', marginBottom: '24px' }}>
                 <button onClick={() => setRechargeMethod('gram')} style={{ flex: 1, padding: '14px', border: 'none', background: rechargeMethod === 'gram' ? 'linear-gradient(135deg, #06B6D4, #3B82F6)' : 'transparent', color: rechargeMethod === 'gram' ? '#ffffff' : '#9CA3AF', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>GRAM (TON)</button>
                 <button onClick={() => setRechargeMethod('usdt')} style={{ flex: 1, padding: '14px', borderLeft: '1px solid rgba(255,255,255,0.05)', borderTop: 'none', borderRight: 'none', borderBottom: 'none', background: rechargeMethod === 'usdt' ? 'linear-gradient(135deg, #06B6D4, #3B82F6)' : 'transparent', color: rechargeMethod === 'usdt' ? '#ffffff' : '#9CA3AF', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>USDT (BEP20)</button>
@@ -190,7 +191,7 @@ export default function AdsWizard({ props }) {
             <button onClick={() => setCompletions(5000)} style={neon.pillButton(completions === 5000)}>5K</button>
           </div>
 
-          <span style={neon.label}>USUARIOS A CONTRATAR</span>
+          <span style={neon.label}>VOLUMEN DE TRÁFICO (CUPOS)</span>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
             <button onClick={() => setCompletions(p => Math.max(10, Number(p) - 10))} style={neon.btnActionCalc}>-</button>
             <input 
@@ -203,43 +204,60 @@ export default function AdsWizard({ props }) {
             <button onClick={() => setCompletions(p => Number(p) + 10)} style={neon.btnActionCalc}>+</button>
           </div>
 
-          <span style={neon.label}>PAGO POR USUARIO (GEMAS)</span>
+          <span style={neon.label}>PAGO POR USUARIO ($TGM)</span>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
-            <button onClick={() => safeSetReward(Number(rewardPerGema) - 0.1)} style={neon.btnActionCalc}>-</button>
+            <button onClick={() => safeSetReward(Number(rewardPerGema) - 1)} style={neon.btnActionCalc}>-</button>
             <input 
               type="number" 
-              step="0.1" 
+              step="1" 
               min="1" 
-              max="2.5" 
+              max="50" 
               value={rewardPerGema} 
               onChange={(e) => setRewardPerGema(e.target.value === '' ? '' : Number(e.target.value))} 
               onBlur={(e) => safeSetReward(e.target.value)} 
               style={neon.inputCalc} 
             />
-            <button onClick={() => safeSetReward(Number(rewardPerGema) + 0.1)} style={neon.btnActionCalc}>+</button>
+            <button onClick={() => safeSetReward(Number(rewardPerGema) + 1)} style={neon.btnActionCalc}>+</button>
           </div>
 
-          <div style={neon.summaryBox}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '4px', fontWeight: '500' }}>1. Asignación a red: <b style={{color:'#D1D5DB'}}>{baseCostGemas} 💎</b></div>
-              <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '4px', fontWeight: '500' }}>2. Distribución matriz (20%): <b style={{color:'#D1D5DB'}}>{referralFeeGemas} 💎</b></div>
-              <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '12px', fontWeight: '500' }}>3. Gastos operativos (10%): <b style={{color:'#D1D5DB'}}>{adminFeeGemas} 💎</b></div>
-              <div style={{ fontWeight: '800', fontSize: '11px', color: '#F3F4F6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Inversión Requerida:</div>
+          {/* 🔥 FACTURA CORPORATIVA (INVOICE) */}
+          <div style={{ ...neon.summaryBox, flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
+            <div style={{ fontWeight: '800', fontSize: '13px', color: '#F3F4F6', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px', marginBottom: '4px' }}>
+              📊 DESGLOSE DE CAMPAÑA
             </div>
-            <div style={{ textAlign: 'right', paddingLeft: '10px' }}>
-              <div style={{ fontWeight: '900', fontSize: '22px', color: '#06B6D4' }}>{totalGemasCost} 💎</div>
-              <div style={{ fontSize: '12px', color: '#3B82F6', fontWeight: '700' }}>${campaignCostUsdt.toFixed(2)} USDT</div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '12px', color: '#9CA3AF' }}>Fondo de Recompensas:</div>
+              <div style={{ fontSize: '12px', color: '#D1D5DB', fontWeight: '800' }}>{baseCostCredits} Créditos</div>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '12px', color: '#9CA3AF' }}>Distribución Matriz (20%):</div>
+              <div style={{ fontSize: '12px', color: '#D1D5DB', fontWeight: '800' }}>{referralFeeCredits} Créditos</div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '12px', color: '#9CA3AF' }}>Fee Operativo (10%):</div>
+              <div style={{ fontSize: '12px', color: '#D1D5DB', fontWeight: '800' }}>{adminFeeCredits} Créditos</div>
+            </div>
+
+            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: '800', fontSize: '11px', color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Inversión Requerida</div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: '900', fontSize: '20px', color: '#06B6D4' }}>{totalCreditsCost} <span style={{fontSize: '12px', color: '#9CA3AF'}}>Créditos</span></div>
+                <div style={{ fontSize: '11px', color: '#3B82F6', fontWeight: '700' }}>~ ${totalUsdtCost.toFixed(3)} USDT</div>
+              </div>
             </div>
           </div>
 
-          {depositBalanceUsdt >= campaignCostUsdt ? (
+          {depositBalanceUsdt >= totalUsdtCost ? (
             <button onClick={handleCreateTaskWithVault} disabled={isGenerating} style={neon.actionBtn}>
               {isGenerating ? 'PROCESANDO...' : 'ACTIVAR CAMPAÑA'}
             </button>
           ) : (
             <>
-              <div style={{ textAlign: 'center', marginBottom: '14px', fontSize: '13px', color: '#EF4444', fontWeight: '700' }}>Saldo USDT Insuficiente</div>
-              <button onClick={() => { setRechargeAmount(Math.ceil(campaignCostUsdt)); setRecharging(true); }} style={neon.actionBtnDanger}>RECARGAR BÓVEDA</button>
+              <div style={{ textAlign: 'center', marginBottom: '14px', fontSize: '13px', color: '#EF4444', fontWeight: '700' }}>Fondos Insuficientes en Bóveda</div>
+              <button onClick={() => { setRechargeAmount(Math.ceil(totalUsdtCost)); setRecharging(true); }} style={neon.actionBtnDanger}>RECARGAR CRÉDITOS</button>
             </>
           )}
         </div>
