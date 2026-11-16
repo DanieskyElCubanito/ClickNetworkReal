@@ -5,18 +5,18 @@ import WebApp from '@twa-dev/sdk';
 const modernStyles = {
   container: { color: '#F3F4F6', paddingBottom: '20px' },
   title: { fontSize: '20px', fontWeight: '800', textAlign: 'center', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '10px 0 24px 0', color: '#06B6D4' },
-  
+
   balanceCard: { background: 'linear-gradient(145deg, rgba(245, 158, 11, 0.05), rgba(17, 24, 39, 0.9))', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '24px', padding: '24px', marginBottom: '16px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(10px)' },
   vaultCard: { background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.05), rgba(17, 24, 39, 0.9))', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '24px', padding: '24px', marginBottom: '20px', textAlign: 'center', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(10px)' },
-  
+
   card: { background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '24px', padding: '24px', marginBottom: '16px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)', backdropFilter: 'blur(10px)' },
-  
+
   btnPrimary: { width: '100%', padding: '16px', background: 'linear-gradient(135deg, #06B6D4, #3B82F6)', color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '800', fontSize: '14px', letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(6, 182, 212, 0.3)', textTransform: 'uppercase', transition: 'transform 0.2s' },
   btnWarning: { width: '100%', padding: '16px', background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#ffffff', border: 'none', borderRadius: '16px', fontWeight: '800', fontSize: '14px', letterSpacing: '0.5px', cursor: 'pointer', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)', textTransform: 'uppercase', transition: 'transform 0.2s' },
-  
+
   input: { width: '100%', background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', padding: '16px', fontSize: '14px', color: '#F3F4F6', outline: 'none', boxSizing: 'border-box', marginBottom: '16px', fontWeight: '600', transition: 'border 0.3s' },
   label: { fontSize: '11px', color: '#9CA3AF', fontWeight: '800', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' },
-  
+
   tabContainer: { display: 'flex', gap: '8px', marginBottom: '24px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' },
   tabBtn: (active, isDeposit) => ({ flex: 1, padding: '12px', borderRadius: '12px', fontWeight: '800', fontSize: '12px', border: 'none', cursor: 'pointer', transition: 'all 0.3s', background: active ? (isDeposit ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)') : 'transparent', color: active ? (isDeposit ? '#10B981' : '#F59E0B') : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px' })
 };
@@ -27,13 +27,13 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  // Mínimo de Retiro
-  const [minWithdrawalGemas, setMinWithdrawalGemas] = useState(50);
+  // 🔥 ECONOMÍA INSTITUCIONAL: Mínimo de Retiro = 500 $TGM ($0.50 USDT)
+  const [minWithdrawalTGM, setMinWithdrawalTGM] = useState(500);
 
   const [reqs, setReqs] = useState({ referrals: 0, ads: 0 });
   const [playingAd, setPlayingAd] = useState(false);
 
-  const [rechargeAmount, setRechargeAmount] = useState(10);
+  const [rechargeAmount, setRechargeAmount] = useState(10); // En USDT
   const [rechargeMethod, setRechargeMethod] = useState('gram');
   const [checkoutView, setCheckoutView] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -66,7 +66,8 @@ export default function WalletTab({ userData, setUserData, t }) {
             setReqs({ referrals: data.referrals, ads: data.ads });
             if (data.saved_wallet) setWithdrawAddress(data.saved_wallet);
             if (data.min_withdrawal) {
-                setMinWithdrawalGemas(Math.round(Number(data.min_withdrawal) * 1000));
+                // Se espera que la DB retorne el mínimo en USDT (ej: 0.5), lo multiplicamos por 1000
+                setMinWithdrawalTGM(Math.round(Number(data.min_withdrawal) * 1000));
             }
         }
       } catch (e) {
@@ -96,9 +97,12 @@ export default function WalletTab({ userData, setUserData, t }) {
     return () => { isMounted = false; };
   }, []);
 
+  // 🔥 ECONOMÍA INSTITUCIONAL
   const balanceUSDT = Number(userData?.balance || 0);
-  const gemBalance = Number((Number(balanceUSDT) * 1000).toFixed(2));
+  const tgmBalance = Number((Number(balanceUSDT) * 1000).toFixed(2));
+  
   const depositBalanceUsdt = Number(userData?.deposit_balance || 0);
+  const creditVault = Math.floor(depositBalanceUsdt * 1000);
 
   const numericRecharge = Number(rechargeAmount) || 0;
   const gramRechargePrice = (numericRecharge / liveGramUsd).toFixed(2);
@@ -138,9 +142,9 @@ export default function WalletTab({ userData, setUserData, t }) {
     if (!withdrawAddress.trim()) return toast.error(t('bank_err_wallet_empty') || "Ingresa tu billetera TON.");
     if (withdrawAddress.length < 20) return toast.error(t('bank_err_wallet_invalid') || "Billetera TON inválida.");
 
-    const gemasAmount = Number(withdrawAmount);
-    if (!gemasAmount || gemasAmount < minWithdrawalGemas) return toast.error(t('bank_err_min_withdraw') || `El retiro mínimo es de ${minWithdrawalGemas} Gemas.`);
-    if (gemasAmount > gemBalance) return toast.error(t('bank_err_insufficient') || "Capital insuficiente.");
+    const tgmAmount = Number(withdrawAmount);
+    if (!tgmAmount || tgmAmount < minWithdrawalTGM) return toast.error(t('bank_err_min_withdraw') || `El retiro mínimo es de ${minWithdrawalTGM} $TGM.`);
+    if (tgmAmount > tgmBalance) return toast.error(t('bank_err_insufficient') || "Capital insuficiente.");
 
     if (reqs.referrals < 5 && reqs.ads < 5) {
       return toast.error(t('bank_req_error') || "Debes cumplir uno de los requisitos (5 Referidos o 5 Misiones de red).");
@@ -148,7 +152,7 @@ export default function WalletTab({ userData, setUserData, t }) {
 
     setIsWithdrawing(true);
     const tid = toast.loading(t('bank_msg_processing') || "Autorizando transacción...");
-    const usdtAmount = gemasAmount / 1000;
+    const usdtAmount = tgmAmount / 1000;
 
     try {
       const res = await fetch('/api', {
@@ -234,15 +238,15 @@ export default function WalletTab({ userData, setUserData, t }) {
 
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
         <div style={{ ...modernStyles.balanceCard, flex: 1, marginBottom: 0 }}>
-          <div style={{ fontSize: '10px', fontWeight: '800', color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('bank_gem_sack') || "Inventario (Gemas)"}</div>
-          <div style={{ fontSize: '28px', fontWeight: '900', color: '#F9FAFB', margin: '8px 0' }}>{gemBalance}</div>
+          <div style={{ fontSize: '10px', fontWeight: '800', color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('bank_gem_sack') || "SALDO GANADO ($TGM)"}</div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#F9FAFB', margin: '8px 0' }}>{tgmBalance}</div>
           <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: '700' }}>{t('bank_withdrawable') || "Fondo Retirable"}</div>
         </div>
 
         <div style={{ ...modernStyles.vaultCard, flex: 1, marginBottom: 0 }}>
-          <div style={{ fontSize: '10px', fontWeight: '800', color: '#10B981', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('bank_vault_usdt') || "Bóveda (USDT)"}</div>
-          <div style={{ fontSize: '28px', fontWeight: '900', color: '#F9FAFB', margin: '8px 0' }}>${depositBalanceUsdt.toFixed(2)}</div>
-          <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: '700' }}>{t('bank_only_ads') || "Capital Publicitario"}</div>
+          <div style={{ fontSize: '10px', fontWeight: '800', color: '#10B981', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('bank_vault_usdt') || "FONDOS DE CAMPAÑA"}</div>
+          <div style={{ fontSize: '28px', fontWeight: '900', color: '#F9FAFB', margin: '8px 0' }}>{creditVault}</div>
+          <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: '700' }}>{t('bank_only_ads') || "Créditos Publicitarios"}</div>
         </div>
       </div>
 
@@ -266,7 +270,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           {t('bank_tab_withdraw') || "SOLICITAR RETIRO"}
         </button>
         <button onClick={() => setActiveTab('deposit')} style={modernStyles.tabBtn(activeTab === 'deposit', true)}>
-          {t('bank_tab_deposit') || "INYECTAR CAPITAL"}
+          {t('bank_tab_deposit') || "INYECTAR CRÉDITOS"}
         </button>
       </div>
 
@@ -275,7 +279,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
             <div>
               <h3 style={{ margin: 0, color: '#F9FAFB', fontSize: '16px', fontWeight: '800', letterSpacing: '0.5px' }}>{t('bank_wd_title') || "EXTRACCIÓN DE ACTIVOS"}</h3>
-              <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>{t('bank_wd_min') || `Umbral operativo: ${minWithdrawalGemas} Gemas`}</div>
+              <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>{t('bank_wd_min') || `Umbral operativo: ${minWithdrawalTGM} $TGM`}</div>
             </div>
           </div>
 
@@ -299,18 +303,18 @@ export default function WalletTab({ userData, setUserData, t }) {
              </div>
           )}
 
-          <label style={{...modernStyles.label, color: '#F59E0B'}}>{t('bank_wd_amount_label') || "Monto a liquidar (GEMAS)"}</label>
+          <label style={{...modernStyles.label, color: '#F59E0B'}}>{t('bank_wd_amount_label') || "Monto a liquidar ($TGM)"}</label>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '32px' }}>
             <input 
               type="text" 
               inputMode="decimal"
               style={{ ...modernStyles.input, borderColor: 'rgba(245, 158, 11, 0.4)', marginBottom: 0, textAlign: 'left' }} 
-              placeholder={`${minWithdrawalGemas}`} 
+              placeholder={`${minWithdrawalTGM}`} 
               value={withdrawAmount} 
               onChange={(e) => setWithdrawAmount(e.target.value.replace(',', '.'))} 
             />
             <button 
-              onClick={() => setWithdrawAmount(gemBalance.toString())}
+              onClick={() => setWithdrawAmount(tgmBalance.toString())}
               style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#F59E0B', borderRadius: '14px', padding: '0 20px', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}
             >
               {t('bank_btn_max') || "MÁX"}
@@ -414,7 +418,7 @@ export default function WalletTab({ userData, setUserData, t }) {
                 </p>
               </div>
 
-              <h3 style={{ margin: '0 0 16px 0', color: '#F9FAFB', fontSize: '16px', fontWeight: '800', letterSpacing: '0.5px' }}>{t('bank_dp_title') || "Monto a Inyectar"}</h3>
+              <h3 style={{ margin: '0 0 16px 0', color: '#F9FAFB', fontSize: '16px', fontWeight: '800', letterSpacing: '0.5px' }}>{t('bank_dp_title') || "Monto a Inyectar (USDT)"}</h3>
 
               <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
                 <button onClick={() => setRechargeAmount(p => Math.max(0.5, Number((Number(p) - 1).toFixed(2))))} style={{ width: '48px', background: 'rgba(255,255,255,0.02)', color: '#F3F4F6', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', transition: 'background 0.2s' }}>-</button>
@@ -444,12 +448,4 @@ export default function WalletTab({ userData, setUserData, t }) {
               </div>
 
               <button onClick={handleStartRecharge} disabled={isGenerating} style={{...modernStyles.btnPrimary, background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'}}>
-                {isGenerating ? (t('bank_btn_connecting') || 'INICIALIZANDO CONTRATO...') : (t('bank_btn_proceed') || 'GENERAR CONTRATO DE PAGO')}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+                {isGenerating ? (t('bank_btn_connecting') || 'INICIALIZANDO CONTR
