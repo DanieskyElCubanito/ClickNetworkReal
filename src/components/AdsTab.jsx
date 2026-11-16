@@ -29,7 +29,7 @@ export default function AdsTab({ userData, setUserData, t }) {
   const [playingAd, setPlayingAd] = useState(false);
 
   const [completions, setCompletions] = useState(100);
-  const [rewardPerGema, setRewardPerGema] = useState(2.5);
+  const [rewardPerGema, setRewardPerGema] = useState(2.5); // Ahora esto representa $TGM por usuario
 
   const [recharging, setRecharging] = useState(false);
   const [rechargeMethod, setRechargeMethod] = useState('gram');
@@ -141,8 +141,7 @@ export default function AdsTab({ userData, setUserData, t }) {
       const data = await res.json();
       if (data && data.success) {
         setTasks(data.tasks || []);
-        
-        // 🔥 BLINDAJE DE UI: Verificamos tanto la respuesta del servidor como el LocalStorage por fecha
+
         const todayKey = `gigapub_claimed_${new Date().toISOString().slice(0, 10)}_${userData?.id}`;
         const localClaimed = localStorage.getItem(todayKey) === 'true';
 
@@ -179,19 +178,17 @@ export default function AdsTab({ userData, setUserData, t }) {
         const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'claim-gigapub-daily', userId: userData.id }) });
         const data = await res.json();
         if (data.success) {
-          toast.success(`+${data.earned_gemas} 💎 Acreditado`, { id: tid });
+          toast.success(`+${data.earned_gemas} $TGM Acreditado`, { id: tid });
           setUserData(prev => ({ 
             ...prev, 
             balance: data.balance !== undefined ? data.balance : prev.balance,
             streak_count: Math.round(Number(data.earned_gemas)) 
           }));
 
-          // 🔥 BLINDAJE INMEDIATO DEL ESTADO VISUAL Y PERSISTENCIA EN LOCALSTORAGE
           setTaskStatus(prev => ({ ...prev, 'gigapub_daily': 'completed' }));
           const todayKey = `gigapub_claimed_${new Date().toISOString().slice(0, 10)}_${userData?.id}`;
           localStorage.setItem(todayKey, 'true');
 
-          // Forzamos la recarga de tareas para sincronizar con la DB
           fetchTasks();
         } else { 
           toast.error(data.error || "Fallo de validación.", { id: tid }); 
@@ -212,7 +209,7 @@ export default function AdsTab({ userData, setUserData, t }) {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'complete-task', userId: userData.id, taskId: task.id, validation_code_input: verifyInputs[task.id] || '' }) });
       const data = await res.json();
       if (data.success) {
-        toast.success(`+${Number((Number(data.reward) * 1000).toFixed(2))} 💎`, { id: tid });
+        toast.success(`+${Number((Number(data.reward) * 1000).toFixed(2))} $TGM`, { id: tid });
         if (data.balance !== undefined) setUserData(prev => ({ ...prev, balance: data.balance }));
         setTaskStatus(prev => ({ ...prev, [task.id]: 'completed' })); fetchTasks();
       } else { toast.error(data.error || "Fallo de validación", { id: tid }); setTaskStatus(prev => ({ ...prev, [task.id]: 'ready' })); }
@@ -245,16 +242,12 @@ export default function AdsTab({ userData, setUserData, t }) {
     setShowEditModal(true); 
   };
 
-  // 🔥 CORRECCIÓN: Cálculo de UI fiel a la DB para costo total de edición
   const calculateEditCost = () => {
     let cost = 0;
     if (!editingTask) return 0;
-
-    // Si ajusta la recompensa de los cupos pendientes:
     if (editingTask.reward !== originalReward && remainingCompletions > 0) {
       cost += (remainingCompletions * editingTask.reward * 1.30) - (remainingCompletions * originalReward * 1.30);
     }
-    // Si añade nuevos cupos al nuevo precio:
     if (editingTask.addCompletions > 0) {
       cost += editingTask.addCompletions * editingTask.reward * 1.30;
     }
@@ -334,12 +327,19 @@ export default function AdsTab({ userData, setUserData, t }) {
     setValidationCode(''); 
   };
 
+  // 🔥 NUEVA ECONOMÍA (Desglose de Costos)
+  const baseCostCredits = completions * rewardPerGema;
+  const referralFeeCredits = Math.floor(baseCostCredits * 0.20);
+  const adminFeeCredits = Math.floor(baseCostCredits * 0.10);
+  const totalCreditsCost = baseCostCredits + referralFeeCredits + adminFeeCredits;
+  const totalUsdtCost = totalCreditsCost / 1000;
+
   const sharedProps = { 
     tasks, userData, taskStatus, verifyInputs, setVerifyInputs, handleStartTask, handleCheckTask, loadingTasks, setView, fetchTasks, t, gigaReady, playingAd, handlePlayGigaPub,
     handleToggleStatus, handleOpenEdit, handleDeleteTask, 
     currentStepIndex, totalSteps, stepsFlow, currentStepId,
     taskType, setTaskType, targetUrl, setTargetUrl, botToken, setBotToken, validationCode, setValidationCode, completions, setCompletions, rewardPerGema, setRewardPerGema, isVerifying, handleVerifyUrl, 
-    depositBalanceUsdt, campaignCostUsdt: ((completions * rewardPerGema) * 1.3)/1000, baseCostGemas: completions * rewardPerGema, referralFeeGemas: Math.floor((completions * rewardPerGema)*0.20), adminFeeGemas: Math.floor((completions * rewardPerGema)*0.10), totalGemasCost: (completions * rewardPerGema) + Math.floor((completions * rewardPerGema)*0.20) + Math.floor((completions * rewardPerGema)*0.10),
+    depositBalanceUsdt, baseCostCredits, referralFeeCredits, adminFeeCredits, totalCreditsCost, totalUsdtCost,
     handleCreateTaskWithVault, isGenerating, setRechargeAmount, setRecharging, nextStep, prevStep, closeWizard, TASK_TYPES,
     recharging, rechargeMethod, setRechargeMethod, rechargeAmount, checkoutView, tempWallet, intentId, liveGramUsd, handleStartRecharge, handleVerifyPayment, cancelCheckout: () => { setCheckoutView(false); setRecharging(false); }
   };
@@ -361,7 +361,7 @@ export default function AdsTab({ userData, setUserData, t }) {
       {view === 'activity' && <AdsActivity props={sharedProps} />}
       {view === 'wizard' && <AdsWizard props={sharedProps} />}
 
-      {/* MODAL DE EDICIÓN (Global) con Estilos Dark Glassmorphism */}
+      {/* MODAL DE EDICIÓN (Global) */}
       {showEditModal && editingTask && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(5, 7, 10, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100000, backdropFilter: 'blur(8px)' }}>
           <div style={{ ...neon.card, width: '100%', maxWidth: '340px', marginBottom: 0, borderColor: 'rgba(255,255,255,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -380,7 +380,7 @@ export default function AdsTab({ userData, setUserData, t }) {
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
               <div style={{ flex: 1 }}>
                 <label style={neon.label}>USDT POR USUARIO</label>
-                <input type="number" step="0.001" max="0.0025" style={{...neon.input, padding: '12px'}} value={editingTask.reward} onChange={(e) => setEditingTask({ ...editingTask, reward: Math.min(0.0025, Number(e.target.value)||0.001) })} />
+                <input type="number" step="0.001" max="0.05" style={{...neon.input, padding: '12px'}} value={editingTask.reward} onChange={(e) => setEditingTask({ ...editingTask, reward: Math.min(0.05, Number(e.target.value)||0.001) })} />
               </div>
               <div style={{ flex: 1 }}>
                 <label style={neon.label}>ICONO VISUAL</label>
