@@ -17,7 +17,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
 
     if (action === 'request-withdrawal') {
         const cleanAddress = String(reqBody?.address || '').trim();
-        const withdrawAmount = Number(reqBody?.amount);
+        const withdrawAmount = Number(reqBody?.amount); // En USDT
 
         // 1. Validación estricta de formato de dirección y monto
         if (!cleanAddress || cleanAddress.length < 20 || cleanAddress.length > 128 || /\s/.test(cleanAddress)) {
@@ -25,10 +25,11 @@ export async function handleBankingActions(action, targetId, reqBody) {
         }
 
         const { data: config } = await supabase.from('system_settings').select('min_withdrawal').eq('id', 1).maybeSingle();
-        const dynamicMin = Number(config?.min_withdrawal || 0.05);
+        const dynamicMin = Number(config?.min_withdrawal || 0.50);
 
         if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0 || withdrawAmount < dynamicMin) {
-            return { status: 400, body: { success: false, error: `Mínimo de retiro: ${(dynamicMin * 1000).toFixed(0)} Gemas.` } };
+            // 🔥 ECONOMÍA INSTITUCIONAL: Mensaje de error en $TGM
+            return { status: 400, body: { success: false, error: `Mínimo de retiro: ${(dynamicMin * 1000).toFixed(0)} $TGM.` } };
         }
 
         // 2. Requisitos diarios (5 referidos activos O 5 anuncios vistos hoy)
@@ -45,7 +46,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
         }
 
         if ((refCount || 0) < 5 && (adsCount || 0) < 5) {
-            return { status: 400, body: { success: false, error: 'Requisito: 5 referidos activos O ver 5 anuncios web.' } };
+            return { status: 400, body: { success: false, error: 'Requisito: 5 referidos activos O ejecutar 5 Misiones de Red.' } };
         }
 
         // 3. Verificación del usuario y bloqueo de cambio de billetera
@@ -58,7 +59,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
             return { status: 400, body: { success: false, error: 'Por seguridad, no puedes cambiar la billetera vinculada a esta cuenta.' } };
         }
 
-        // 🔥 BLINDAJE 1: Comprobación SIEMPRE activa contra otras cuentas (tenga o no saved_wallet previa)
+        // 🔥 BLINDAJE 1: Comprobación SIEMPRE activa contra otras cuentas
         const { data: existingWalletUsers, error: exError } = await supabase
             .from('users')
             .select('id')
@@ -113,7 +114,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
                 referrals: refCount || 0,
                 ads: adsCount || 0,
                 saved_wallet: u?.saved_wallet || null,
-                min_withdrawal: config?.min_withdrawal || 0.05
+                min_withdrawal: config?.min_withdrawal || 0.50
             }
         };
     }
@@ -182,7 +183,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
         if (cError) return { status: 500, body: { success: false, error: `Fallo BD (Reclamar): ${cError.message}` } };
         if (!claimed) return { status: 409, body: { success: false, error: 'Este pago ya se está procesando.' } };
 
-        // 2. Comprobación del saldo real en la blockchain TON (con tolerancia mínima por precisión decimal)
+        // 2. Comprobación del saldo real en la blockchain TON (con tolerancia mínima)
         let blockchainData;
         let receivedTon = 0;
         try {
@@ -206,7 +207,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
             return { status: 502, body: { success: false, error: `Error de verificación en nodo TON: ${e.message}` } };
         }
 
-        const creditAmount = round4(expectedTon);
+        const creditAmount = round4(expectedTon); // En USDT
 
         // 3. Acreditación atómica en BD ANTES de barrer los fondos
         const { data: done, error: fError } = await supabase.rpc('finish_payment_intent', {
@@ -244,7 +245,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
                 sendMode: 128
             });
         } catch (sweepError) {
-            // 🔥 BLINDAJE 4: Si el barrido falla, avisa por Telegram al Admin para no dejar TON atrapados
+            // 🔥 BLINDAJE 4: Si el barrido falla, avisa por Telegram al Admin
             const errMsg = sweepError?.message || String(sweepError);
             console.error(`Pago acreditado a usuario ${id}, pero barrido falló:`, errMsg);
             notifyAdmin(
@@ -257,7 +258,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
             );
         }
 
-        // 5. Notificación al canal de pagos configurado en el panel
+        // 5. Notificación al canal de pagos configurado en el panel (Institucional)
         try {
             const payChannel = config?.payment_channel_id?.trim();
             if (payChannel && BOT_TOKEN) {
@@ -266,12 +267,14 @@ export async function handleBankingActions(action, targetId, reqBody) {
                     ? `@${escapeHtml(dbUser.username)}`
                     : `ID: ${escapeHtml(id)}`;
 
+                const canjeCreditos = Math.floor(creditAmount * 1000);
+
                 const message =
-                    `🚀 <b>NUEVA INYECCIÓN DE LIQUIDEZ TÁCTICA</b>\n\n` +
+                    `🌐 <b>NUEVA INYECCIÓN DE LIQUIDEZ TÁCTICA</b>\n\n` +
                     `👤 <b>Anunciante:</b> ${usernameDisplay}\n` +
-                    `💰 <b>Suministro Bóveda:</b> +$${creditAmount.toFixed(2)} (${receivedTon.toFixed(4)} TON)\n` +
+                    `💰 <b>Suministro Bóveda:</b> ${canjeCreditos} CRÉDITOS\n` +
                     `🛡️ <b>Red:</b> Toncoin (TON)\n` +
-                    `⚡ <b>Estado:</b> Bóveda Cargada y Operativa\n\n` +
+                    `⚡ <b>Estado:</b> Fondos Acreditados\n\n` +
                     `🔥 ¡La red publicitaria se expande! ¿Listo para dominar Telegram con tus propias campañas?`;
 
                 const keyboard = { inline_keyboard: [[{ text: '🚀 ¡LANZAR MI CAMPAÑA AHORA!', url: 'https://t.me/TeleGemAds_bot/app' }]] };
