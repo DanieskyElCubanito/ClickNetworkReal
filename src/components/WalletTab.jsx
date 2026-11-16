@@ -447,5 +447,13 @@ export default function WalletTab({ userData, setUserData, t }) {
                 <button onClick={() => setRechargeMethod('usdt')} style={{ flex: 1, padding: '14px', borderLeft: '1px solid rgba(255,255,255,0.05)', borderTop: 'none', borderRight: 'none', borderBottom: 'none', background: rechargeMethod === 'usdt' ? 'linear-gradient(135deg, #10B981, #059669)' : 'transparent', color: rechargeMethod === 'usdt' ? '#ffffff' : '#9CA3AF', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>{t('bank_dp_method_usdt') || "USDT (BEP20)"}</button>
               </div>
 
-              <button onClick={handleStartRecharge} disabled={isGenerating} style={{...modernStyles.btnPrimary, background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'}}>
-                {isGenerating ? (t('bank_btn_connecting') || 'INICIALIZANDO CONTR
+                        <button onClick={handleStartRecharge} disabled={isGenerating} style={{...modernStyles.btnPrimary, background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'}}>
+                {isGenerating ? (t('bank_btn_connecting') || 'INICIALIZANDO CONTRATO...') : (t('bank_btn_proceed') || 'GENERAR CONTRATO DE PAGO')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
