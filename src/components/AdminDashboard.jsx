@@ -41,17 +41,17 @@ export default function AdminDashboard() {
   const [sysConfig, setSysConfig] = useState({ 
       master_wallet_gram: '', 
       master_wallet_usdt_bep20: '', 
-      min_withdrawal: 0.05, 
-      ref_percent: 10, 
+      min_withdrawal: 0.50, 
+      ref_percent: 20, 
       ref_bonus_gemas: 5,
       mandatory_channel_1: '',
       mandatory_channel_2: '',
       payment_channel_id: ''
   });
 
-  const [minWithdrawalGemas, setMinWithdrawalGemas] = useState('');
-  const [refPercent, setRefPercent] = useState('10');
-  const [refBonusGemas, setRefBonusGemas] = useState('5');
+  const [minWithdrawalTGM, setMinWithdrawalTGM] = useState('');
+  const [refPercent, setRefPercent] = useState('20');
+  const [refBonusTGM, setRefBonusTGM] = useState('5');
   const [savingConfig, setSavingConfig] = useState(false);
 
   const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
@@ -108,9 +108,10 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (data.success && data.config) {
         setSysConfig(data.config);
-        setMinWithdrawalGemas(String((Number(data.config.min_withdrawal) * 1000).toFixed(0)));
-        setRefPercent(String(data.config.ref_percent || 10));
-        setRefBonusGemas(String(data.config.ref_bonus_gemas || 5));
+        // Transformar USDT interno a visual ($TGM)
+        setMinWithdrawalTGM(String((Number(data.config.min_withdrawal) * 1000).toFixed(0)));
+        setRefPercent(String(data.config.ref_percent || 20));
+        setRefBonusTGM(String(data.config.ref_bonus_gemas || 5));
       }
     } catch {}
   };
@@ -148,8 +149,9 @@ export default function AdminDashboard() {
   };
 
   const handleSaveConfig = async () => {
-    if (!minWithdrawalGemas || Number(minWithdrawalGemas) <= 0) return toast.error("Ingresa un mínimo de retiro válido.");
-    const usdtMin = Number(minWithdrawalGemas) / 1000;
+    if (!minWithdrawalTGM || Number(minWithdrawalTGM) <= 0) return toast.error("Ingresa un mínimo de retiro válido.");
+    // Visual ($TGM) a USDT interno
+    const usdtMin = Number(minWithdrawalTGM) / 1000;
 
     const tid = toast.loading("Asegurando coordenadas maestras...");
     setSavingConfig(true);
@@ -163,7 +165,7 @@ export default function AdminDashboard() {
               ...sysConfig, 
               min_withdrawal: usdtMin,
               ref_percent: Number(refPercent),
-              ref_bonus_gemas: Number(refBonusGemas)
+              ref_bonus_gemas: Number(refBonusTGM)
           } 
         }) 
       });
@@ -202,12 +204,12 @@ export default function AdminDashboard() {
 
   const handleUpdateBalance = async () => {
     if (!foundUser) return;
-    const tid = toast.loading("Alterando inventario de gemas...");
+    const tid = toast.loading("Alterando balance del saco...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', targetId: foundUser.id, update: { balance: Number(newBalance) } }) });
       const data = await res.json();
       if (data.success) { 
-        toast.success("Inventario de Gemas actualizado", { id: tid }); 
+        toast.success("Saldo $TGM actualizado", { id: tid }); 
         setFoundUser(prev => ({ ...prev, balance: Number(newBalance) })); 
       } else throw new Error();
     } catch { toast.error("Error en la alteración", { id: tid }); }
@@ -220,7 +222,7 @@ export default function AdminDashboard() {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', targetId: foundUser.id, update: { deposit_balance: Number(newDepositBalance) } }) });
       const data = await res.json();
       if (data.success) { 
-        toast.success("Bóveda USDT actualizada", { id: tid }); 
+        toast.success("Bóveda de Créditos actualizada", { id: tid }); 
         setFoundUser(prev => ({ ...prev, deposit_balance: Number(newDepositBalance) })); 
       } else throw new Error();
     } catch { toast.error("Error al inyectar fondos", { id: tid }); }
@@ -228,7 +230,7 @@ export default function AdminDashboard() {
 
   const handleSendSorteo = async () => {
     if (!foundUser) return;
-    if (!sorteoAmount || Number(sorteoAmount) <= 0) return toast.error("Ingresa una cantidad válida de Gemas.");
+    if (!sorteoAmount || Number(sorteoAmount) <= 0) return toast.error("Ingresa una cantidad válida de $TGM.");
 
     const tid = toast.loading("Acreditando premio y guardando en el historial...");
     try {
@@ -412,7 +414,7 @@ export default function AdminDashboard() {
           onChange={(e) => setMasterTaskUrl(e.target.value)} 
         />
 
-        <span style={neon.label}>Recompensa (USDT) (1.0 = 1000 Gemas)</span>
+        <span style={neon.label}>Recompensa en USDT (1.0 = 1000 $TGM)</span>
         <input 
           type="number" 
           step="0.001"
@@ -549,13 +551,13 @@ export default function AdminDashboard() {
 
         <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
            <div style={{ flex: 1 }}>
-              <span style={neon.label}>MÍNIMO DE RETIRO (GEMAS)</span>
+              <span style={neon.label}>MÍNIMO DE RETIRO ($TGM)</span>
               <input 
                  type="number" 
-                 placeholder="Ej: 50" 
+                 placeholder="Ej: 500" 
                  style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center' }} 
-                 value={minWithdrawalGemas} 
-                 onChange={(e) => setMinWithdrawalGemas(e.target.value)} 
+                 value={minWithdrawalTGM} 
+                 onChange={(e) => setMinWithdrawalTGM(e.target.value)} 
               />
            </div>
         </div>
@@ -575,18 +577,18 @@ export default function AdminDashboard() {
               </div>
            </div>
            <div style={{ flex: 1 }}>
-              <span style={neon.label}>BONO ÚNICO (GEMAS)</span>
+              <span style={neon.label}>BONO ÚNICO ($TGM)</span>
               <input 
                  type="number" 
                  style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center', marginBottom: 0 }} 
-                 value={refBonusGemas} 
-                 onChange={(e) => setRefBonusGemas(e.target.value)} 
+                 value={refBonusTGM} 
+                 onChange={(e) => setRefBonusTGM(e.target.value)} 
               />
            </div>
         </div>
 
         <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '20px', textAlign: 'center' }}>
-          * El bono único se paga automáticamente cuando el recluta alcanza sus primeras 5 Gemas.
+          * El bono único se paga automáticamente cuando el recluta completa sus primeras misiones ($0.005 USDT base).
         </div>
 
         {/* CANALES OBLIGATORIOS AL INICIO */}
@@ -675,7 +677,7 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <span style={{ ...neon.label, color: '#00ffaa' }}>Bóveda Táctica (USDT - Solo Misiones)</span>
+              <span style={{ ...neon.label, color: '#00ffaa' }}>Bóveda de Créditos (USDT Interno)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="number" step="0.01" style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#00ffaa' }} value={newDepositBalance} onChange={(e) => setNewDepositBalance(e.target.value)} />
                 <button onClick={handleUpdateDepositBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00ffaa, #00bb77)', color: '#050214' }}>Guardar</button>
@@ -683,7 +685,7 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <span style={{ ...neon.label, color: '#00f0ff' }}>Inventario Retirable Base (1.00 = 1000 Gemas)</span>
+              <span style={{ ...neon.label, color: '#00f0ff' }}>Saco de Ganancias (USDT Interno)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="number" step="0.001" style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#00f0ff' }} value={newBalance} onChange={(e) => setNewBalance(e.target.value)} />
                 <button onClick={handleUpdateBalance} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #00f0ff, #0088ff)', color: '#050214' }}>Guardar</button>
@@ -691,12 +693,12 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ marginBottom: '16px', background: 'rgba(255, 20, 147, 0.1)', padding: '12px', borderRadius: '12px', border: '1px dashed #ff1493' }}>
-              <span style={{ ...neon.label, color: '#ff99dd' }}>🎁 Enviar Premio de Sorteo (Gemas)</span>
+              <span style={{ ...neon.label, color: '#ff99dd' }}>🎁 Enviar Premio de Sorteo ($TGM)</span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="number" placeholder="Ej: 500" style={{ ...neon.input, marginBottom: 0, flex: 1, borderColor: '#ff1493' }} value={sorteoAmount} onChange={(e) => setSorteoAmount(e.target.value)} />
                 <button onClick={handleSendSorteo} style={{ ...neon.btn, width: 'auto', background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#fff' }}>Enviar</button>
               </div>
-              <div style={{ fontSize: '10px', color: '#ff99dd', marginTop: '6px' }}>* Esto sumará el saldo y creará un registro de Sorteo en el historial.</div>
+              <div style={{ fontSize: '10px', color: '#ff99dd', marginTop: '6px' }}>* Esto sumará el saldo en su Saco y dejará constancia en el historial público.</div>
             </div>
 
             <button onClick={handleToggleBan} style={foundUser.is_banned ? { ...neon.btnDanger, borderColor: '#00ffaa', color: '#00ffaa' } : neon.btnDanger}>
