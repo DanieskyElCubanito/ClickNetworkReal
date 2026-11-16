@@ -47,7 +47,7 @@ const modernStyles = {
 const TEMPLATES = [
   { title: 'Airdrop Boom', icon: '🚀', accent: '#EC4899', text: '🚀 Nuevo Airdrop confirmado. Participa gratis completando las tareas y asegura tus tokens.' },
   { title: 'Sorteo Élite', icon: '💎', accent: '#06B6D4', text: '💎 Gran recompensa activa para la comunidad. Entra al enlace y participa ahora mismo.' },
-  { title: 'Red de Tráfico', icon: '⚡', accent: '#F59E0B', text: '⚡ Únete a nuestra red. Gana USDT gratis todos los días completando tareas simples.' }
+  { title: 'Red de Tráfico', icon: '⚡', accent: '#F59E0B', text: '⚡ Únete a nuestra red. Gana $TGM gratis todos los días completando tareas simples.' }
 ];
 
 export default function PublishTab({ userData, setUserData, t }) {
@@ -70,14 +70,19 @@ export default function PublishTab({ userData, setUserData, t }) {
   const [loadingData, setLoadingData] = useState(false);
 
   const fileInputRef = useRef(null);
-  const balance = Number(userData?.balance || 0);
+
+  // 🔥 ECONOMÍA INSTITUCIONAL: El anunciante gasta de su Bóveda (deposit_balance -> CRÉDITOS)
+  const creditVaultUsdt = Number(userData?.deposit_balance || 0);
+  const creditVault = Math.floor(creditVaultUsdt * 1000);
+
   const [availableGroups, setAvailableGroups] = useState([]);
 
-  const totalCost = selectedGroups.reduce((acc, groupId) => {
+  const totalCostUsdt = selectedGroups.reduce((acc, groupId) => {
       const grp = availableGroups.find(g => g.id === groupId);
       if (grp && String(grp.creator_id) === String(userData?.id)) return acc; 
       return acc + (grp ? Number((grp.price * 1.20).toFixed(4)) : 0);
   }, 0);
+  const totalCostCredits = Math.floor(totalCostUsdt * 1000);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
 
@@ -159,7 +164,7 @@ export default function PublishTab({ userData, setUserData, t }) {
   const handleNextStep2 = () => setStep(3);
   const handleNextStep3 = () => {
     if (selectedGroups.length === 0) return toast.error("Selecciona al menos un canal del mercado.");
-    if (balance < totalCost) return toast.error(`Saldo insuficiente. Necesitas ${totalCost.toFixed(4)} USDT.`);
+    if (creditVaultUsdt < totalCostUsdt) return toast.error(`Saldo insuficiente en Bóveda. Necesitas ${totalCostCredits} Créditos.`);
     setStep(4);
   };
 
@@ -178,9 +183,15 @@ export default function PublishTab({ userData, setUserData, t }) {
         });
         const data = await response.json();
         if (!data.success) throw new Error(data.error);
-        if (data.balance !== undefined) setUserData((prev) => ({ ...prev, balance: data.balance }));
+        
+        // Actualizamos los saldos si el servidor los devuelve
+        setUserData((prev) => ({ 
+            ...prev, 
+            deposit_balance: data.deposit_balance !== undefined ? data.deposit_balance : prev.deposit_balance,
+            balance: data.balance !== undefined ? data.balance : prev.balance
+        }));
       }
-      toast.success("Pago retenido en Escrow. Pendiente de publicación.", { id: tid });
+      toast.success("Fondos retenidos en Escrow. Pendiente de publicación.", { id: tid });
       setPostText(''); setImageUrl(''); setButtonConfig({ text: '', url: '', style: 'default' }); setSelectedGroups([]); setStep(1);
       setActiveTab('history');
     } catch (err) { toast.error(err.message || "Error al procesar el pago", { id: tid }); } 
@@ -314,6 +325,7 @@ export default function PublishTab({ userData, setUserData, t }) {
                   {availableGroups.map((grp) => {
                     const isSelected = selectedGroups.includes(grp.id);
                     const isMyGroup = String(grp.creator_id) === String(userData?.id);
+                    const costCredits = Math.floor(grp.price * 1.20 * 1000);
 
                     return (
                       <div key={grp.id} onClick={() => handleToggleGroup(grp.id)} style={{ ...modernStyles.cardInteractive, borderColor: isSelected ? '#06B6D4' : 'rgba(255,255,255,0.08)', background: isSelected ? 'rgba(6,182,212,0.1)' : 'rgba(255,255,255,0.02)', marginBottom: 0 }}>
@@ -322,7 +334,7 @@ export default function PublishTab({ userData, setUserData, t }) {
                             {grp.name} {isMyGroup && <span style={{fontSize: '9px', background: '#3B82F6', color: '#fff', padding: '2px 6px', borderRadius: '6px', textTransform: 'uppercase'}}>Propio</span>}
                           </div>
                           <div style={{ fontSize: '11px', color: isMyGroup ? '#3B82F6' : '#9CA3AF', fontWeight: '600', marginTop: '6px' }}>
-                            {isMyGroup ? `Publicación sin costo` : `Tarifa (24H): ${(grp.price * 1.20).toFixed(4)} USDT`}
+                            {isMyGroup ? `Publicación sin costo` : `Tarifa (24H): ${costCredits} CRÉDITOS`}
                           </div>
                         </div>
                         <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: isSelected ? '#06B6D4' : 'transparent', border: isSelected ? 'none' : '2px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111827', fontWeight: '900', fontSize: '12px' }}>
@@ -345,7 +357,8 @@ export default function PublishTab({ userData, setUserData, t }) {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase' }}>Costo de Orden</div>
-                    <div style={{ fontSize: '18px', color: '#06B6D4', fontWeight: '900' }}>{totalCost.toFixed(4)} <span style={{fontSize: '12px', color: '#D1D5DB'}}>USDT</span></div>
+                    <div style={{ fontSize: '18px', color: '#06B6D4', fontWeight: '900' }}>{totalCostCredits} <span style={{fontSize: '11px', color: '#D1D5DB'}}>CRÉDITOS</span></div>
+                    <div style={{ fontSize: '10px', color: '#6B7280', fontWeight: '700' }}>~ ${totalCostUsdt.toFixed(2)} USDT</div>
                 </div>
               </div>
 
@@ -373,13 +386,13 @@ export default function PublishTab({ userData, setUserData, t }) {
 
               <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '20px', padding: '20px', fontSize: '14px', marginBottom: '24px', color: '#F3F4F6', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                  <span style={{ color: '#9CA3AF', fontWeight: '500' }}>Balance Disponible:</span> <strong style={{ color: '#06B6D4' }}>{balance.toFixed(4)} USDT</strong>
+                  <span style={{ color: '#9CA3AF', fontWeight: '500' }}>Balance en Bóveda:</span> <strong style={{ color: '#06B6D4' }}>{creditVault} CRÉDITOS</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ color: '#9CA3AF', fontWeight: '500' }}>Reserva Escrow:</span> <strong style={{ color: '#EF4444' }}>-{totalCost.toFixed(4)} USDT</strong>
+                  <span style={{ color: '#9CA3AF', fontWeight: '500' }}>Reserva Escrow:</span> <strong style={{ color: '#EF4444' }}>-{totalCostCredits} CRÉDITOS</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <span>Balance Final:</span> <strong style={{ color: '#10B981', fontSize: '16px' }}>{(balance - totalCost).toFixed(4)} USDT</strong>
+                  <span>Balance Final:</span> <strong style={{ color: '#10B981', fontSize: '16px' }}>{creditVault - totalCostCredits} CRÉDITOS</strong>
                 </div>
               </div>
 
@@ -401,7 +414,7 @@ export default function PublishTab({ userData, setUserData, t }) {
           <div style={{ fontSize: '11px', color: '#10B981', fontWeight: '800', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 4px' }}>Canales Monetizando</div>
           {myCommunityGroups.length === 0 ? (
             <div style={{ background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: '20px', textAlign: 'center', marginBottom: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-              <p style={{ color: '#9CA3AF', fontSize: '13px', margin: 0, fontWeight: '500' }}>No tienes redes operativas vendiendo anuncios. Añade una para ganar USDT.</p>
+              <p style={{ color: '#9CA3AF', fontSize: '13px', margin: 0, fontWeight: '500' }}>No tienes redes operativas vendiendo anuncios. Añade una para ganar $TGM.</p>
             </div>
           ) : (
             <div style={{ marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -409,7 +422,7 @@ export default function PublishTab({ userData, setUserData, t }) {
                 <div key={grp.id} style={{ ...modernStyles.cardInteractive, borderColor: 'rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.05)', marginBottom: 0 }}>
                   <div>
                     <div style={{ color: '#F9FAFB', fontSize: '14px', fontWeight: '900', letterSpacing: '0.5px' }}>{grp.name}</div>
-                    <div style={{ color: '#10B981', fontSize: '11px', fontWeight: '700', marginTop: '4px' }}>Retorno por anuncio: {grp.price} USDT</div>
+                    <div style={{ color: '#10B981', fontSize: '11px', fontWeight: '700', marginTop: '4px' }}>Retorno por anuncio: {grp.price * 1000} $TGM</div>
                   </div>
                   <div style={{ color: '#10B981', fontSize: '24px', opacity: 0.8 }}>💰</div>
                 </div>
@@ -429,7 +442,7 @@ export default function PublishTab({ userData, setUserData, t }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <strong style={{ fontSize: '13px', color: '#F9FAFB' }}>{item.title}</strong>
                     <span style={{ fontSize: '14px', fontWeight: '900', color: item.amount >= 0 ? '#10B981' : '#EF4444' }}>
-                      {item.amount > 0 ? `+${item.amount}` : item.amount} USDT
+                      {item.amount > 0 ? `+${(item.amount * 1000).toFixed(0)} $TGM` : `${(item.amount * 1000).toFixed(0)} CRÉDITOS`}
                     </span>
                   </div>
                   <div style={{ fontSize: '12px', color: '#9CA3AF', lineHeight: '1.5' }}>{item.description}</div>
@@ -469,7 +482,8 @@ export default function PublishTab({ userData, setUserData, t }) {
             <label style={{ fontSize: '11px', color: '#D1D5DB', fontWeight: '800', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Enlace del Destino</label>
             <input style={{...modernStyles.input, borderColor: 'rgba(255,255,255,0.1)', marginBottom: '20px'}} value={newGroupUrl} onChange={(e) => setNewGroupUrl(e.target.value)} placeholder="Ej: @MiCanal" />
 
-            <label style={{ fontSize: '11px', color: '#D1D5DB', fontWeight: '800', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>TARIFA POR ANUNCIO (USDT)</label>
+            <label style={{ fontSize: '11px', color: '#D1D5DB', fontWeight: '800', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>TARIFA POR ANUNCIO (USDT)</label>
+            <div style={{ fontSize: '10px', color: '#10B981', marginBottom: '8px', fontWeight: '600' }}>Equivalente a: {newGroupPrice > 0 ? (newGroupPrice * 1000).toFixed(0) : 0} $TGM</div>
             <input type="number" step="0.1" min="0.5" style={{...modernStyles.input, borderColor: 'rgba(255,255,255,0.1)', marginBottom: '32px'}} value={newGroupPrice} onChange={(e) => setNewGroupPrice(Number(e.target.value))} placeholder="1.0" />
 
             <div style={{ display: 'flex', gap: '12px' }}>
