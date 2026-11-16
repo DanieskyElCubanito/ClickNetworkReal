@@ -98,27 +98,34 @@ export default function MarketTab({ t }) {
           <p style={{ color: '#6B7280', fontSize: '13px', margin: 0, fontWeight: '600' }}>Sin solicitudes en cola.</p>
         </div>
       ) : (
-        pendingContracts.map(contract => (
-          <div key={contract.id} style={modernStyles.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
-              <div style={{ fontWeight: '800', color: '#D1D5DB', fontSize: '13px', letterSpacing: '0.5px' }}>ID: {contract.id.split('-')[0].toUpperCase()}</div>
-              <div style={{ fontWeight: '900', color: '#10B981', fontSize: '16px' }}>+${contract.price} USDT</div>
+        pendingContracts.map(contract => {
+          const rewardTGM = Number((Number(contract.price) * 1000).toFixed(2));
+          
+          return (
+            <div key={contract.id} style={modernStyles.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
+                <div style={{ fontWeight: '800', color: '#D1D5DB', fontSize: '13px', letterSpacing: '0.5px' }}>ID: {contract.id.split('-')[0].toUpperCase()}</div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: '900', color: '#10B981', fontSize: '18px' }}>+{rewardTGM} <span style={{fontSize: '12px'}}>$TGM</span></div>
+                  <div style={{ fontWeight: '600', color: '#6B7280', fontSize: '11px' }}>~ ${Number(contract.price).toFixed(2)} USDT</div>
+                </div>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px', fontSize: '13px', color: '#9CA3AF', marginBottom: '18px', wordBreak: 'break-word', border: '1px solid rgba(255,255,255,0.02)' }}>
+                Destino: <strong style={{ color: '#F3F4F6' }}>{contract.chat_id}</strong>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button style={modernStyles.btnDanger}>RECHAZAR</button>
+                <button 
+                  onClick={() => handleApprove(contract.id, "Publicación verificada mediante Smart Contract")} 
+                  disabled={processing === contract.id}
+                  style={modernStyles.btnPrimary}
+                >
+                  {processing === contract.id ? 'AUTORIZANDO...' : 'APROBAR (24H)'}
+                </button>
+              </div>
             </div>
-            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px', fontSize: '13px', color: '#9CA3AF', marginBottom: '18px', wordBreak: 'break-word', border: '1px solid rgba(255,255,255,0.02)' }}>
-              Destino: <strong style={{ color: '#F3F4F6' }}>{contract.chat_id}</strong>
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button style={modernStyles.btnDanger}>RECHAZAR</button>
-              <button 
-                onClick={() => handleApprove(contract.id, "Publicación verificada mediante Smart Contract")} 
-                disabled={processing === contract.id}
-                style={modernStyles.btnPrimary}
-              >
-                {processing === contract.id ? 'AUTORIZANDO...' : 'APROBAR (24H)'}
-              </button>
-            </div>
-          </div>
-        ))
+          );
+        })
       )}
 
       <h3 style={{ fontSize: '14px', fontWeight: '800', color: '#F59E0B', margin: '32px 0 16px 0', padding: '0 8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contratos Activos (Locked)</h3>
@@ -127,18 +134,24 @@ export default function MarketTab({ t }) {
           <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, fontWeight: '600' }}>Sin fondos retenidos actualmente.</p>
         </div>
       ) : (
-        activeContracts.map(contract => (
-          <div key={contract.id} style={{ ...modernStyles.card, borderColor: 'rgba(245, 158, 11, 0.2)', background: 'linear-gradient(145deg, rgba(245, 158, 11, 0.05), rgba(17, 24, 39, 0.9))' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <div style={{ fontWeight: '800', color: '#F3F4F6', fontSize: '14px' }}>{contract.chat_id}</div>
-              <div style={{ fontWeight: '900', color: '#F59E0B', fontSize: '15px' }}>${contract.price} USDT</div>
+        activeContracts.map(contract => {
+          const lockedTGM = Number((Number(contract.price) * 1000).toFixed(2));
+
+          return (
+            <div key={contract.id} style={{ ...modernStyles.card, borderColor: 'rgba(245, 158, 11, 0.2)', background: 'linear-gradient(145deg, rgba(245, 158, 11, 0.05), rgba(17, 24, 39, 0.9))' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ fontWeight: '800', color: '#F3F4F6', fontSize: '14px' }}>{contract.chat_id}</div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: '900', color: '#F59E0B', fontSize: '16px' }}>{lockedTGM} <span style={{fontSize: '11px'}}>$TGM</span></div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }}></div>
+                <div style={{ fontSize: '12px', color: '#D1D5DB', fontWeight: '600' }}>Fondo retenido en Escrow</div>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }}></div>
-              <div style={{ fontSize: '12px', color: '#D1D5DB', fontWeight: '600' }}>Fondo retenido en Escrow</div>
-            </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
