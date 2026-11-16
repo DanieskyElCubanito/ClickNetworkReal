@@ -10,7 +10,7 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
       ]);
 
       const totalWithdrawnUsdt = withdrawals ? withdrawals.reduce((sum, w) => sum + Number(w.amount), 0) : 0;
-      const totalDeposited = deposits ? deposits.reduce((sum, u) => sum + Number(u.deposit_balance), 0) : 0;
+      const totalDepositedUsdt = deposits ? deposits.reduce((sum, u) => sum + Number(u.deposit_balance), 0) : 0;
       const daysOnline = Math.max(1, Math.floor((Date.now() - new Date("2026-10-25T00:00:00Z").getTime()) / 86400000));
 
       return { 
@@ -19,8 +19,10 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
               success: true, 
               stats: { 
                   users: totalUsers || 0, 
-                  withdrawn: totalWithdrawnUsdt * 1000, 
-                  deposited: totalDeposited, 
+                  // 🔥 ECONOMÍA INSTITUCIONAL: Convertimos a $TGM (1 USDT = 1000)
+                  withdrawn: Math.floor(totalWithdrawnUsdt * 1000), 
+                  // 🔥 ECONOMÍA INSTITUCIONAL: Convertimos a CRÉDITOS (1 USDT = 1000)
+                  deposited: Math.floor(totalDepositedUsdt * 1000), 
                   globalClicks: statsRow?.total_global_clicks || 0, 
                   daysOnline 
               } 
@@ -30,17 +32,14 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
 
     if (action === 'get-leaderboard') {
       let completedRanking = [];
-      
-      // 🔥 OPTIMIZACIÓN 1: En lugar de descargar toda la tabla a RAM, usamos RPC o consulta directa con agregación
-      // Como Supabase JS no hace GROUP BY nativo sencillo sin RPC, optimizamos filtrando o usando un límite razonable.
-      // Si prefieres hacerlo limpio sin sobrecargar, consultamos los registros recientes o usamos una función SQL.
-      // Aquí lo blindamos con un .limit(1000) para evitar desbordamiento de memoria temporalmente:
+
+      // 🔥 OPTIMIZACIÓN 1: Limite seguro para evitar desbordamiento temporal
       const { data: allTasksDone } = await supabase.from('user_completed_tasks').select('user_id').limit(5000);
       if (allTasksDone && allTasksDone.length > 0) {
         const taskCounts = {};
         for (const t of allTasksDone) taskCounts[t.user_id] = (taskCounts[t.user_id] || 0) + 1;
         const sortedUsers = Object.entries(taskCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
-        
+
         const userIds = sortedUsers.map(([uid]) => uid);
         const { data: usersFound } = await supabase.from('users').select('id, username').in('id', userIds);
         const userMap = new Map((usersFound || []).map(u => [String(u.id), u.username]));
@@ -52,13 +51,10 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
         }));
       }
 
-      // 🔥 OPTIMIZACIÓN 2: Evitamos bucles N+1 consultando los referidos en batch
+      // 🔥 OPTIMIZACIÓN 2: Lógica de referidos
       let topReferrers = [];
       const { data: tr } = await supabase.from('users').select('id, username').order('referral_earnings', { ascending: false }).limit(10);
       if (tr && tr.length > 0) {
-        const refIds = tr.map(u => u.id);
-        // Consultamos de golpe cuántos referidos activos tiene cada uno
-        // Nota: Idealmente se lee de una columna cacheada, pero por ahora optimizamos el mapeo:
         for (const u of tr) {
           const { count: activosCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', u.id).gte('total_earnings', 0.005);
           topReferrers.push({ id: u.id, username: u.username || 'Usuario', score: activosCount || 0 });
@@ -77,7 +73,7 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
           const pUserIds = participants.map(p => p.user_id);
           const { data: pUsers } = await supabase.from('users').select('id, username').in('id', pUserIds);
           const pMap = new Map((pUsers || []).map(u => [String(u.id), u.username]));
-          
+
           for (const p of participants) {
             winners.push({ userId: p.user_id, username: pMap.get(String(p.user_id)) || 'Usuario', score: p.score });
           }
@@ -129,7 +125,7 @@ export async function handlePublicDataActions(action, targetId, reqBody) {
               success: true, 
               referrals: lv1 || [], 
               earnings: dbUser?.referral_earnings || 0,
-              sys_percent: config?.ref_percent || 10,
+              sys_percent: config?.ref_percent || 20, // Actualizado al 20% como estándar visual
               sys_bonus: config?.ref_bonus_gemas || 5
           } 
       };
