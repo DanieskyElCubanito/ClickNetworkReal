@@ -48,7 +48,6 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
         }
 
         // 2. Verificación Cloudflare Turnstile
-        // Fail-closed: en producción, sin TURNSTILE_SECRET_KEY el login se rechaza con error de configuración.
         const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
         if (isProduction && !process.env.TURNSTILE_SECRET_KEY) {
             console.error('[Turnstile] TURNSTILE_SECRET_KEY no configurada en producción.');
@@ -115,8 +114,8 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
             const newUserObj = {
                 id: uid,
                 username: safeUsername,
-                balance: 0,
-                deposit_balance: 0,
+                balance: 0,           // Saco de ganancias ($TGM)
+                deposit_balance: 0,   // Bóveda de inversión (Créditos)
                 total_earnings: 0,
                 referral_earnings: 0,
                 is_human: true,
@@ -146,7 +145,6 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
                 dbUser = newUser;
             }
         } else {
-            // Si la cuenta era antigua y tenía device_id vacío, lo sellamos ahora; si ya tenía uno, jamás se pisa.
             const updatePayload = { last_ip: clientIp, username: safeUsername };
             if (!dbUser.device_id) updatePayload.device_id = cleanDeviceId;
 
@@ -182,10 +180,8 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
             return { status: 400, body: { success: false, error: result?.error || 'No se pudo reclamar el bono.' } };
         }
 
-        // Gemas ganadas hoy (1 a 7). Son la recompensa, NO el día de la racha.
-        const gemasGanadas = Number(result.earned_gemas ?? result.earned ?? 1);
-
-        // Día de la racha que devuelve la función. Solo se acepta un entero de 1 a 7.
+        // 🔥 ECONOMÍA INSTITUCIONAL: Tokens ganados hoy (1 a 7 $TGM)
+        const tgmGanados = Number(result.earned_gemas ?? result.earned ?? 1);
         const rawDay = Number(result.streak_day ?? result.day);
         const streakDay = Number.isInteger(rawDay) && rawDay >= 1 && rawDay <= 7 ? rawDay : null;
 
@@ -193,7 +189,8 @@ export async function handleAuthAndUserActions(action, targetId, targetUser, dev
             status: 200,
             body: {
                 success: true,
-                earned_gemas: gemasGanadas.toFixed(2),
+                // Mantenemos la llave "earned_gemas" para evitar romper la compatibilidad con el state de AdsTab.jsx
+                earned_gemas: tgmGanados.toFixed(2), 
                 streak_day: streakDay,
                 balance: result.balance
             }
