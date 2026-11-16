@@ -58,7 +58,6 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
     if (!action.startsWith('admin-')) return null;
 
     // 🔥 BLINDAJE: Solo cuenta el ID criptográficamente verificado por HMAC en index.js.
-    // Si index.js aún no pasa el 4to parámetro (verifiedUserId), cae a targetId (que también viene del HMAC). Jamás usa reqBody.adminId.
     const callerId = String(verifiedUserId || targetId || '');
     if (!callerId || !ADMIN_IDS.includes(callerId)) {
         return { status: 403, body: { success: false, error: 'Comando denegado.' } };
@@ -71,7 +70,6 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
     }
 
     if (action === 'admin-stats') {
-        // 🔥 OPTIMIZACIÓN: Cuenta directamente en PostgreSQL sin descargar miles de filas a RAM
         const [{ count: usersCount, error: uErr }, { count: tasksCount, error: tErr }] = await Promise.all([
             supabase.from('users').select('id', { count: 'exact', head: true }),
             supabase.from('tasks').select('id', { count: 'exact', head: true })
@@ -95,7 +93,6 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
             return { status: 400, body: { success: false, error: 'Parámetros de actualización inválidos.' } };
         }
 
-        // 🔥 BLINDAJE: Lista blanca estricta de columnas editables desde el panel
         const safeUpdate = {};
         if (rawUpdate.balance !== undefined) {
             const b = Number(rawUpdate.balance);
@@ -122,11 +119,12 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
 
     if (action === 'admin-send-sorteo') {
         const target = String(reqBody?.targetId || '').trim();
-        const gemas = Number(reqBody?.amount);
-        if (!target || !Number.isFinite(gemas) || gemas <= 0) {
-            return { status: 400, body: { success: false, error: 'Cantidad de Gemas inválida.' } };
+        // 🔥 ECONOMÍA INSTITUCIONAL: Ahora se inyectan TGM, no "Gemas"
+        const tgmAmount = Number(reqBody?.amount);
+        if (!target || !Number.isFinite(tgmAmount) || tgmAmount <= 0) {
+            return { status: 400, body: { success: false, error: 'Cantidad de Tokens inválida.' } };
         }
-        const usdtAmount = round4(gemas / 1000);
+        const usdtAmount = round4(tgmAmount / 1000);
 
         const credit = await atomicAddBalance(target, usdtAmount, usdtAmount);
         if (!credit.ok) return { status: 409, body: { success: false, error: credit.error } };
@@ -134,7 +132,7 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
         await supabase.from('history_logs').insert([{
             user_id: target,
             title: '🎁 Premio de Comando',
-            description: `Acreditación manual | +${gemas.toFixed(2)} Gemas`,
+            description: `Acreditación manual | +${tgmAmount.toFixed(2)} $TGM`,
             amount: usdtAmount
         }]);
         return { status: 200, body: { success: true, balance: credit.balance } };
@@ -198,7 +196,6 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
     }
 
     if (action === 'admin-get-withdrawals') {
-        // Incluye 'pending' y 'manual_review' para que veas si alguno dio timeout en blockchain
         const { data: withdrawals, error } = await supabase
             .from('withdrawals')
             .select('*')
@@ -218,7 +215,6 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
             return { status: 400, body: { success: false, error: `El retiro está en estado "${withdrawal.status}". Verifica en Tonscan antes de tocarlo.` } };
         }
 
-        // 1. Reserva atómica: solo una petición pasa de pending a processing
         const { data: claimed, error: claimError } = await supabase
             .from('withdrawals')
             .update({ status: 'processing' })
@@ -233,10 +229,6 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
         try {
             realTxid = await sendTonAutomated(withdrawal.wallet_address, withdrawal.amount);
         } catch (error) {
-            // 🔥 BLINDAJE CRÍTICO ANTI-DOBLE PAGO:
-            // Si sendTonAutomated lanza error (ej. timeout de red después de transmitir el paquete),
-            // NO lo regresamos a 'pending' porque otro clic lo pagaría dos veces.
-            // Pasa a 'manual_review' y te avisa por Telegram.
             await supabase.from('withdrawals').update({ status: 'manual_review' }).eq('id', withdrawalId).eq('status', 'processing');
             const errMsg = error?.message || String(error);
             console.error('Fallo/Timeout en blockchain (retiro):', errMsg);
@@ -250,7 +242,6 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
             return { status: 500, body: { success: false, error: `Pagado (TX ${realTxid}), pero falló al marcar completado: ${doneError.message}` } };
         }
 
-        // 2. Actualización precisa del log correspondiente a ese retiro en revisión
         const { data: lastLog } = await supabase
             .from('history_logs')
             .select('id')
@@ -266,12 +257,11 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
                 .from('history_logs')
                 .update({
                     title: '✅ Retiro Completado',
-                    description: `Acreditado | <a href="https://tonscan.org/tx/${safeTxid}" target="_blank">Ver TX</a>`
+                    description: `Liquidado | <a href="https://tonscan.org/tx/${safeTxid}" target="_blank">Ver TX</a>`
                 })
                 .eq('id', lastLog.id);
         }
 
-        // 3. Notificación al canal de pagos (Resiliente aunque CoinGecko falle)
         try {
             const { data: config } = await supabase.from('system_settings').select('payment_channel_id').eq('id', 1).maybeSingle();
             const payChannel = config?.payment_channel_id?.trim();
@@ -283,9 +273,9 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
                     : `ID: ${escapeHtml(withdrawal.user_id)}`;
 
                 const withdrawAmount = Number(withdrawal.amount);
-                const canjeGemas = (withdrawAmount * 1000).toFixed(2);
+                // 🔥 ECONOMÍA INSTITUCIONAL: Convertimos a $TGM en lugar de Gemas
+                const canjeTGM = (withdrawAmount * 1000).toFixed(2);
 
-                // Intentamos obtener el equivalente en TON/GRAM, pero si CoinGecko bloquea (429), enviamos igual el mensaje en USDT
                 let amountDisplay = `$${withdrawAmount.toFixed(4)} USDT`;
                 try {
                     const resPrice = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd');
@@ -299,16 +289,16 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
                 } catch {}
 
                 const message =
-                    `💎 <b>PAGO VERIFICADO EXITOSAMENTE</b>\n\n` +
+                    `🌐 <b>LIQUIDACIÓN VERIFICADA EXITOSAMENTE</b>\n\n` +
                     `👤 <b>Beneficiario:</b> ${usernameDisplay}\n` +
-                    `💸 <b>Monto Total:</b> ${amountDisplay}\n` +
-                    `🔄 <b>Canje:</b> ${canjeGemas} Gemas\n` +
-                    `🛡️ <b>Red:</b> Toncoin (TON)\n` +
-                    `⚡ <b>Estado:</b> Finalizado / 100%\n\n` +
-                    `🔹 <b>TXID:</b>\n<a href="https://tonscan.org/tx/${safeTxid}">${escapeHtml(realTxid)}</a>\n\n` +
-                    `🔥 ¡Retiros procesados con total transparencia!`;
+                    `💸 <b>Monto Depositado:</b> ${amountDisplay}\n` +
+                    `🔄 <b>Canje Efectuado:</b> ${canjeTGM} $TGM\n` +
+                    `🛡️ <b>Protocolo:</b> Toncoin (TON)\n` +
+                    `⚡ <b>Estado:</b> Procesado\n\n` +
+                    `🔹 <b>TXID (Contrato Inteligente):</b>\n<a href="https://tonscan.org/tx/${safeTxid}">${escapeHtml(realTxid)}</a>\n\n` +
+                    `🔥 ¡Operaciones procesadas con total transparencia!`;
 
-                const keyboard = { inline_keyboard: [[{ text: '💰 ¡QUIERO GANAR GRAM AHORA!', url: 'https://t.me/TeleGemAds_bot/app' }]] };
+                const keyboard = { inline_keyboard: [[{ text: '💰 ¡QUIERO INICIAR AHORA!', url: 'https://t.me/TeleGemAds_bot/app' }]] };
 
                 const tgReq = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     method: 'POST',
@@ -353,7 +343,6 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
         if (claimError) return { status: 500, body: { success: false, error: `Fallo BD: ${claimError.message}` } };
         if (!claimed || claimed.length === 0) return { status: 409, body: { success: false, error: 'Este retiro ya fue procesado.' } };
 
-        // Reembolso atómico con bloqueo optimista
         const refund = await atomicAddBalance(withdrawal.user_id, Number(withdrawal.amount), 0);
         if (!refund.ok) {
             await supabase.from('withdrawals').update({ status: prevStatus }).eq('id', withdrawalId).eq('status', 'rejected');
@@ -394,9 +383,9 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
                 config: data || {
                     master_wallet_gram: '',
                     master_wallet_usdt_bep20: '',
-                    min_withdrawal: 0.05,
-                    ref_percent: 10,
-                    ref_bonus_gemas: 5,
+                    min_withdrawal: 0.50, // 🔥 ECONOMÍA INSTITUCIONAL: Defecto $0.50 (500 TGM)
+                    ref_percent: 20,      // 🔥 ECONOMÍA INSTITUCIONAL: Defecto 20%
+                    ref_bonus_gemas: 5,   // $TGM
                     mandatory_channel_1: '',
                     mandatory_channel_2: '',
                     payment_channel_id: ''
