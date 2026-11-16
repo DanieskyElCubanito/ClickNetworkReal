@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-// 🔥 BLINDAJE: Importamos las credenciales y utilidades centralizadas (con 'import' en minúscula)
+// 🔥 BLINDAJE: Importamos las credenciales y utilidades centralizadas
 import { BOT_TOKEN, MAIN_ADMIN_ID, checkMembership, extractTelegramUsername, notifyUser } from '../utils/telegram.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -58,8 +58,9 @@ async function runRetentionAudit() {
 
                 if (updated && updated.length > 0) {
                    await supabase.from('user_completed_tasks').delete().eq('task_id', item.task_id).eq('user_id', item.user_id);
-                   await supabase.from('history_logs').insert([{ user_id: item.user_id, title: '⚠️ Penalidad de Permanencia', description: `Sanción por abandono prematuro: -${(penaltyAmount * 1000).toFixed(2)} Gemas.`, amount: -penaltyAmount }]);
-                   await notifyUser(item.user_id, `⚠️ <b>PENALIZACIÓN</b>\nSaliste de ${t.title} antes de 24h. Gemas deducidas.`);
+                   // 🔥 ECONOMÍA INSTITUCIONAL: Sanciones reflejadas en $TGM
+                   await supabase.from('history_logs').insert([{ user_id: item.user_id, title: '⚠️ Penalidad de Permanencia', description: `Sanción por abandono prematuro: -${(penaltyAmount * 1000).toFixed(2)} $TGM.`, amount: -penaltyAmount }]);
+                   await notifyUser(item.user_id, `⚠️ <b>PENALIZACIÓN</b>\nSaliste de ${t.title} antes de 24h. $TGM deducidos.`);
                    penalties++;
                 }
               }
