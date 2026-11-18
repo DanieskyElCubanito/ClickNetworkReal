@@ -155,6 +155,177 @@ export async function handleBankingActions(action, targetId, reqBody) {
         return { status: 200, body: { success: true, wallet: publicAddress, intentId: newIntent.id } };
     }
 
+    // 💵 DEPÓSITO USDT (BEP20 / BSC): dirección derivada por usuario, sin guardar claves
+    if (action === 'generate-usdt-wallet') {
+        const expectedAmt = Number(reqBody?.price ?? reqBody?.clicks);
+        if (!Number.isFinite(expectedAmt) || expectedAmt < 0.5 || expectedAmt > 100000) {
+            return { status: 400, body: { success: false, error: 'Monto de depósito USDT inválido (mínimo 0.50).' } };
+        }
+
+        let derivedAddress;
+        try {
+            const { getDerivedUsdtWallet } = await import('../utils/blockchain.js');
+            derivedAddress = getDerivedUsdtWallet(id).address;
+        } catch (e) {
+            return { status: 500, body: { success: false, error: `Depósito USDT no disponible: ${e.message}` } };
+        }
+
+        const { data: newIntent, error } = await supabase
+            .from('payment_intents')
+            .insert([{
+                user_id: id,
+                expected_amount: round4(expectedAmt),
+                public_wallet: derivedAddress,
+                encrypted_private_key: '',
+                status: 'pending'
+            }])
+            .select('id')
+            .single();
+
+        if (error) return { status: 500, body: { success: false, error: `Fallo BD: ${error.message}` } };
+        return { status: 200, body: { success: true, wallet: derivedAddress, intentId: newIntent.id } };
+    }
+
+    // 💵 VERIFICACIÓN USDT: lee el saldo USDT real en BSC, barre a la bóveda y acredita
+    if (action === 'verify-usdt-payment') {
+        const intentId = String(reqBody?.intentId || '').trim();
+        if (!intentId) return { status: 400, body: { success: false, error: 'ID de pago requerido.' } };
+
+        const { data: intent, error: iError } = await supabase
+            .from('payment_intents')
+            .select('*')
+            .eq('id', intentId)
+            .eq('user_id', id)
+            .eq('status', 'pending')
+            .maybeSingle();
+
+        if (iError) return { status: 500, body: { success: false, error: `Fallo BD (Pago): ${iError.message}` } };
+        if (!intent || !/^0x[0-9a-fA-F]{40}$/.test(String(intent.public_wallet || ''))) {
+            return { status: 400, body: { success: false, error: 'Orden de pago no encontrada o ya procesada.' } };
+        }
+
+        const expectedUsdt = Number(intent.expected_amount);
+        if (!Number.isFinite(expectedUsdt) || expectedUsdt <= 0) {
+            return { status: 400, body: { success: false, error: 'Monto esperado inválido en la orden.' } };
+        }
+
+        // 1. Reserva atómica del intent (pending -> processing)
+        const { data: claimed, error: cError } = await supabase.rpc('claim_payment_intent', {
+            p_intent_id: String(intent.id),
+            p_user_id: id
+        });
+        if (cError) return { status: 500, body: { success: false, error: `Fallo BD (Reclamar): ${cError.message}` } };
+        if (!claimed) return { status: 409, body: { success: false, error: 'Este pago ya se está procesando.' } };
+
+        const release = () => supabase.rpc('release_payment_intent', { p_intent_id: String(intent.id) });
+
+        // 2. Saldo USDT real en BSC
+        let chain;
+        let balanceWei;
+        let receivedUsdt;
+        try {
+            chain = await import('../utils/blockchain.js');
+            const provider = new chain.ethers.JsonRpcProvider(chain.BSC_RPC);
+            const usdt = new chain.ethers.Contract(
+                chain.USDT_BEP20_ADDRESS,
+                ['function balanceOf(address owner) view returns (uint256)'],
+                provider
+            );
+            balanceWei = await usdt.balanceOf(intent.public_wallet);
+            receivedUsdt = Number(chain.ethers.formatUnits(balanceWei, 18)); // USDT en BSC tiene 18 decimales
+        } catch (e) {
+            await release();
+            return { status: 502, body: { success: false, error: `Error de verificación en BSC: ${e.message}` } };
+        }
+
+        if (receivedUsdt + 1e-6 < expectedUsdt) {
+            await release();
+            return {
+                status: 400,
+                body: {
+                    success: false,
+                    error: `Saldo insuficiente en BSC (${receivedUsdt.toFixed(4)} / ${expectedUsdt.toFixed(4)} USDT).`
+                }
+            };
+        }
+
+        // 3. Barrido a la bóveda ANTES de acreditar: si el barrido falla, no se acredita nada y se puede reintentar
+        const { data: config } = await supabase
+            .from('system_settings')
+            .select('master_wallet_usdt_bep20, payment_channel_id')
+            .eq('id', 1)
+            .maybeSingle();
+        const destination = config?.master_wallet_usdt_bep20?.trim() || chain.FALLBACK_MASTER_WALLET_USDT;
+
+        let sweep;
+        try {
+            sweep = await chain.sweepUsdtAutomated(chain.getDerivedUsdtWallet(id), balanceWei, destination);
+        } catch (e) {
+            sweep = { success: false, error: e.message };
+        }
+        if (!sweep?.success) {
+            await release();
+            console.error(`Barrido USDT falló para usuario ${id}:`, sweep?.error);
+            return { status: 502, body: { success: false, error: `No se pudo confirmar el depósito en BSC, inténtalo de nuevo en unos minutos.` } };
+        }
+
+        // 4. Acreditación atómica en BD (crédito = USDT recibido)
+        const creditAmount = round4(receivedUsdt);
+        const { data: done, error: fError } = await supabase.rpc('finish_payment_intent', {
+            p_intent_id: String(intent.id),
+            p_user_id: id,
+            p_credit: creditAmount
+        });
+
+        if (fError || !done?.ok) {
+            // Los fondos ya están en la bóveda: aviso al admin para acreditar a mano
+            notifyAdmin(
+                `⚠️ <b>DEPÓSITO USDT BARRIDO SIN ACREDITAR</b>\n` +
+                `Intent ID: <code>${intent.id}</code>\n` +
+                `Usuario: <code>${id}</code>\n` +
+                `Monto: ${creditAmount} USDT\n` +
+                `Tx barrido: <code>${escapeHtml(sweep.txHash || '')}</code>\n` +
+                `Error: <code>${escapeHtml(fError?.message || done?.error || 'desconocido')}</code>`
+            );
+            return { status: 500, body: { success: false, error: 'El depósito llegó, pero no se pudo acreditar. Avisa al soporte con tu ID.' } };
+        }
+
+        // 5. Aviso al canal de pagos (si está configurado)
+        try {
+            const payChannel = config?.payment_channel_id?.trim();
+            if (payChannel && BOT_TOKEN) {
+                const { data: dbUser } = await supabase.from('users').select('username').eq('id', id).maybeSingle();
+                const usernameDisplay = dbUser?.username && dbUser.username !== 'Usuario'
+                    ? `@${escapeHtml(dbUser.username)}`
+                    : `ID: ${escapeHtml(id)}`;
+
+                const message =
+                    `🌐 <b>NUEVA INYECCIÓN DE LIQUIDEZ</b>\n\n` +
+                    `👤 <b>Anunciante:</b> ${usernameDisplay}\n` +
+                    `💰 <b>Monto:</b> ${creditAmount.toFixed(2)} USDT\n` +
+                    `🛡️ <b>Red:</b> BNB Smart Chain (BEP20)\n` +
+                    `⚡ <b>Estado:</b> Fondos Acreditados\n\n` +
+                    `🔥 ¡La red publicitaria se expande!`;
+
+                const tgReq = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: payChannel,
+                        text: message,
+                        parse_mode: 'HTML',
+                        disable_web_page_preview: true
+                    })
+                });
+                if (!tgReq.ok) console.error('Fallo enviando notificación a Telegram (Depósito USDT):', await tgReq.text());
+            }
+        } catch (errLog) {
+            console.error('Error crítico al notificar depósito USDT:', errLog.message);
+        }
+
+        return { status: 200, body: { success: true, deposit_balance: done.deposit_balance } };
+    }
+
     if (action === 'verify-crypto-payment') {
         const intentId = String(reqBody?.intentId || '').trim();
         if (!intentId) return { status: 400, body: { success: false, error: 'ID de pago requerido.' } };
