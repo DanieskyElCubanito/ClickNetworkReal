@@ -27,8 +27,8 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  // 🔥 ECONOMÍA INSTITUCIONAL: Mínimo de Retiro = 500 $TGM ($0.50 USDT)
-  const [minWithdrawalTGM, setMinWithdrawalTGM] = useState(500);
+  // Mínimo de retiro: lo entrega el servidor (system_settings.min_withdrawal x 1000). Sin número fijo.
+  const [minWithdrawalTGM, setMinWithdrawalTGM] = useState(null);
 
   const [reqs, setReqs] = useState({ referrals: 0, ads: 0 });
   const [playingAd, setPlayingAd] = useState(false);
@@ -42,6 +42,17 @@ export default function WalletTab({ userData, setUserData, t }) {
   const [liveGramUsd, setLiveGramUsd] = useState(5.00);
 
   const apiHeaders = { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': WebApp.initData || '' };
+
+  // Traduce una clave y rellena {variables} (ej. {min}, {amount}, {price}).
+  // Si la clave falta o t() devuelve la propia clave, usa el texto de respaldo.
+  const tr = (key, fallback, vars = {}) => {
+    const raw = t(key);
+    let text = (!raw || raw === key) ? fallback : raw;
+    Object.entries(vars).forEach(([name, value]) => {
+      text = text.split(`{${name}}`).join(String(value));
+    });
+    return text;
+  };
 
   useEffect(() => {
     if (!window.showGiga) {
@@ -65,8 +76,8 @@ export default function WalletTab({ userData, setUserData, t }) {
         if (isMounted && data.success) {
             setReqs({ referrals: data.referrals, ads: data.ads });
             if (data.saved_wallet) setWithdrawAddress(data.saved_wallet);
-            if (data.min_withdrawal) {
-                // Se espera que la DB retorne el mínimo en USDT (ej: 0.5), lo multiplicamos por 1000
+            if (data.min_withdrawal != null) {
+                // La DB devuelve el mínimo en USDT (ej: 0.5); se muestra en $TGM (x 1000)
                 setMinWithdrawalTGM(Math.round(Number(data.min_withdrawal) * 1000));
             }
         }
@@ -97,7 +108,7 @@ export default function WalletTab({ userData, setUserData, t }) {
     return () => { isMounted = false; };
   }, []);
 
-  // 🔥 ECONOMÍA INSTITUCIONAL
+  // ECONOMÍA INSTITUCIONAL
   const balanceUSDT = Number(userData?.balance || 0);
   const tgmBalance = Number((Number(balanceUSDT) * 1000).toFixed(2));
   
@@ -143,7 +154,8 @@ export default function WalletTab({ userData, setUserData, t }) {
     if (withdrawAddress.length < 20) return toast.error(t('bank_err_wallet_invalid') || "Billetera TON inválida.");
 
     const tgmAmount = Number(withdrawAmount);
-    if (!tgmAmount || tgmAmount < minWithdrawalTGM) return toast.error(t('bank_err_min_withdraw') || `El retiro mínimo es de ${minWithdrawalTGM} $TGM.`);
+    if (minWithdrawalTGM == null) return toast.error(tr('bank_err_loading_min', 'Cargando el mínimo de retiro, inténtalo de nuevo.'));
+    if (!tgmAmount || tgmAmount < minWithdrawalTGM) return toast.error(tr('bank_err_min_withdraw', 'El retiro mínimo es de {min} $TGM.', { min: minWithdrawalTGM }));
     if (tgmAmount > tgmBalance) return toast.error(t('bank_err_insufficient') || "Capital insuficiente.");
 
     if (reqs.referrals < 5 && reqs.ads < 5) {
@@ -219,7 +231,7 @@ export default function WalletTab({ userData, setUserData, t }) {
       });
       const data = await res.json();
       if (data.success) { 
-        toast.success(t('bank_msg_deposit_ok')?.replace('{amount}', numericRecharge) || `Liquidación de $${numericRecharge} acreditada en Bóveda.`, { id: tid }); 
+        toast.success(tr('bank_msg_deposit_ok', 'Liquidación de {amount} acreditada en Bóveda.', { amount: numericRecharge }), { id: tid });
         if (data.deposit_balance !== undefined) setUserData(prev => ({ ...prev, deposit_balance: data.deposit_balance }));
         setCheckoutView(false); setTempWallet(''); setIntentId(null);
       }
@@ -279,7 +291,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
             <div>
               <h3 style={{ margin: 0, color: '#F9FAFB', fontSize: '16px', fontWeight: '800', letterSpacing: '0.5px' }}>{t('bank_wd_title') || "EXTRACCIÓN DE ACTIVOS"}</h3>
-              <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>{t('bank_wd_min') || `Umbral operativo: ${minWithdrawalTGM} $TGM`}</div>
+              <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>{tr('bank_wd_min', 'Umbral operativo: {min} $TGM', { min: minWithdrawalTGM == null ? '…' : minWithdrawalTGM })}</div>
             </div>
           </div>
 
@@ -299,7 +311,7 @@ export default function WalletTab({ userData, setUserData, t }) {
           />
           {walletIsLocked && (
              <div style={{ color: '#F59E0B', fontSize: '10px', fontWeight: '700', marginTop: '-10px', marginBottom: '20px', textAlign: 'center' }}>
-               🔒 Dirección bloqueada por seguridad. Contacta a soporte para cambios.
+               {tr('bank_wd_locked', '🔒 Dirección bloqueada por seguridad. Contacta a soporte para cambios.')}
              </div>
           )}
 
@@ -309,7 +321,7 @@ export default function WalletTab({ userData, setUserData, t }) {
               type="text" 
               inputMode="decimal"
               style={{ ...modernStyles.input, borderColor: 'rgba(245, 158, 11, 0.4)', marginBottom: 0, textAlign: 'left' }} 
-              placeholder={`${minWithdrawalTGM}`} 
+              placeholder={minWithdrawalTGM == null ? '' : String(minWithdrawalTGM)} 
               value={withdrawAmount} 
               onChange={(e) => setWithdrawAmount(e.target.value.replace(',', '.'))} 
             />
@@ -373,7 +385,7 @@ export default function WalletTab({ userData, setUserData, t }) {
               {rechargeMethod === 'gram' && (
                 <>
                   <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: '800', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('bank_dp_send_exact')?.replace('{price}', liveGramUsd) || `Cotización TON: $${liveGramUsd}`}</div>
+                    <div style={{ fontSize: '11px', fontWeight: '800', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '1px' }}>{tr('bank_dp_send_exact', 'Cotización TON: ${price}', { price: liveGramUsd })}</div>
                     <div style={{ fontSize: '32px', fontWeight: '900', color: '#10B981', margin: '8px 0' }}>{gramRechargePrice} GRAM</div>
                     <div style={{ fontSize: '12px', color: '#D1D5DB' }}>{t('bank_dp_to_generated') || "Dirección inteligente de contrato:"}</div>
                   </div>
@@ -447,7 +459,7 @@ export default function WalletTab({ userData, setUserData, t }) {
                 <button onClick={() => setRechargeMethod('usdt')} style={{ flex: 1, padding: '14px', borderLeft: '1px solid rgba(255,255,255,0.05)', borderTop: 'none', borderRight: 'none', borderBottom: 'none', background: rechargeMethod === 'usdt' ? 'linear-gradient(135deg, #10B981, #059669)' : 'transparent', color: rechargeMethod === 'usdt' ? '#ffffff' : '#9CA3AF', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>{t('bank_dp_method_usdt') || "USDT (BEP20)"}</button>
               </div>
 
-                        <button onClick={handleStartRecharge} disabled={isGenerating} style={{...modernStyles.btnPrimary, background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'}}>
+              <button onClick={handleStartRecharge} disabled={isGenerating} style={{...modernStyles.btnPrimary, background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'}}>
                 {isGenerating ? (t('bank_btn_connecting') || 'INICIALIZANDO CONTRATO...') : (t('bank_btn_proceed') || 'GENERAR CONTRATO DE PAGO')}
               </button>
             </div>
