@@ -90,6 +90,52 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
         return { status: 200, body: { success: true, tasks: allTasks || [] } };
     }
 
+        if (action === 'admin-broadcast') {
+        const text = String(reqBody?.text || '').trim();
+        const photo = String(reqBody?.photo || '').trim() || null;
+        const parseMode = reqBody?.parseMode === 'HTML' || reqBody?.parseMode === 'MarkdownV2' ? reqBody.parseMode : undefined;
+        const offset = Math.max(0, Number(reqBody?.offset) || 0);
+        const limit = Math.min(50, Math.max(1, Number(reqBody?.limit) || 25));
+
+        if (!text && !photo) return { status: 400, body: { success: false, error: 'Escribe un texto o pon una foto.' } };
+        if (text.length > (photo ? 1024 : 4096)) return { status: 400, body: { success: false, error: 'El texto es demasiado largo.' } };
+
+        const colors = ['primary', 'success', 'danger'];
+        const rows = Array.isArray(reqBody?.buttons) ? reqBody.buttons : [];
+        const keyboard = rows
+            .map(row => (Array.isArray(row) ? row : []).map(b => {
+                const btnText = String(b?.text || '').trim().slice(0, 64);
+                const url = String(b?.url || '').trim();
+                if (!btnText || !/^https:\/\//i.test(url)) return null;
+                const btn = { text: btnText, url };
+                if (colors.includes(b?.color)) btn.style = b.color;
+                return btn;
+            }).filter(Boolean))
+            .filter(row => row.length);
+        const reply_markup = keyboard.length ? { inline_keyboard: keyboard } : undefined;
+
+        const { data: users, error: uErr } = await supabase
+            .from('users')
+            .select('id')
+            .or('is_banned.is.null,is_banned.eq.false')
+            .order('id', { ascending: true })
+            .range(offset, offset + limit - 1);
+        if (uErr) return { status: 500, body: { success: false, error: uErr.message } };
+
+        const list = users || [];
+        let sent = 0;
+        let failed = 0;
+        for (const u of list) {
+            const ok = await sendBroadcastOne(u.id, { text: text || undefined, photo, parseMode, reply_markup });
+            if (ok) sent++; else failed++;
+        }
+
+        return {
+            status: 200,
+            body: { success: true, sent, failed, nextOffset: offset + list.length, done: list.length < limit }
+        };
+    }
+
     if (action === 'admin-stats') {
         const [{ count: usersCount, error: uErr }, { count: tasksCount, error: tErr }] = await Promise.all([
             supabase.from('users').select('id', { count: 'exact', head: true }),
