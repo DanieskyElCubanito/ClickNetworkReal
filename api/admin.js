@@ -45,7 +45,28 @@ async function atomicAddBalance(userId, deltaBalance, deltaTotalEarnings = 0) {
     }
     return { ok: false, error: 'El saldo del usuario estaba cambiando simultáneamente. Intenta de nuevo.' };
 }
-
+// Envía un mensaje (con foto o sin foto) a un usuario. Reintenta una vez si Telegram pide esperar (429).
+async function sendBroadcastOne(chatId, { text, photo, parseMode, reply_markup }) {
+    const method = photo ? 'sendPhoto' : 'sendMessage';
+    const body = photo
+        ? { chat_id: chatId, photo, caption: text || undefined, parse_mode: parseMode, reply_markup }
+        : { chat_id: chatId, text, parse_mode: parseMode, reply_markup, disable_web_page_preview: true };
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (res.ok) return true;
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 429 && attempt === 0) {
+            await new Promise(r => setTimeout(r, (Number(data?.parameters?.retry_after) || 1) * 1000));
+            continue;
+        }
+        return false;
+    }
+    return false;
+}
 export async function handleAdminActions(action, targetId, reqBody, verifiedUserId) {
     if (action === 'verify-admin') {
         const chatId = extractTelegramUsername(String(reqBody?.url || ''));
