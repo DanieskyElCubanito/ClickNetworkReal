@@ -104,7 +104,12 @@ function App() {
 
   const [lang, setLang] = useState(safeStorage.get('click_lang') || 'es');
   const initialized = useRef(false);
-  const t = (key) => translations[lang][key] || key;
+    // Traduce una clave; {nombre} se sustituye por vars.nombre. Si falta en el idioma, usa español y luego la clave.
+  const t = (key, vars) => {
+    let text = translations[lang]?.[key] ?? translations.es?.[key] ?? key;
+    if (vars) Object.entries(vars).forEach(([name, value]) => { text = text.split(`{${name}}`).join(String(value)); });
+    return text;
+  };
 
   // GATEKEEPER STATES (Canales Obligatorios)
   const [mustJoin, setMustJoin] = useState(false);
