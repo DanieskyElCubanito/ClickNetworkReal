@@ -32,17 +32,17 @@ export default function AdminDashboard() {
 
   const [newBalance, setNewBalance] = useState('');
   const [newDepositBalance, setNewDepositBalance] = useState('');
-  const [sorteoAmount, setSorteoAmount] = useState(''); 
+  const [sorteoAmount, setSorteoAmount] = useState('');
 
   const [allTasks, setAllTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
   // CONFIGURACIÓN DEL SISTEMA
-  const [sysConfig, setSysConfig] = useState({ 
-      master_wallet_gram: '', 
-      master_wallet_usdt_bep20: '', 
-      min_withdrawal: 0.50, 
-      ref_percent: 20, 
+  const [sysConfig, setSysConfig] = useState({
+      master_wallet_gram: '',
+      master_wallet_usdt_bep20: '',
+      min_withdrawal: 0.50,
+      ref_percent: 20,
       ref_bonus_gemas: 5,
       mandatory_channel_1: '',
       mandatory_channel_2: '',
@@ -81,8 +81,8 @@ export default function AdminDashboard() {
     loadAllTasks();
     loadSysConfig();
     loadPendingWithdrawals();
-    loadActiveEvent(); 
-    loadPastEvents(); 
+    loadActiveEvent();
+    loadPastEvents();
   }, []);
 
   const loadStats = async () => {
@@ -131,19 +131,19 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-approve-withdrawal', withdrawalId }) });
       const data = await res.json();
-      if (data.success) { toast.success("Extracción autorizada y procesada", { id: tid }); loadPendingWithdrawals(); } 
+      if (data.success) { toast.success("Extracción autorizada y procesada", { id: tid }); loadPendingWithdrawals(); }
       else throw new Error(data.error);
     } catch (err) { toast.error(err.message || "Error al procesar la extracción.", { id: tid }); }
   };
 
   const handleRejectWithdrawal = async (withdrawalId) => {
     const reason = window.prompt("Motivo de la retención (visible para el jugador):");
-    if (reason === null) return; 
+    if (reason === null) return;
     const tid = toast.loading("Aplicando retención...");
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-reject-withdrawal', withdrawalId, reason }) });
       const data = await res.json();
-      if (data.success) { toast.success("Extracción denegada. Fondos reembolsados.", { id: tid }); loadPendingWithdrawals(); } 
+      if (data.success) { toast.success("Extracción denegada. Fondos reembolsados.", { id: tid }); loadPendingWithdrawals(); }
       else throw new Error(data.error);
     } catch (err) { toast.error(err.message || "Error al denegar.", { id: tid }); }
   };
@@ -156,18 +156,18 @@ export default function AdminDashboard() {
     const tid = toast.loading("Asegurando coordenadas maestras...");
     setSavingConfig(true);
     try {
-      const res = await fetch('/api', { 
-        method: 'POST', 
-        headers: apiHeaders, 
-        body: JSON.stringify({ 
-          action: 'admin-update-config', 
-          config: { 
-              ...sysConfig, 
+      const res = await fetch('/api', {
+        method: 'POST',
+        headers: apiHeaders,
+        body: JSON.stringify({
+          action: 'admin-update-config',
+          config: {
+              ...sysConfig,
               min_withdrawal: usdtMin,
               ref_percent: Number(refPercent),
               ref_bonus_gemas: Number(refBonusTGM)
-          } 
-        }) 
+          }
+        })
       });
       const data = await res.json();
       if (data.success) toast.success("Configuración del Sistema actualizada", { id: tid });
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'delete-task', taskId: taskId, isAdminAction: true }) });
       const data = await res.json();
-      if (data.success) { toast.success("Misión eliminada permanentemente", { id: tid }); loadAllTasks(); loadStats(); } 
+      if (data.success) { toast.success("Misión eliminada permanentemente", { id: tid }); loadAllTasks(); loadStats(); }
       else throw new Error(data.error);
     } catch (err) { toast.error(err.message || "Error al purgar misión.", { id: tid }); }
   };
@@ -208,9 +208,9 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', targetId: foundUser.id, update: { balance: Number(newBalance) } }) });
       const data = await res.json();
-      if (data.success) { 
-        toast.success("Saldo $TGM actualizado", { id: tid }); 
-        setFoundUser(prev => ({ ...prev, balance: Number(newBalance) })); 
+      if (data.success) {
+        toast.success("Saldo $TGM actualizado", { id: tid });
+        setFoundUser(prev => ({ ...prev, balance: Number(newBalance) }));
       } else throw new Error();
     } catch { toast.error("Error en la alteración", { id: tid }); }
   };
@@ -221,9 +221,9 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', targetId: foundUser.id, update: { deposit_balance: Number(newDepositBalance) } }) });
       const data = await res.json();
-      if (data.success) { 
-        toast.success("Bóveda de Créditos actualizada", { id: tid }); 
-        setFoundUser(prev => ({ ...prev, deposit_balance: Number(newDepositBalance) })); 
+      if (data.success) {
+        toast.success("Bóveda de Créditos actualizada", { id: tid });
+        setFoundUser(prev => ({ ...prev, deposit_balance: Number(newDepositBalance) }));
       } else throw new Error();
     } catch { toast.error("Error al inyectar fondos", { id: tid }); }
   };
@@ -234,17 +234,17 @@ export default function AdminDashboard() {
 
     const tid = toast.loading("Acreditando premio y guardando en el historial...");
     try {
-      const res = await fetch('/api', { 
-        method: 'POST', headers: apiHeaders, 
-        body: JSON.stringify({ 
-          action: 'admin-send-sorteo', 
-          targetId: foundUser.id, 
-          amount: Number(sorteoAmount) 
-        }) 
+      const res = await fetch('/api', {
+        method: 'POST', headers: apiHeaders,
+        body: JSON.stringify({
+          action: 'admin-send-sorteo',
+          targetId: foundUser.id,
+          amount: Number(sorteoAmount)
+        })
       });
       const data = await res.json();
-      if (data.success) { 
-        toast.success("¡Premio enviado exitosamente!", { id: tid }); 
+      if (data.success) {
+        toast.success("¡Premio enviado exitosamente!", { id: tid });
         const addedUsdt = Number(sorteoAmount) / 1000;
         setFoundUser(prev => ({ ...prev, balance: Number(prev.balance) + addedUsdt }));
         setNewBalance(prev => Number(prev) + addedUsdt);
@@ -260,7 +260,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'admin-update-user', targetId: foundUser.id, update: { is_banned: isBanning } }) });
       const data = await res.json();
-      if (data.success) { toast.success(isBanning ? "Jugador expulsado de la red" : "Jugador restaurado en el sistema", { id: tid }); setFoundUser(prev => ({ ...prev, is_banned: isBanning })); } 
+      if (data.success) { toast.success(isBanning ? "Jugador expulsado de la red" : "Jugador restaurado en el sistema", { id: tid }); setFoundUser(prev => ({ ...prev, is_banned: isBanning })); }
       else throw new Error();
     } catch { toast.error("Fallo de comando", { id: tid }); }
   };
@@ -297,7 +297,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({ action: 'admin-create-event', title: eventTitle, event_type: eventType, start_date: startDate, end_date: endDate.toISOString(), prizes: [prize1, prize2, prize3] })
       });
       const data = await res.json();
-      if (data.success) { toast.success("¡Temporada clasificatoria activada!", { id: tid }); loadActiveEvent(); } 
+      if (data.success) { toast.success("¡Temporada clasificatoria activada!", { id: tid }); loadActiveEvent(); }
       else throw new Error(data.error);
     } catch (e) { toast.error(e.message || "Error de inicialización", { id: tid }); }
   };
@@ -314,7 +314,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({ action: 'admin-manage-event', eventId: String(activeEvent.id), newStatus })
       });
       const data = await res.json();
-      if (data.success) { toast.success("Temporada actualizada con éxito", { id: tid }); loadActiveEvent(); loadPastEvents(); } 
+      if (data.success) { toast.success("Temporada actualizada con éxito", { id: tid }); loadActiveEvent(); loadPastEvents(); }
       else throw new Error(data.error);
     } catch (e) { toast.error(e.message || "Fallo en sobreescritura", { id: tid }); }
   };
@@ -334,12 +334,12 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api', {
         method: 'POST', headers: apiHeaders,
-        body: JSON.stringify({ 
-          action: 'admin-create-master-task', 
-          title: masterTaskTitle, 
-          url: masterTaskUrl, 
-          type: masterTaskType, 
-          reward: masterTaskReward 
+        body: JSON.stringify({
+          action: 'admin-create-master-task',
+          title: masterTaskTitle,
+          url: masterTaskUrl,
+          type: masterTaskType,
+          reward: masterTaskReward
         })
       });
       const data = await res.json();
@@ -348,12 +348,61 @@ export default function AdminDashboard() {
         toast.success(`¡Misión ${masterTaskType.toUpperCase()} activada!`, { id: tid });
         setMasterTaskTitle('');
         setMasterTaskUrl('');
-        loadAllTasks(); 
+        loadAllTasks();
       } else throw new Error(data.error);
     } catch (err) {
       toast.error(err.message || "Error al desplegar la misión.", { id: tid });
     } finally {
       setIsDeployingMaster(false);
+    }
+  };
+
+  // ENVÍO MASIVO A TODOS LOS JUGADORES
+  const [bcText, setBcText] = useState('');
+  const [bcPhoto, setBcPhoto] = useState('');
+  const [bcParse, setBcParse] = useState('');
+  const [bcButtons, setBcButtons] = useState([]);
+  const [bcSending, setBcSending] = useState(false);
+  const [bcProgress, setBcProgress] = useState('');
+
+  const addBcButton = () => setBcButtons(prev => prev.length >= 3 ? prev : [...prev, { text: '', url: '', style: '' }]);
+  const updateBcButton = (i, field, value) => setBcButtons(prev => prev.map((b, idx) => idx === i ? { ...b, [field]: value } : b));
+  const removeBcButton = (i) => setBcButtons(prev => prev.filter((_, idx) => idx !== i));
+
+  const handleBroadcast = async () => {
+    const text = bcText.trim();
+    const photo = bcPhoto.trim();
+    if (!text && !photo) return toast.error('Escribe un mensaje o pon una foto.');
+    if (photo && !/^https:\/\//.test(photo)) return toast.error('La foto debe ser una URL que empiece por https://');
+    const buttons = bcButtons
+      .map(b => ({ text: b.text.trim(), url: b.url.trim(), style: b.style || '' }))
+      .filter(b => b.text || b.url);
+    if (buttons.some(b => !b.text || !/^https:\/\//.test(b.url))) return toast.error('Cada botón necesita texto y una URL que empiece por https://');
+    if (!window.confirm('¿Enviar este mensaje a TODOS los jugadores? No se puede deshacer.')) return;
+
+    setBcSending(true);
+    let offset = 0, sent = 0, failed = 0, done = false, guard = 0;
+    try {
+      while (!done && guard++ < 1000) {
+        setBcProgress(`Enviando... ${sent + failed} procesados`);
+        const res = await fetch('/api', {
+          method: 'POST',
+          headers: apiHeaders,
+          body: JSON.stringify({ action: 'admin-broadcast', text, photo: photo || null, parseMode: bcParse || null, buttons, offset })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Error en el envío masivo');
+        sent += Number(data.sent || 0);
+        failed += Number(data.failed || 0);
+        offset = Number(data.nextOffset ?? offset);
+        done = !!data.done;
+      }
+      toast.success(`Envío terminado: ${sent} enviados, ${failed} fallidos`);
+    } catch (e) {
+      toast.error(e.message || 'Error en el envío masivo');
+    } finally {
+      setBcSending(false);
+      setBcProgress('');
     }
   };
 
@@ -376,6 +425,99 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* ENVÍO MASIVO */}
+      <div style={{ ...neon.card, borderColor: '#00f0ff', background: 'linear-gradient(145deg, #05182a, #020d17)' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#00f0ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          📣 Envío Masivo a Todos los Jugadores
+        </h3>
+
+        <span style={neon.label}>Mensaje</span>
+        <textarea
+          rows={4}
+          placeholder="Escribe el mensaje que recibirán todos los jugadores..."
+          style={{ ...neon.input, borderColor: '#00f0ff', resize: 'vertical', fontFamily: 'inherit' }}
+          value={bcText}
+          onChange={(e) => setBcText(e.target.value)}
+        />
+
+        <span style={neon.label}>Foto (opcional, URL https://)</span>
+        <input
+          type="text"
+          placeholder="https://..."
+          style={{ ...neon.input, borderColor: '#00f0ff' }}
+          value={bcPhoto}
+          onChange={(e) => setBcPhoto(e.target.value)}
+        />
+
+        <span style={neon.label}>Formato del texto</span>
+        <select
+          style={{ ...neon.input, borderColor: '#00f0ff', background: 'rgba(0,0,0,0.8)' }}
+          value={bcParse}
+          onChange={(e) => setBcParse(e.target.value)}
+        >
+          <option value="">Texto normal</option>
+          <option value="HTML">HTML (negrita, enlaces)</option>
+        </select>
+
+        <span style={neon.label}>Botones (opcional, máximo 3)</span>
+        {bcButtons.map((b, i) => (
+          <div key={i} style={{ border: '1px solid rgba(0,240,255,0.4)', borderRadius: '12px', padding: '10px', marginBottom: '10px' }}>
+            <input
+              type="text"
+              placeholder="Texto del botón"
+              style={{ ...neon.input, borderColor: '#00f0ff' }}
+              value={b.text}
+              onChange={(e) => updateBcButton(i, 'text', e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="https://..."
+              style={{ ...neon.input, borderColor: '#00f0ff' }}
+              value={b.url}
+              onChange={(e) => updateBcButton(i, 'url', e.target.value)}
+            />
+            <select
+              style={{ ...neon.input, borderColor: '#00f0ff', background: 'rgba(0,0,0,0.8)' }}
+              value={b.style}
+              onChange={(e) => updateBcButton(i, 'style', e.target.value)}
+            >
+              <option value="">Normal (sin color)</option>
+              <option value="primary">Azul</option>
+              <option value="success">Verde</option>
+              <option value="danger">Rojo</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => removeBcButton(i)}
+              style={{ ...neon.btnDanger, padding: '8px', fontSize: '12px' }}
+            >
+              Quitar botón
+            </button>
+          </div>
+        ))}
+        {bcButtons.length < 3 && (
+          <button
+            type="button"
+            onClick={addBcButton}
+            style={{ ...neon.btnDanger, borderColor: '#00f0ff', color: '#00f0ff', marginBottom: '12px' }}
+          >
+            + Añadir botón
+          </button>
+        )}
+
+        {bcProgress && (
+          <p style={{ fontSize: '12px', color: '#00f0ff', textAlign: 'center', margin: '0 0 10px 0' }}>{bcProgress}</p>
+        )}
+        <button
+          type="button"
+          onClick={handleBroadcast}
+          disabled={bcSending}
+          style={{ ...neon.btn, background: 'linear-gradient(90deg, #00f0ff, #0088ff)', opacity: bcSending ? 0.6 : 1 }}
+        >
+          {bcSending ? 'ENVIANDO...' : '📣 ENVIAR A TODOS'}
+        </button>
+      </div>
+
       {/* DESPLIEGUE DE TAREAS MAESTRAS */}
       <div style={{ ...neon.card, borderColor: '#ff1493', background: 'linear-gradient(145deg, #2a051d, #140212)' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ff1493', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -386,9 +528,9 @@ export default function AdminDashboard() {
         </p>
 
         <span style={neon.label}>Categoría de la Misión</span>
-        <select 
-          style={{...neon.input, borderColor: '#ff1493', background: 'rgba(0,0,0,0.8)'}} 
-          value={masterTaskType} 
+        <select
+          style={{...neon.input, borderColor: '#ff1493', background: 'rgba(0,0,0,0.8)'}}
+          value={masterTaskType}
           onChange={(e) => setMasterTaskType(e.target.value)}
         >
           <option value="daily_promo">🎁 Diaria (Web / YouTube / App)</option>
@@ -397,36 +539,36 @@ export default function AdminDashboard() {
         </select>
 
         <span style={neon.label}>Título Público</span>
-        <input 
-          type="text" 
-          placeholder="Ej. Check-in YouTube / Suscríbete a Sponsor" 
-          style={{ ...neon.input, borderColor: '#ff1493' }} 
-          value={masterTaskTitle} 
-          onChange={(e) => setMasterTaskTitle(e.target.value)} 
+        <input
+          type="text"
+          placeholder="Ej. Check-in YouTube / Suscríbete a Sponsor"
+          style={{ ...neon.input, borderColor: '#ff1493' }}
+          value={masterTaskTitle}
+          onChange={(e) => setMasterTaskTitle(e.target.value)}
         />
 
         <span style={neon.label}>URL Objetivo</span>
-        <input 
-          type="text" 
-          placeholder="https://..." 
-          style={{ ...neon.input, borderColor: '#ff1493' }} 
-          value={masterTaskUrl} 
-          onChange={(e) => setMasterTaskUrl(e.target.value)} 
+        <input
+          type="text"
+          placeholder="https://..."
+          style={{ ...neon.input, borderColor: '#ff1493' }}
+          value={masterTaskUrl}
+          onChange={(e) => setMasterTaskUrl(e.target.value)}
         />
 
         <span style={neon.label}>Recompensa en USDT (1.0 = 1000 $TGM)</span>
-        <input 
-          type="number" 
+        <input
+          type="number"
           step="0.001"
-          placeholder="0.001" 
-          style={{ ...neon.input, borderColor: '#ff1493' }} 
-          value={masterTaskReward} 
-          onChange={(e) => setMasterTaskReward(e.target.value)} 
+          placeholder="0.001"
+          style={{ ...neon.input, borderColor: '#ff1493' }}
+          value={masterTaskReward}
+          onChange={(e) => setMasterTaskReward(e.target.value)}
         />
 
-        <button 
-          onClick={handleDeployMasterTask} 
-          disabled={isDeployingMaster} 
+        <button
+          onClick={handleDeployMasterTask}
+          disabled={isDeployingMaster}
           style={{ ...neon.btn, background: 'linear-gradient(90deg, #ff1493, #d80073)', color: '#fff', marginTop: '8px' }}
         >
           {isDeployingMaster ? 'PROCESANDO...' : '🚀 LANZAR MISIÓN GLOBAL'}
@@ -528,7 +670,7 @@ export default function AdminDashboard() {
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: '6px' }}>
                       <div style={{ color: '#ccc' }}>
                         <span style={{ fontSize: '14px', marginRight: '6px' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-                        <span style={{ fontWeight: 'bold', color: '#fff' }}>@{w.username}</span> 
+                        <span style={{ fontWeight: 'bold', color: '#fff' }}>@{w.username}</span>
                         <span style={{ fontSize: '10px', marginLeft: '4px' }}>(ID: {w.userId})</span>
                       </div>
                       <div style={{ color: '#ffe600', fontWeight: '900' }}>{w.score} pts</div>
@@ -552,12 +694,12 @@ export default function AdminDashboard() {
         <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
            <div style={{ flex: 1 }}>
               <span style={neon.label}>MÍNIMO DE RETIRO ($TGM)</span>
-              <input 
-                 type="number" 
-                 placeholder="Ej: 500" 
-                 style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center' }} 
-                 value={minWithdrawalTGM} 
-                 onChange={(e) => setMinWithdrawalTGM(e.target.value)} 
+              <input
+                 type="number"
+                 placeholder="Ej: 500"
+                 style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center' }}
+                 value={minWithdrawalTGM}
+                 onChange={(e) => setMinWithdrawalTGM(e.target.value)}
               />
            </div>
         </div>
@@ -567,22 +709,22 @@ export default function AdminDashboard() {
            <div style={{ flex: 1 }}>
               <span style={neon.label}>% COMISIÓN REFERIDOS</span>
               <div style={{ position: 'relative' }}>
-                <input 
-                   type="number" 
-                   style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center', marginBottom: 0 }} 
-                   value={refPercent} 
-                   onChange={(e) => setRefPercent(e.target.value)} 
+                <input
+                   type="number"
+                   style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center', marginBottom: 0 }}
+                   value={refPercent}
+                   onChange={(e) => setRefPercent(e.target.value)}
                 />
                 <span style={{ position: 'absolute', right: '15px', top: '12px', color: '#ff99dd', fontWeight: 'bold' }}>%</span>
               </div>
            </div>
            <div style={{ flex: 1 }}>
               <span style={neon.label}>BONO ÚNICO ($TGM)</span>
-              <input 
-                 type="number" 
-                 style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center', marginBottom: 0 }} 
-                 value={refBonusTGM} 
-                 onChange={(e) => setRefBonusTGM(e.target.value)} 
+              <input
+                 type="number"
+                 style={{ ...neon.input, borderColor: '#ff41b4', textAlign: 'center', marginBottom: 0 }}
+                 value={refBonusTGM}
+                 onChange={(e) => setRefBonusTGM(e.target.value)}
               />
            </div>
         </div>
@@ -595,52 +737,52 @@ export default function AdminDashboard() {
         <div style={{ background: 'rgba(255, 65, 180, 0.1)', border: '1px dashed #ff41b4', padding: '12px', borderRadius: '12px', marginBottom: '20px' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#ff99dd', textTransform: 'uppercase' }}>📢 Gatekeeper (Canales Obligatorios)</h4>
             <span style={neon.label}>Canal Obligatorio 1 (URL)</span>
-            <input 
-              type="text" 
-              placeholder="Ej: https://t.me/AirdropsCriptoES (Opcional)" 
-              style={{ ...neon.input, borderColor: '#ff41b4' }} 
-              value={sysConfig.mandatory_channel_1 || ''} 
-              onChange={(e) => setSysConfig({ ...sysConfig, mandatory_channel_1: e.target.value })} 
+            <input
+              type="text"
+              placeholder="Ej: https://t.me/AirdropsCriptoES (Opcional)"
+              style={{ ...neon.input, borderColor: '#ff41b4' }}
+              value={sysConfig.mandatory_channel_1 || ''}
+              onChange={(e) => setSysConfig({ ...sysConfig, mandatory_channel_1: e.target.value })}
             />
 
             <span style={neon.label}>Canal Obligatorio 2 (URL)</span>
-            <input 
-              type="text" 
-              placeholder="Ej: https://t.me/TONAirdropsES (Opcional)" 
-              style={{ ...neon.input, borderColor: '#ff41b4', marginBottom: 0 }} 
-              value={sysConfig.mandatory_channel_2 || ''} 
-              onChange={(e) => setSysConfig({ ...sysConfig, mandatory_channel_2: e.target.value })} 
+            <input
+              type="text"
+              placeholder="Ej: https://t.me/TONAirdropsES (Opcional)"
+              style={{ ...neon.input, borderColor: '#ff41b4', marginBottom: 0 }}
+              value={sysConfig.mandatory_channel_2 || ''}
+              onChange={(e) => setSysConfig({ ...sysConfig, mandatory_channel_2: e.target.value })}
             />
             <div style={{ fontSize: '10px', color: '#aaa', marginTop: '6px' }}>Si dejas el campo vacío, no se exigirá ese canal. Recuerda que el bot debe ser admin en esos canales para leer los miembros.</div>
         </div>
 
         {/* CANAL DE PAGOS */}
         <span style={neon.label}>Canal de Notificaciones de Pago (ID o @Username)</span>
-        <input 
-          type="text" 
-          placeholder="Ej: -1002352835078 o @MisPagos" 
-          style={{ ...neon.input, borderColor: '#ff41b4', marginBottom: '16px' }} 
-          value={sysConfig.payment_channel_id || ''} 
-          onChange={(e) => setSysConfig({ ...sysConfig, payment_channel_id: e.target.value })} 
+        <input
+          type="text"
+          placeholder="Ej: -1002352835078 o @MisPagos"
+          style={{ ...neon.input, borderColor: '#ff41b4', marginBottom: '16px' }}
+          value={sysConfig.payment_channel_id || ''}
+          onChange={(e) => setSysConfig({ ...sysConfig, payment_channel_id: e.target.value })}
         />
         <div style={{ fontSize: '10px', color: '#aaa', marginTop: '-6px', marginBottom: '20px' }}>* El Bot oficial debe ser Administrador en este canal.</div>
 
         <span style={neon.label}>Billetera Pública GRAM (Red TON)</span>
-        <input 
-          type="text" 
-          placeholder="Ej: UQDgJUo4Ycvd9Q_ICUI..." 
-          style={{ ...neon.input, borderColor: '#ff41b4' }} 
-          value={sysConfig.master_wallet_gram || ''} 
-          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_gram: e.target.value })} 
+        <input
+          type="text"
+          placeholder="Ej: UQDgJUo4Ycvd9Q_ICUI..."
+          style={{ ...neon.input, borderColor: '#ff41b4' }}
+          value={sysConfig.master_wallet_gram || ''}
+          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_gram: e.target.value })}
         />
 
         <span style={neon.label}>Billetera Pública USDT (Red BEP20)</span>
-        <input 
-          type="text" 
-          placeholder="Ej: 0x1234567890abcdef..." 
-          style={{ ...neon.input, borderColor: '#ff41b4', marginBottom: '16px' }} 
-          value={sysConfig.master_wallet_usdt_bep20 || ''} 
-          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_usdt_bep20: e.target.value })} 
+        <input
+          type="text"
+          placeholder="Ej: 0x1234567890abcdef..."
+          style={{ ...neon.input, borderColor: '#ff41b4', marginBottom: '16px' }}
+          value={sysConfig.master_wallet_usdt_bep20 || ''}
+          onChange={(e) => setSysConfig({ ...sysConfig, master_wallet_usdt_bep20: e.target.value })}
         />
 
         <div style={{ background: 'rgba(0, 255, 170, 0.1)', border: '1px dashed #00ffaa', padding: '10px', borderRadius: '10px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#00ffaa' }}>
@@ -657,12 +799,12 @@ export default function AdminDashboard() {
         <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ffe600' }}>Control de Jugadores & Sorteos</h3>
         <span style={neon.label}>ID de Búsqueda Táctica</span>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-          <input 
-            type="number" 
-            placeholder="Ej. 8968109534" 
-            style={{ ...neon.input, marginBottom: 0, flex: 1 }} 
-            value={searchId} 
-            onChange={(e) => setSearchId(e.target.value)} 
+          <input
+            type="number"
+            placeholder="Ej. 8968109534"
+            style={{ ...neon.input, marginBottom: 0, flex: 1 }}
+            value={searchId}
+            onChange={(e) => setSearchId(e.target.value)}
           />
           <button onClick={handleSearchUser} style={{ ...neon.btn, width: 'auto', padding: '0 20px' }}>{Icons.search}</button>
         </div>
