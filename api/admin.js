@@ -86,6 +86,7 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
         return { status: 403, body: { success: false, error: 'Comando denegado.' } };
     }
 
+        if (action === 'admin-broadcast') return (await import('./broadcast.js')).handleBroadcast(reqBody);
     if (action === 'admin-get-all-tasks') {
         const { data: allTasks, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
         if (error) return { status: 500, body: { success: false, error: error.message } };
