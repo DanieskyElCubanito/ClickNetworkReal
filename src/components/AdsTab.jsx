@@ -402,7 +402,9 @@ export default function AdsTab({ userData, setUserData, t }) {
                 <input type="number" style={{...neon.inputCalc, padding: '8px', fontSize: '18px'}} value={editingTask.addCompletions} onChange={(e) => setEditingTask(prev => ({...prev, addCompletions: Number(e.target.value) || 0}))} />
                 <button onClick={() => setEditingTask(prev => ({...prev, addCompletions: prev.addCompletions + 10}))} style={{...neon.btnActionCalc, width: '40px', height: '40px', fontSize: '20px'}}>+</button>
               </div>
-
+              <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '12px', textAlign: 'center' }}>
+                Saldo de Bóveda: {depositBalanceUsdt.toFixed(4)} USDT ({(depositBalanceUsdt * 1000).toLocaleString()} créditos)
+              </div>
               {calculatedEditCost !== 0 && (
                 <div style={{ fontSize: '12px', color: depositBalanceUsdt >= calculatedEditCost ? '#10B981' : '#EF4444', marginTop: '12px', fontWeight: '800', textAlign: 'center' }}>
                   {calculatedEditCost > 0 ? `Costo total del ajuste: $${calculatedEditCost} USDT` : `Reembolso por ajuste: +$${Math.abs(calculatedEditCost)} USDT`}
