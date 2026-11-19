@@ -481,5 +481,62 @@ export async function handleAdminActions(action, targetId, reqBody, verifiedUser
         return { status: 200, body: { success: true, task: data } };
     }
 
+        // Envío masivo por lotes: el panel llama de nuevo con next_offset hasta que done sea true.
+    if (action === 'admin-broadcast') {
+        const text = String(reqBody?.text || '').trim();
+        const photo = String(reqBody?.photo || '').trim();
+        const parseMode = reqBody?.parse_mode === 'HTML' ? 'HTML' : undefined;
+        const offset = Math.max(0, Number(reqBody?.offset) || 0);
+        const limit = Math.min(20, Math.max(1, Number(reqBody?.limit) || 20));
+
+        if (!text && !photo) return { status: 400, body: { success: false, error: 'El mensaje no puede estar vacío.' } };
+        if (!photo && text.length > 4096) return { status: 400, body: { success: false, error: 'El texto pasa de 4096 caracteres.' } };
+        if (photo && text.length > 1024) return { status: 400, body: { success: false, error: 'Con foto, el texto no puede pasar de 1024 caracteres.' } };
+        if (photo && !/^https:\/\//.test(photo)) return { status: 400, body: { success: false, error: 'La foto debe ser un enlace https.' } };
+        if (!BOT_TOKEN) return { status: 500, body: { success: false, error: 'Falta BOT_TOKEN en el servidor.' } };
+
+        // Botones: solo enlaces https. style es opcional: primary, success o danger.
+        const buttons = Array.isArray(reqBody?.buttons) ? reqBody.buttons.slice(0, 8) : [];
+        const inline_keyboard = [];
+        for (const b of buttons) {
+            const bt = String(b?.text || '').trim().slice(0, 64);
+            const bu = String(b?.url || '').trim();
+            if (!bt || !/^https:\/\//.test(bu)) {
+                return { status: 400, body: { success: false, error: `Botón inválido: «${bt}». El enlace debe empezar por https://` } };
+            }
+            const btn = { text: bt, url: bu };
+            if (['primary', 'success', 'danger'].includes(b?.style)) btn.style = b.style;
+            inline_keyboard.push([btn]);
+        }
+        const reply_markup = inline_keyboard.length ? { inline_keyboard } : undefined;
+
+        const { data: users, error } = await supabase
+            .from('users')
+            .select('id, is_banned')
+            .order('id', { ascending: true })
+            .range(offset, offset + limit - 1);
+        if (error) return { status: 500, body: { success: false, error: `Fallo BD: ${error.message}` } };
+
+        const list = users || [];
+        let sent = 0, failed = 0, skipped = 0;
+        for (const u of list) {
+            if (u.is_banned === true) { skipped++; continue; }
+            const ok = await sendBroadcastOne(String(u.id), { text, photo, parseMode, reply_markup });
+            if (ok) sent++; else failed++;
+            await new Promise(r => setTimeout(r, 40));
+        }
+
+        return {
+            status: 200,
+            body: {
+                success: true,
+                sent,
+                failed,
+                skipped,
+                next_offset: offset + list.length,
+                done: list.length < limit
+            }
+        };
+    }
     return { status: 400, body: { success: false, error: `Acción admin no reconocida: ${action}` } };
 }
