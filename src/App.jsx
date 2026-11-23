@@ -16,8 +16,8 @@ import ChannelJoin from './components/ChannelJoin';
 
 const modernTheme = {
   container: { 
-    backgroundColor: '#050505', 
-    backgroundImage: 'radial-gradient(circle at 50% 0%, #111827 0%, #050505 80%)', 
+    backgroundColor: '#0B3D6B', 
+    backgroundImage: 'radial-gradient(ellipse 140px 60px at 15% 12%, rgba(255,255,255,0.22) 0%, transparent 70%), radial-gradient(ellipse 120px 50px at 82% 8%, rgba(255,255,255,0.18) 0%, transparent 70%), radial-gradient(ellipse 180px 70px at 60% 30%, rgba(255,255,255,0.12) 0%, transparent 70%), linear-gradient(180deg, #4FC3F7 0%, #1E88E5 35%, #0B3D6B 100%)', 
     minHeight: '100vh', 
     height: 'var(--tg-viewport-height, 100vh)', 
     color: '#F3F4F6', 
