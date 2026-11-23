@@ -35,10 +35,10 @@ const TabIcons = {
 
 const YELLOW = '#FACC15';     // pestaña activa
 const INK = '#1F2937';        // texto/icono sobre amarillo
-const INACTIVE = '#CFE8FF';   // pestañas inactivas sobre azul
+const INACTIVE = '#E0F2FE';   // pestañas inactivas sobre azul (más contraste)
 
 export default function BottomNav({ activeTab, setActiveTab, userData, t }) {
-  // 🔥 BLINDAJE: Consistencia de Admins con el Backend
+  // Administradores (mismos IDs que el backend)
   const ADMIN_IDS = ['8968109534', '8892196101'];
   const isAdmin = userData && ADMIN_IDS.includes(String(userData.id));
 
@@ -59,7 +59,7 @@ export default function BottomNav({ activeTab, setActiveTab, userData, t }) {
 
   return (
     <div style={{
-      position: 'fixed', bottom: '10px', left: '10px', right: '10px',
+      position: 'fixed', bottom: 'calc(10px + env(safe-area-inset-bottom))', left: '10px', right: '10px',
       maxWidth: '500px', margin: '0 auto',
       backgroundColor: '#0B3D6B',
       border: '3px solid #072A4A',
@@ -76,7 +76,7 @@ export default function BottomNav({ activeTab, setActiveTab, userData, t }) {
           <button
             key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
             style={{
-              flex: 1, maxWidth: '75px', height: '56px',
+              flex: 1, maxWidth: '75px', height: '56px', minWidth: 0,
               backgroundColor: isActive ? YELLOW : 'transparent',
               border: 'none', borderRadius: '18px',
               boxShadow: isActive ? '0 3px 0 #D4A017' : 'none',
@@ -95,9 +95,10 @@ export default function BottomNav({ activeTab, setActiveTab, userData, t }) {
               {tab.icon}
             </div>
             <span style={{
-                fontSize: '10px', fontWeight: '800', letterSpacing: '0.2px', lineHeight: 1,
+                fontSize: '11px', fontWeight: '800', letterSpacing: '0.2px', lineHeight: 1,
                 color,
-                transition: 'color 0.25s ease'
+                transition: 'color 0.25s ease',
+                whiteSpace: 'nowrap'
             }}>
               {tab.label}
             </span>
