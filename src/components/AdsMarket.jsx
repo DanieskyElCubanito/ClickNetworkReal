@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import WebApp from '@twa-dev/sdk';
 import { neon, TaskIcons } from './AdsStyles';
 
 export default function AdsMarket({ props }) {
@@ -143,41 +142,51 @@ export default function AdsMarket({ props }) {
       </div>
 
       {category === 'diarias' && (
-        <div style={{ ...neon.taskCard, borderColor: '#00ffaa', background: 'linear-gradient(145deg, rgba(0, 255, 170, 0.1), rgba(26, 11, 51, 0.9))', flexDirection: 'column', alignItems: 'stretch' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid rgba(0,255,170,0.2)', paddingBottom: '12px' }}>
+        <div style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #E6F3FF 100%)', border: '3px solid #0B3D6B', borderRadius: '24px', padding: '16px 14px', marginBottom: '16px', boxShadow: '0 6px 0 #0B3D6B', color: '#0B3D6B' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <div style={{ fontSize: '16px', fontWeight: '900' }}>
+              {t('ads_daily_streak') ? t('ads_daily_streak').replace('{day}', streakCount) : `🎁 Racha Diaria (Día ${streakCount})`}
+            </div>
+            <div style={{ fontSize: '11px', fontWeight: '800', color: '#fff', background: '#21A845', borderRadius: '10px', padding: '3px 8px' }}>{streakCount}/7</div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '5px', marginBottom: '14px' }}>
             {[1,2,3,4,5,6,7].map(day => {
               const isPast = day < streakCount;
               const isToday = day === streakCount;
               const isFuture = day > streakCount;
-              const color = isPast || (isToday && gigaClaimed) ? '#00ffaa' : isToday ? '#ffe600' : '#444';
+              const isFinal = day === 7;
+              const isDone = isPast || (isToday && gigaClaimed);
+              const bg = isFinal
+                ? 'linear-gradient(180deg, #FFE066 0%, #F5A600 100%)'
+                : isDone ? 'linear-gradient(180deg, #5BE37A 0%, #21A845 100%)'
+                : isToday ? '#FFF3B0' : '#FFFFFF';
+              const border = isFinal ? '#B57500' : isDone ? '#14803A' : isToday ? '#F5A600' : '#C9DFF2';
+              const textColor = isDone ? '#FFFFFF' : isFinal ? '#5A3B00' : '#0B3D6B';
 
               return (
-                <div key={day} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: isFuture ? 0.5 : 1 }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: color, color: '#050214', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '900', boxShadow: (isToday && !gigaClaimed) ? '0 0 10px #ffe600' : 'none' }}>
-                    {(isPast || (isToday && gigaClaimed)) ? '✓' : day}
+                <div key={day} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', opacity: isFuture && !isFinal ? 0.6 : 1 }}>
+                  <div style={{ width: '100%', height: '46px', boxSizing: 'border-box', borderRadius: '12px', background: bg, border: `2px solid ${border}`, boxShadow: isFinal ? '0 3px 0 #B57500' : (isToday && !gigaClaimed) ? '0 0 0 3px rgba(255, 200, 0, 0.45)' : 'none', color: textColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? '18px' : '15px', fontWeight: '900' }}>
+                    {isDone ? '✓' : isFinal ? '🏆' : day}
                   </div>
-                  <span style={{ fontSize: '10px', marginTop: '6px', color: '#fff', fontWeight: 'bold' }}>{day} $TGM</span>
+                  <span style={{ fontSize: '10px', fontWeight: '900', color: isFinal ? '#B57500' : '#0B3D6B' }}>+{day}</span>
                 </div>
               );
             })}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{ ...neon.taskIconBox, borderColor: '#00ffaa', background: 'rgba(0, 255, 170, 0.1)' }}>{TaskIcons.daily('#00ffaa')}</div>
-              <div>
-                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px' }}>
-                  {t('ads_daily_streak') ? t('ads_daily_streak').replace('{day}', streakCount) : `🎁 Racha Diaria (Día ${streakCount})`}
-                </div>
-                <div style={{ color: '#00ffaa', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>{t('ads_daily_sponsor') || 'Patrocinado por GigaPub'}</div>
-              </div>
+          <div style={{ fontSize: '10px', fontWeight: '800', color: '#B57500', marginBottom: '12px', textAlign: 'center' }}>🏆 DÍA 7 = PREMIO FINAL DORADO</div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', width: '100%' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: '#21A845', fontSize: '11px', fontWeight: '800' }}>{t('ads_daily_sponsor') || 'Patrocinado por GigaPub'}</div>
             </div>
             {loadingTasks ? (
-               <button disabled style={{...neon.taskButtonDisabled, background: 'rgba(0, 255, 170, 0.1)', borderColor: '#00ffaa', color: '#00ffaa', opacity: 0.6}}>CARGANDO...</button>
+               <button disabled style={{ background: '#DDE7F0', color: '#5A6B7B', border: 'none', borderRadius: '14px', padding: '12px 14px', fontWeight: '900', fontSize: '13px', whiteSpace: 'nowrap' }}>CARGANDO...</button>
             ) : gigaClaimed ? (
-               <button disabled style={neon.taskButtonDisabled}>{t('ads_daily_come_back') || 'VUELVE MAÑANA'}</button>
+               <button disabled style={{ background: '#DDE7F0', color: '#5A6B7B', border: 'none', borderRadius: '14px', padding: '12px 14px', fontWeight: '900', fontSize: '13px', whiteSpace: 'nowrap' }}>{t('ads_daily_come_back') || 'VUELVE MAÑANA'}</button>
             ) : (
-               <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{...neon.taskButton, background: 'linear-gradient(180deg, #00ffaa, #00bb77)', color: '#050214', boxShadow: '0 4px 0 #007744'}}>
+               <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{ background: 'linear-gradient(180deg, #5BE37A 0%, #21A845 100%)', color: '#FFFFFF', border: 'none', borderRadius: '14px', padding: '12px 14px', fontWeight: '900', fontSize: '13px', boxShadow: '0 4px 0 #14803A', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                  {playingAd ? 'CARGANDO...' : `+${streakCount}.00 $TGM`}
                </button>
             )}
