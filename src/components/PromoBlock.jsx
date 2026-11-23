@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
 import WebApp from '@twa-dev/sdk';
 
+const PROMO_CHANNEL_URL = 'https://t.me/CryptoWeb3Pay';
+
 export default function PromoBlock() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+
+  const openChannel = () => {
+    try {
+      if (WebApp.openTelegramLink) WebApp.openTelegramLink(PROMO_CHANNEL_URL);
+      else window.open(PROMO_CHANNEL_URL, '_blank');
+    } catch (e) {
+      window.open(PROMO_CHANNEL_URL, '_blank');
+    }
+  };
 
   const redeem = async () => {
     const clean = code.trim();
@@ -20,7 +31,7 @@ export default function PromoBlock() {
         },
         body: JSON.stringify({ action: 'redeem-promo', code: clean })
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       if (data && data.success) {
         setMsg({ ok: true, text: `✅ ¡Canjeado! +${(Number(data.reward) * 1000).toFixed(2)} $TGM` });
         setCode('');
@@ -38,7 +49,15 @@ export default function PromoBlock() {
 
   return (
     <div style={{ background: 'linear-gradient(135deg, #7B2FF7 0%, #5B1FC4 100%)', borderRadius: '20px', padding: '16px', marginBottom: '16px', boxShadow: '0 4px 0 #3F0F8F', color: '#fff', boxSizing: 'border-box', width: '100%' }}>
-      <div style={{ fontSize: '18px', fontWeight: '900', marginBottom: '4px' }}>🎟️ Código promo</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+        <div style={{ fontSize: '18px', fontWeight: '900' }}>🎟️ Código promo</div>
+        <button
+          onClick={openChannel}
+          style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', border: 'none', borderRadius: '999px', padding: '6px 12px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', flexShrink: 0 }}
+        >
+          Conseguir códigos ›
+        </button>
+      </div>
       <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '12px' }}>Escribe tu código y recibe tu premio</div>
       <div style={{ display: 'flex', gap: '8px' }}>
         <input
