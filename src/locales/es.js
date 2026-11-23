@@ -132,6 +132,14 @@ export const es = {
   bank_msg_deposit_ok: "Liquidación de ${amount} acreditada en Bóveda.",
   bank_err_not_detected: "Confirmaciones pendientes.",
 
+  // Claves que usa WalletTab.jsx y faltaban
+  bank_wd_locked: "🔒 Dirección bloqueada por seguridad. Contacta al soporte para cambiarla.",
+  bank_err_loading_min: "Cargando el retiro mínimo, inténtalo de nuevo.",
+  bank_err_unstable: "Conexión de red inestable.",
+  bank_msg_mission_ok: "Misión de red validada (sin recompensa extra).",
+  bank_err_validation: "Fallo al procesar la validación.",
+  bank_err_cancelled: "Transmisión cancelada.",
+
   // ==========================================
   // RED DE AFILIADOS (ShareTab)
   // ==========================================
