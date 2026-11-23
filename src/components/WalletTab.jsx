@@ -119,7 +119,7 @@ export default function WalletTab({ userData, setUserData, t }) {
   const gramRechargePrice = (numericRecharge / liveGramUsd).toFixed(2);
 
   const handleWatchProgressAd = () => {
-    if (!window.showGiga) return toast.error("Conexión de red inestable.");
+    if (!window.showGiga) return toast.error(t('bank_err_unstable') || "Conexión de red inestable.");
     setPlayingAd(true);
 
     window.showGiga()
@@ -132,19 +132,19 @@ export default function WalletTab({ userData, setUserData, t }) {
           });
           const data = await res.json();
           if (data.success) {
-            toast.success("Misión de red validada (Sin recompensa extra)");
+            toast.success(t('bank_msg_mission_ok') || "Misión de red validada (Sin recompensa extra)");
             setReqs(prev => ({ ...prev, ads: typeof data.ads === "number" ? data.ads : Math.min(prev.ads + 1, 5) }));
           } else {
-            toast.error(data.error || "Fallo al procesar validación.");
+            toast.error(data.error || t('bank_err_validation') || "Fallo al procesar validación.");
           }
         } catch (err) {
-          toast.error("Error de conexión.");
+          toast.error(t('bank_msg_conn_error') || "Error de conexión.");
         } finally {
           setPlayingAd(false);
         }
       })
       .catch(() => {
-        toast.error("Transmisión cancelada.");
+        toast.error(t('bank_err_cancelled') || "Transmisión cancelada.");
         setPlayingAd(false);
       });
   };
