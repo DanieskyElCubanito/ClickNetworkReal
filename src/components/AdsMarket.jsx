@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { neon, TaskIcons } from './AdsStyles';
+import PromoBlock from './PromoBlock';
 
 export default function AdsMarket({ props }) {
   const { 
@@ -118,6 +119,7 @@ export default function AdsMarket({ props }) {
 
   return (
     <div className="fade-in">
+<PromoBlock />
       <button onClick={() => setView('wizard')} style={{
         width: '100%', padding: '16px', borderRadius: '16px',
         background: 'linear-gradient(90deg, #ff1493, #8a2be2)',
