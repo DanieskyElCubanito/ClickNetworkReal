@@ -7,6 +7,7 @@ import { handleTaskActions } from './tasks.js';
 import { handleBankingActions } from './banking.js';
 import { handlePublicDataActions } from './public.js';
 import { handleAdminActions } from './admin.js';
+import { handlePromoActions } from './promo.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
