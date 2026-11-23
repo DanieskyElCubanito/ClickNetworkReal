@@ -131,9 +131,9 @@ export default function AdsMarket({ props }) {
       </button>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '16px', overflowX: 'auto' }}>
-        <button onClick={() => setCategory('pagadas')} style={{ ...neon.subTabBtn(category === 'pagadas'), flexShrink: 0 }}>{t('ads_cat_pagadas')}</button>
-        <button onClick={() => setCategory('diarias')} style={{ ...neon.subTabBtn(category === 'diarias'), flexShrink: 0 }}>{t('ads_cat_diarias')}</button>
-        <button onClick={() => setCategory('partners')} style={{ ...neon.subTabBtn(category === 'partners'), flexShrink: 0 }}>{t('ads_cat_partners')}</button>
+                <button onClick={() => setCategory('pagadas')} style={{ ...neon.subTabBtn(category === 'pagadas'), flexShrink: 0 }}>{t('ads_cat_pagadas')}{' '}<span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', borderRadius: '999px', padding: '1px 7px', fontSize: '11px' }}>{pagadas.length}</span></button>
+        <button onClick={() => setCategory('diarias')} style={{ ...neon.subTabBtn(category === 'diarias'), flexShrink: 0 }}>{t('ads_cat_diarias')}{' '}<span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', borderRadius: '999px', padding: '1px 7px', fontSize: '11px' }}>{diarias.length}</span></button>
+        <button onClick={() => setCategory('partners')} style={{ ...neon.subTabBtn(category === 'partners'), flexShrink: 0 }}>{t('ads_cat_partners')}{' '}<span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', borderRadius: '999px', padding: '1px 7px', fontSize: '11px' }}>{partners.length}</span></button>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
