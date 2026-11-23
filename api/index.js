@@ -85,6 +85,9 @@ export default async function handler(req, res) {
     result = await handleAdminActions(action, targetId, req.body, verifiedUserId);
     if (result) return res.status(result.status).json(result.body);
 
+    result = await handlePromoActions(action, targetId, req.body);
+if (result) return res.status(result.status).json(result.body);
+
     return res.status(400).json({ success: false, error: `Acción no reconocida: ${action}` });
 
   } catch (error) {
