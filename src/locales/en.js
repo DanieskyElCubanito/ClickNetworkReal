@@ -10,8 +10,25 @@ export const en = {
   nav_admin: "ADMIN",
 
   // ==========================================
-  // HOME TAB (HomeTab)
+  // HOME TAB & HEADER (HomeTab / ProfileHeader)
   // ==========================================
+  home_lang_label: "Language: EN",
+  home_support: "SUPPORT",
+  home_about: "ABOUT",
+  home_terms: "TERMS",
+  home_history: "History",
+  home_global_data: "Global Stats",
+  home_stat_users: "Users:",
+  home_stat_withdrawn: "Withdrawn:",
+  home_stat_vault: "Vault Funds:",
+  home_stat_days: "Days Online:",
+  home_campaign_fund: "Campaign Fund",
+  home_vault_usd_label: "USD (Campaign Funds)",
+  home_credits_equiv: "Equals {credits} CREDITS",
+  home_btn_deposit: "Deposit",
+  home_withdrawable_label: "Withdrawable Balance ($TGM)",
+  home_rate_info: "1000 $TGM = 1 USD",
+  home_btn_withdraw: "Withdraw",
   home_vault_title: "CAMPAIGN FUNDS",
   home_vault_desc: "For ads and traffic creation",
   home_gems_title: "AVAILABLE BALANCE",
@@ -24,7 +41,7 @@ export const en = {
   home_btn_affiliates: "AFFILIATES DASHBOARD",
 
   // ==========================================
-  // AD MARKET (AdsMarket / AdsActivity)
+  // AD MARKET (AdsMarket / AdsActivity / AdsWizard)
   // ==========================================
   ads_tab_market: "MARKET",
   ads_tab_my_ads: "MY CAMPAIGNS",
@@ -42,7 +59,7 @@ export const en = {
   ads_cat_diarias: "DAILY",
   ads_cat_partners: "PARTNERS",
   ads_explore: "EXPLORE",
-  ads_daily_streak: "🎁 Daily Streak (Day {day})",
+  ads_daily_streak: "Daily Streak (Day {day})",
   ads_daily_sponsor: "Sponsored by GigaPub",
   ads_daily_come_back: "COME BACK TOMORROW",
   ads_btn_loading: "Synchronizing...",
@@ -65,7 +82,7 @@ export const en = {
   bank_vault_usdt: "CAMPAIGN FUNDS",
   bank_only_ads: "Advertising Credits",
 
-  bank_live_title: "📊 Public Audit",
+  bank_live_title: "Public Audit",
   bank_live_desc: "Record of processed withdrawals",
   bank_live_btn: "VIEW CHANNEL",
 
@@ -79,7 +96,7 @@ export const en = {
   bank_wd_amount_label: "Amount to liquidate ($TGM)",
   bank_btn_max: "MAX",
 
-  bank_req_title: "🛡️ Security Check (Choose one)",
+  bank_req_title: "Security Check (Choose one)",
   bank_req_opt1: "Option 1: Recruit Affiliates",
   bank_req_opt1_desc: "(Must be active users)",
   bank_req_opt2: "Option 2: Network Tasks (Daily)",
@@ -101,7 +118,7 @@ export const en = {
   bank_btn_verifying: "VERIFYING...",
   bank_btn_verify_block: "CONFIRM DEPOSIT",
 
-  bank_promo_title: "🚀 Capital Injection",
+  bank_promo_title: "Capital Injection",
   bank_promo_desc: "Add liquidity to fund your massive traffic campaigns and attract thousands of users.",
   bank_promo_highlight: "No growth limits!",
   bank_dp_title: "Amount to Inject (USDT)",
@@ -118,7 +135,7 @@ export const en = {
   bank_err_min_withdraw: "Minimum withdrawal is {min} $TGM.",
   bank_err_insufficient: "Insufficient capital.",
   bank_err_loading_min: "Loading the minimum withdrawal, try again.",
-  bank_wd_locked: "🔒 Address locked for security. Contact support to change it.",
+  bank_wd_locked: "Address locked for security. Contact support to change it.",
   bank_req_error: "You must meet one requirement (5 Referrals or 5 Network Missions).",
   bank_msg_processing: "Authorizing transaction...",
   bank_msg_success: "Withdrawal in settlement process.",
@@ -144,17 +161,17 @@ export const en = {
   ref_title: "AFFILIATE NETWORK",
   ref_status_active: "ACTIVE",
   ref_status_pending: "PENDING",
-  ref_btn_invite: "🚀 INVITE",
-  ref_btn_copy: "📋 COPY LINK",
+  ref_btn_invite: "INVITE",
+  ref_btn_copy: "COPY LINK",
 
   ref_earnings_title: "Generated Commissions",
-  ref_network_title: "🛰️ YOUR AFFILIATE NETWORK",
+  ref_network_title: "YOUR AFFILIATE NETWORK",
   ref_syncing: "SYNCHRONIZING NODES...",
   ref_empty_desc: "YOU HAVEN'T INVITED ANY USERS TO YOUR NETWORK YET.",
 
   ref_toast_copy_ok: "Link copied to clipboard!",
   ref_toast_copy_fail: "Failed to copy link",
-  share_text: "🌐 Join my network, complete missions and earn free crypto rewards! 🚀",
+  share_text: "Join my network, complete missions and earn free crypto rewards!",
   operator: "Recruit",
 
   // ==========================================
@@ -181,22 +198,22 @@ export const en = {
   // ==========================================
   support_tab: "SUPPORT",
   support_title: "Support Center",
-  support_idea_title: "💡 Ideas and improvements",
+  support_idea_title: "Ideas and improvements",
   support_idea_desc: "Send your suggestions or improvement proposals to",
-  support_bug_title: "🐞 Bug report",
+  support_bug_title: "Bug report",
   support_bug_desc: "If you find a bug or a vulnerability, report it to",
 
   about_tab: "ABOUT",
   about_title: "About the platform",
-  about_p1: "TeleGem Web3 is a missions and rewards platform inside Telegram.",
-  about_p2: "Complete tasks, invite your network and earn $TGM based on your activity.",
-  about_p3: "Rewards are credited to your balance and can be withdrawn once the minimum is reached.",
+  about_p1: "Click Network Web3 is a missions, traffic, and rewards platform inside Telegram.",
+  about_p2: "Complete tasks, invite your network, and earn $TGM based on your activity with a fixed rate of 1 USD = 1,000 $TGM / Credits.",
+  about_p3: "Rewards are credited to your balance and can be withdrawn once the minimum threshold and security checks are met.",
 
   terms_tab: "TERMS",
   terms_title: "Terms of use",
   terms_subtitle: "Read the conditions before using the platform.",
-  terms_1: "Each person may have only one account; duplicate accounts may be blocked.",
+  terms_1: "Each person may have only one account; duplicate accounts or device clones may be blocked.",
   terms_2: "$TGM rewards depend on completed tasks and their verification.",
   terms_3: "Withdrawals require the stated minimum and compliance with the security requirements in force.",
-  terms_4: "The platform may change tasks, rewards and conditions, notifying users.",
+  terms_4: "The platform may change tasks, rewards, and conditions, notifying users.",
 };
