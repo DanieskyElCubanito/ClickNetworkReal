@@ -1,218 +1,526 @@
 import React, { useState } from 'react';
-import { neon, TaskIcons } from './AdsStyles';
-import PromoBlock from './PromoBlock';
+import toast from 'react-hot-toast';
+import WebApp from '@twa-dev/sdk';
+import { TaskIcons } from './AdsStyles';
+
+const SvgIcon = {
+  globe: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M2 12h20" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  ),
+  check: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  plus: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  )
+};
+
+const cardPanel = {
+  background: 'linear-gradient(180deg, rgba(22, 29, 41, 0.92) 0%, rgba(10, 14, 21, 0.97) 100%)',
+  border: '1px solid rgba(255, 255, 255, 0.14)',
+  borderRadius: '18px',
+  padding: '16px',
+  marginBottom: '14px',
+  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.10)'
+};
+
+const subtleBtn = {
+  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+  borderRadius: '10px',
+  color: '#F3F4F6',
+  fontWeight: '700',
+  cursor: 'pointer',
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)'
+};
 
 export default function AdsMarket({ props }) {
-  const { 
-    tasks, userData, taskStatus, verifyInputs, setVerifyInputs, 
-    handleStartTask, handleCheckTask, loadingTasks, setView, fetchTasks, t,
-    gigaReady, playingAd, handlePlayGigaPub
+  const {
+    tasks,
+    userData,
+    taskStatus,
+    verifyInputs,
+    setVerifyInputs,
+    handleStartTask,
+    handleCheckTask,
+    loadingTasks,
+    setView,
+    t,
+    lang,
+    setLang,
+    gigaReady,
+    playingAd,
+    handlePlayGigaPub
   } = props;
 
-  const [category, setCategory] = useState('pagadas'); // pagadas | diarias | partners
+  const [category, setCategory] = useState('all'); // all | daily_partners | channels | websites | bots
+  const [promoCode, setPromoCode] = useState('');
+  const [redeemingPromo, setRedeemingPromo] = useState(false);
 
-  // Una misión sin tipo no debe romper la pantalla: se trata como «Tarea».
-  const communityTasks = tasks.filter(t => t.status === 'active')
-    .map(t => ({ ...t, type: t.type || 'unknown' }))
-    .sort((a, b) => { if (a.is_completed === b.is_completed) return 0; return a.is_completed ? 1 : -1; });
+  const activeTasks = tasks
+    .filter((item) => item.status === 'active')
+    .map((item) => ({ ...item, type: item.type || 'promo' }))
+    .sort((a, b) => (a.is_completed === b.is_completed ? 0 : a.is_completed ? 1 : -1));
 
-  const pagadas = communityTasks.filter(t => !t.type.includes('daily') && t.type !== 'partner');
-  const partners = communityTasks.filter(t => t.type === 'partner');
-  const diarias = communityTasks.filter(t => t.type.includes('daily'));
+  const dailyAndPartners = activeTasks.filter((item) => item.type.includes('daily') || item.type === 'partner');
+  const channelsAndGroups = activeTasks.filter((item) => ['channel', 'group', 'publish_group', 'daily_channel'].includes(item.type));
+  const websites = activeTasks.filter((item) => ['promo', 'daily_promo', 'web', 'website'].includes(item.type));
+  const botsAndApps = activeTasks.filter((item) => ['bot', 'app', 'miniapp'].includes(item.type));
 
-  const getTaskIconType = (task) => {
-    if (task.logo) return task.logo;
-    if (task.type === 'publish_group' || task.type === 'partner' || task.type === 'daily_channel') return 'channel';
-    if (task.type === 'daily_promo') return 'promo';
-    return task.type;
-  };
+  const filteredTasks =
+    category === 'all'
+      ? activeTasks
+      : category === 'daily_partners'
+      ? dailyAndPartners
+      : category === 'channels'
+      ? channelsAndGroups
+      : category === 'websites'
+      ? websites
+      : botsAndApps;
 
-  const getTaskLabel = (type) => {
-    if (type === 'partner') return t('ads_type_partner') || 'Alianza Estratégica';
-    if (type === 'publish_group') return 'Red Comunitaria';
-    if (type === 'group' || type === 'channel' || type === 'daily_channel') return t('ads_type_group') || 'Comunidad';
-    if (type === 'bot') return t('ads_type_bot') || 'Bot';
-    if (type === 'promo' || type === 'daily_promo') return t('ads_type_promo') || 'Tráfico';
-    return 'Tarea';
-  };
+  const streakCount = Math.min(7, Math.max(1, Number(userData?.streak_count || 4)));
+  const streakRewardTgm = Number(userData?.streak_reward_tgm || 50);
 
-  const streakCount = userData?.streak_count || 1; 
-
-  // 🔥 BLINDAJE VISUAL INSTANTÁNEO: Comprobamos el estado global y el LocalStorage por fecha
   const todayKey = userData?.id ? `gigapub_claimed_${new Date().toISOString().slice(0, 10)}_${userData.id}` : '';
   const localClaimed = todayKey ? localStorage.getItem(todayKey) === 'true' : false;
   const gigaClaimed = taskStatus['gigapub_daily'] === 'completed' || localClaimed;
 
-  const renderTaskItem = (task) => {
-    const iconType = getTaskIconType(task);
+  const displayName =
+    userData?.username && userData.username !== 'Usuario'
+      ? userData.username
+      : WebApp.initDataUnsafe?.user?.first_name || 'User123';
+  const avatarLetter = String(displayName).charAt(0).toUpperCase() || 'U';
+  const photoUrl = WebApp.initDataUnsafe?.user?.photo_url;
+  const currentLang = String(lang || 'es').toUpperCase();
+
+  const handleToggleLang = () => {
+    if (typeof setLang === 'function') {
+      const next = String(lang || 'es').toLowerCase() === 'es' ? 'en' : 'es';
+      setLang(next);
+      try { localStorage.setItem('click_lang', next); } catch {}
+    }
+  };
+
+  const handleRedeemPromo = async () => {
+    const cleanCode = promoCode.trim();
+    if (!cleanCode) return toast.error('Ingresa un código promocional.');
+    setRedeemingPromo(true);
+    const tid = toast.loading('Validando código...');
+    try {
+      const res = await fetch('/api', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Telegram-Init-Data': WebApp.initData || ''
+        },
+        body: JSON.stringify({ action: 'redeem-promo', code: cleanCode, userId: userData?.id })
+      });
+      const data = await res.json();
+      if (data?.success) {
+        toast.success(data.message || 'Código canjeado correctamente.', { id: tid });
+        setPromoCode('');
+      } else {
+        toast.error(data?.error || 'Código no válido o expirado.', { id: tid });
+      }
+    } catch {
+      toast.error('Error de conexión al canjear el código.', { id: tid });
+    } finally {
+      setRedeemingPromo(false);
+    }
+  };
+
+  const getTaskMeta = (task) => {
+    const type = task.type;
+    if (type === 'channel' || type === 'group' || type === 'publish_group' || type === 'daily_channel') {
+      return { label: 'Canal', iconKey: 'channel', color: '#E5E7EB' };
+    }
+    if (type === 'bot') {
+      return { label: 'Bot', iconKey: 'bot', color: '#E5E7EB' };
+    }
+    if (type === 'app' || type === 'miniapp' || type === 'game') {
+      return { label: 'Mini App', iconKey: 'game', color: '#E5E7EB' };
+    }
+    return { label: 'Web', iconKey: 'web3', color: '#60A5FA' };
+  };
+
+  const renderTaskCard = (task) => {
     const status = taskStatus[task.id];
     const isCompleted = task.is_completed || status === 'completed';
-    const displayTGM = Number((Number(task.reward) * 1000).toFixed(2));
-
-    const isCreator = task.creator_id === String(userData?.id); 
-    const requiresRetention = ['channel', 'group', 'partner', 'daily_channel'].includes(task.type);
-
-    const isLimited = !task.type.includes('daily') && task.type !== 'partner';
-    const fillPercent = isLimited ? Math.min((task.completions_done / task.completions_total) * 100, 100) : 0;
-    const isAlmostFull = fillPercent > 85;
-
-    let badgeText = "OP NORMAL";
-    let badgeColor = "#ffaa00";
-    if (task.type === 'partner') { badgeText = "OP ÉLITE"; badgeColor = "#ff1493"; }
-    if (task.type.includes('daily')) { badgeText = "OP FLASH"; badgeColor = "#00ffaa"; }
+    const isCreator = String(task.creator_id) === String(userData?.id);
+    const rewardTgm = Math.round(Number(task.reward || 0) * 1000);
+    const meta = getTaskMeta(task);
+    const iconRenderer = TaskIcons[task.logo] || TaskIcons[meta.iconKey] || TaskIcons.promo;
 
     return (
-      <div key={task.id} style={{ ...neon.taskCard, flexDirection: 'column', alignItems: 'stretch', position: 'relative', overflow: 'hidden' }}>
-        {isLimited && isAlmostFull && !isCompleted && !isCreator && (
-           <div style={{ position: 'absolute', top: 0, right: 0, padding: '2px 8px', background: '#ff1414', color: '#fff', fontSize: '9px', fontWeight: '900', borderBottomLeftRadius: '10px' }}>
-              ⚠️ CUPOS CRÍTICOS
-           </div>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, paddingRight: '10px' }}>
-            <div style={{...neon.taskIconBox, borderColor: badgeColor, boxShadow: `0 0 10px ${badgeColor}40`}}>
-               {TaskIcons[iconType] ? TaskIcons[iconType](badgeColor) : TaskIcons.promo(badgeColor)}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                 <div style={{ color: '#fff', fontSize: '14px', fontWeight: '900', letterSpacing: '0.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>{task.title}</div>
-                 <div style={{ fontSize: '8px', background: `${badgeColor}20`, color: badgeColor, padding: '2px 6px', borderRadius: '4px', fontWeight: '900', border: `1px solid ${badgeColor}50` }}>{badgeText}</div>
-              </div>
-              <div style={{ color: '#00f0ff', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>{getTaskLabel(task.type)}</div>
+      <div
+        key={task.id}
+        style={{
+          ...cardPanel,
+          padding: '12px 14px',
+          marginBottom: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+          <div
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.10)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}
+          >
+            {iconRenderer(meta.color)}
+          </div>
 
-              {isLimited && (
-                <div style={{ marginTop: '6px', width: '100%', maxWidth: '180px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#aaa', fontWeight: 'bold', marginBottom: '2px' }}>
-                    <span>CUPOS CUBIERTOS</span>
-                    <span style={{ color: isAlmostFull ? '#ff1414' : '#00f0ff'}}>{task.completions_done} / {task.completions_total}</span>
-                  </div>
-                  <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${fillPercent}%`, background: isAlmostFull ? '#ff1414' : '#00f0ff', transition: 'width 0.3s' }}></div>
-                  </div>
-                </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                fontSize: '14px',
+                fontWeight: '700',
+                color: '#F9FAFB',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              {task.title}
+            </div>
+            <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '600', marginTop: '1px' }}>
+              {meta.label}
+            </div>
+            <div style={{ fontSize: '13px', fontWeight: '800', color: '#F3F4F6', marginTop: '3px' }}>
+              +{rewardTgm} $TGM
+            </div>
+          </div>
+        </div>
+
+        <div style={{ flexShrink: 0 }}>
+          {isCreator ? (
+            <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '700' }}>Propia</span>
+          ) : isCompleted ? (
+            <button
+              type="button"
+              disabled
+              style={{ ...subtleBtn, padding: '8px 16px', fontSize: '12px', opacity: 0.5, cursor: 'not-allowed' }}
+            >
+              Listo
+            </button>
+          ) : status === 'ready_to_claim' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
+              {task.validation_code && (
+                <input
+                  style={{
+                    background: 'rgba(0,0,0,0.45)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '8px',
+                    padding: '4px 8px',
+                    fontSize: '11px',
+                    color: '#F9FAFB',
+                    width: '96px'
+                  }}
+                  placeholder="Código"
+                  value={verifyInputs[task.id] || ''}
+                  onChange={(e) => setVerifyInputs({ ...verifyInputs, [task.id]: e.target.value })}
+                />
               )}
-              {requiresRetention && <div style={{ color: '#ffe600', fontSize: '9px', fontWeight: '900', marginTop: '6px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>🛡️ Permanencia de red: 24H</div>}
+              <button
+                type="button"
+                onClick={() => handleCheckTask(task)}
+                style={{ ...subtleBtn, padding: '8px 18px', fontSize: '13px', color: '#10B981' }}
+              >
+                Cobrar
+              </button>
             </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-            {isCreator ? (
-               <button disabled style={{...neon.taskButtonDisabled, color: '#ff1493', borderColor: '#ff1493'}}>TU MISIÓN</button>
-            ) : task.needs_rejoin ? <button onClick={() => handleStartTask(task)} style={{...neon.taskButtonRejoin, boxShadow: '0 0 10px rgba(0, 255, 170, 0.4)'}}>RESTAURAR</button> :
-             isCompleted ? <button disabled style={neon.taskButtonDisabled}>{t('ads_completed') || 'COMPLETADO'}</button> :
-             status === 'waiting_for_redirect' ? <button disabled style={{...neon.taskButtonDisabled, color: '#ffaa00', borderColor: '#ffaa00'}}>⏳ 8 SEG</button> :
-             status === 'away' ? <button disabled style={{...neon.taskButtonDisabled, color: '#00f0ff', borderColor: '#00f0ff'}}>⏳ REVISANDO...</button> :
-             status === 'verifying' ? <button disabled style={neon.taskButtonDisabled}>{t('ads_btn_verifying') || 'VERIFICANDO...'}</button> :
-             status === 'ready_to_claim' ? (
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
-                 {task.validation_code && <input style={{ ...neon.input, padding: '6px', fontSize: '11px', width: '120px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', borderColor: '#00ffaa' }} placeholder="Código..." value={verifyInputs[task.id] || ''} onChange={(e) => setVerifyInputs({ ...verifyInputs, [task.id]: e.target.value })} />}
-                 <button onClick={() => handleCheckTask(task)} style={{...neon.taskButtonCheck, width: task.validation_code ? '120px' : 'auto', background: 'linear-gradient(90deg, #00ffaa, #00bb77)', color: '#050214', border: 'none'}}>{TaskIcons.check} RECLAMAR</button>
-               </div>
-             ) : <button onClick={() => handleStartTask(task)} style={{...neon.taskButton, background: `linear-gradient(180deg, ${badgeColor}, ${badgeColor}aa)`, color: '#050214', border: 'none', boxShadow: `0 4px 0 ${badgeColor}60`}}>{`+${displayTGM} $TGM`}</button>}
-          </div>
+          ) : status === 'waiting_for_redirect' || status === 'away' || status === 'verifying' ? (
+            <button
+              type="button"
+              disabled
+              style={{ ...subtleBtn, padding: '8px 14px', fontSize: '12px', color: '#9CA3AF', cursor: 'wait' }}
+            >
+              ...
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleStartTask(task)}
+              style={{ ...subtleBtn, padding: '8px 22px', fontSize: '13px' }}
+            >
+              {t?.('ads_btn_go') || 'Ir'}
+            </button>
+          )}
         </div>
       </div>
     );
   };
 
-  const currentList = category === 'pagadas' ? pagadas : category === 'diarias' ? diarias : partners;
+  const filterOptions = [
+    { id: 'all', label: 'Todas' },
+    { id: 'daily_partners', label: 'Diarias & Partners' },
+    { id: 'channels', label: 'Canales & Grupos' },
+    { id: 'websites', label: 'Sitios Web' },
+    { id: 'bots', label: 'Bots & Mini Apps' }
+  ];
 
   return (
-    <div className="fade-in">
-<PromoBlock />
-      <button onClick={() => setView('wizard')} style={{
-        width: '100%', padding: '16px', borderRadius: '16px',
-        background: 'linear-gradient(90deg, #ff1493, #8a2be2)',
-        color: '#fff', fontSize: '16px', fontWeight: '900',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-        boxShadow: '0 4px 15px rgba(255, 20, 147, 0.4)', border: 'none', cursor: 'pointer',
-        marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px'
-      }}>
-        <span style={{ fontSize: '24px', fontWeight: '900', lineHeight: 1 }}>+</span> 
-        {t('ads_btn_create')}
-      </button>
-
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '16px', overflowX: 'auto' }}>
-                <button onClick={() => setCategory('pagadas')} style={{ ...neon.subTabBtn(category === 'pagadas'), flexShrink: 0 }}>{t('ads_cat_pagadas')}{' '}<span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', borderRadius: '999px', padding: '1px 7px', fontSize: '11px' }}>{pagadas.length}</span></button>
-        <button onClick={() => setCategory('diarias')} style={{ ...neon.subTabBtn(category === 'diarias'), flexShrink: 0 }}>{t('ads_cat_diarias')}{' '}<span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', borderRadius: '999px', padding: '1px 7px', fontSize: '11px' }}>{diarias.length}</span></button>
-        <button onClick={() => setCategory('partners')} style={{ ...neon.subTabBtn(category === 'partners'), flexShrink: 0 }}>{t('ads_cat_partners')}{' '}<span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', borderRadius: '999px', padding: '1px 7px', fontSize: '11px' }}>{partners.length}</span></button>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 5px' }}>
-        <h4 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase' }}>{t('ads_explore') || 'EXPLORAR'}</h4>
-        <button onClick={fetchTasks} style={{ background: 'transparent', border: 'none', color: '#ff99dd', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>{t('ads_update') || 'ACTUALIZAR'}</button>
-      </div>
-
-      {category === 'diarias' && (
-        <div style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #E6F3FF 100%)', border: '3px solid #0B3D6B', borderRadius: '24px', padding: '16px 14px', marginBottom: '16px', boxShadow: '0 6px 0 #0B3D6B', color: '#0B3D6B' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <div style={{ fontSize: '16px', fontWeight: '900' }}>
-              {t('ads_daily_streak') ? t('ads_daily_streak').replace('{day}', streakCount) : `🎁 Racha Diaria (Día ${streakCount})`}
+    <div className="fade-in" style={{ color: '#F3F4F6' }}>
+      {/* Cabecera superior */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '4px 2px 14px 2px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {photoUrl ? (
+            <img
+              src={photoUrl}
+              alt="Avatar"
+              style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.16)' }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.16)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '800',
+                fontSize: '13px'
+              }}
+            >
+              {avatarLetter}
             </div>
-            <div style={{ fontSize: '11px', fontWeight: '800', color: '#fff', background: '#21A845', borderRadius: '10px', padding: '3px 8px' }}>{streakCount}/7</div>
-          </div>
+          )}
+          <span style={{ fontSize: '15px', fontWeight: '700', color: '#F9FAFB' }}>{displayName}</span>
+        </div>
 
-          <div style={{ display: 'flex', gap: '5px', marginBottom: '14px' }}>
-            {[1,2,3,4,5,6,7].map(day => {
-              const isPast = day < streakCount;
-              const isToday = day === streakCount;
-              const isFuture = day > streakCount;
-              const isFinal = day === 7;
-              const isDone = isPast || (isToday && gigaClaimed);
-              const bg = isFinal
-                ? 'linear-gradient(180deg, #FFE066 0%, #F5A600 100%)'
-                : isDone ? 'linear-gradient(180deg, #5BE37A 0%, #21A845 100%)'
-                : isToday ? '#FFF3B0' : '#FFFFFF';
-              const border = isFinal ? '#B57500' : isDone ? '#14803A' : isToday ? '#F5A600' : '#C9DFF2';
-              const textColor = isDone ? '#FFFFFF' : isFinal ? '#5A3B00' : '#0B3D6B';
+        <button
+          type="button"
+          onClick={handleToggleLang}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#E5E7EB',
+            fontSize: '13px',
+            fontWeight: '700',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer'
+          }}
+        >
+          {SvgIcon.globe}
+          <span>{currentLang}</span>
+        </button>
+      </div>
 
-              return (
-                <div key={day} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', opacity: isFuture && !isFinal ? 0.6 : 1 }}>
-                  <div style={{ width: '100%', height: '46px', boxSizing: 'border-box', borderRadius: '12px', background: bg, border: `2px solid ${border}`, boxShadow: isFinal ? '0 3px 0 #B57500' : (isToday && !gigaClaimed) ? '0 0 0 3px rgba(255, 200, 0, 0.45)' : 'none', color: textColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? '18px' : '15px', fontWeight: '900' }}>
-                    {isDone ? '✓' : isFinal ? '🏆' : day}
-                  </div>
-                  <span style={{ fontSize: '10px', fontWeight: '900', color: isFinal ? '#B57500' : '#0B3D6B' }}>+{day}</span>
+      {/* Recompensa Diaria (1 a 7) */}
+      <div style={cardPanel}>
+        <div style={{ textAlign: 'center', fontSize: '15px', fontWeight: '700', color: '#F3F4F6', marginBottom: '14px' }}>
+          {t?.('ads_daily_reward_title') || 'Recompensa Diaria'}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '16px' }}>
+          {[1, 2, 3, 4, 5, 6, 7].map((day, idx) => {
+            const isPast = day < streakCount;
+            const isCurrent = day === streakCount;
+            const done = isPast || (isCurrent && gigaClaimed);
+
+            return (
+              <React.Fragment key={day}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    color: done ? '#E5E7EB' : isCurrent ? '#FFFFFF' : '#9CA3AF',
+                    background: isCurrent && !gigaClaimed
+                      ? 'radial-gradient(circle, rgba(255, 214, 102, 0.28) 0%, rgba(18, 24, 34, 0.95) 75%)'
+                      : 'rgba(255, 255, 255, 0.03)',
+                    border: isCurrent && !gigaClaimed
+                      ? '1.5px solid rgba(253, 224, 71, 0.75)'
+                      : '1px solid rgba(255, 255, 255, 0.16)',
+                    boxShadow: isCurrent && !gigaClaimed ? '0 0 12px rgba(253, 224, 71, 0.35)' : 'none',
+                    flexShrink: 0
+                  }}
+                >
+                  {done ? SvgIcon.check : day}
                 </div>
-              );
-            })}
-          </div>
-
-          <div style={{ fontSize: '10px', fontWeight: '800', color: '#B57500', marginBottom: '12px', textAlign: 'center' }}>🏆 DÍA 7 = PREMIO FINAL DORADO</div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', width: '100%' }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: '#21A845', fontSize: '11px', fontWeight: '800' }}>{t('ads_daily_sponsor') || 'Patrocinado por GigaPub'}</div>
-            </div>
-            {loadingTasks ? (
-               <button disabled style={{ background: '#DDE7F0', color: '#5A6B7B', border: 'none', borderRadius: '14px', padding: '12px 14px', fontWeight: '900', fontSize: '13px', whiteSpace: 'nowrap' }}>CARGANDO...</button>
-            ) : gigaClaimed ? (
-               <button disabled style={{ background: '#DDE7F0', color: '#5A6B7B', border: 'none', borderRadius: '14px', padding: '12px 14px', fontWeight: '900', fontSize: '13px', whiteSpace: 'nowrap' }}>{t('ads_daily_come_back') || 'VUELVE MAÑANA'}</button>
-            ) : (
-               <button onClick={handlePlayGigaPub} disabled={!gigaReady || playingAd} style={{ background: 'linear-gradient(180deg, #5BE37A 0%, #21A845 100%)', color: '#FFFFFF', border: 'none', borderRadius: '14px', padding: '12px 14px', fontWeight: '900', fontSize: '13px', boxShadow: '0 4px 0 #14803A', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                 {playingAd ? 'CARGANDO...' : `+${streakCount}.00 $TGM`}
-               </button>
-            )}
-          </div>
+                {idx < 6 && (
+                  <div
+                    style={{
+                      flex: 1,
+                      height: '1px',
+                      background: 'rgba(255, 255, 255, 0.18)',
+                      minWidth: '4px'
+                    }}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
-      )}
 
+        <button
+          type="button"
+          onClick={handlePlayGigaPub}
+          disabled={loadingTasks || gigaClaimed || !gigaReady || playingAd}
+          style={{
+            ...subtleBtn,
+            width: '100%',
+            padding: '11px 14px',
+            fontSize: '14px',
+            opacity: loadingTasks || gigaClaimed || !gigaReady || playingAd ? 0.65 : 1
+          }}
+        >
+          {gigaClaimed
+            ? t?.('ads_daily_come_back') || 'Racha Reclamada Hoy'
+            : playingAd
+            ? 'Validando...'
+            : `Reclamar Racha Diaria (+${streakRewardTgm} $TGM)`}
+        </button>
+      </div>
+
+      {/* Código promo + Canjear */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', alignItems: 'center' }}>
+        <input
+          type="text"
+          value={promoCode}
+          onChange={(e) => setPromoCode(e.target.value)}
+          placeholder="Código promo..."
+          style={{
+            flex: 1,
+            background: 'rgba(13, 18, 27, 0.9)',
+            border: '1px solid rgba(255, 255, 255, 0.14)',
+            borderRadius: '12px',
+            padding: '11px 14px',
+            color: '#F3F4F6',
+            fontSize: '14px',
+            outline: 'none'
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleRedeemPromo}
+          disabled={redeemingPromo}
+          style={{
+            ...subtleBtn,
+            padding: '11px 22px',
+            fontSize: '14px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {redeemingPromo ? '...' : 'Canjear'}
+        </button>
+      </div>
+
+      {/* Mis Campañas | + Crear Campaña */}
+      <div
+        style={{
+          ...cardPanel,
+          padding: '10px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '10px'
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setView('activity')}
+          style={{ ...subtleBtn, padding: '10px 8px', fontSize: '13px' }}
+        >
+          {t?.('ads_tab_my_ads') || 'Mis Campañas'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setView('wizard')}
+          style={{
+            ...subtleBtn,
+            padding: '10px 8px',
+            fontSize: '13px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px'
+          }}
+        >
+          {SvgIcon.plus}
+          <span>{t?.('ads_btn_create') || 'Crear Campaña'}</span>
+        </button>
+      </div>
+
+      {/* Filtros de categoría */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+        {filterOptions.map((opt) => {
+          const active = category === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setCategory(opt.id)}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '12px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                color: active ? '#FFFFFF' : '#D1D5DB',
+                background: active
+                  ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 100%)'
+                  : 'rgba(13, 18, 27, 0.85)',
+                border: active
+                  ? '1px solid rgba(255, 255, 255, 0.35)'
+                  : '1px solid rgba(255, 255, 255, 0.12)',
+                boxShadow: active ? '0 0 12px rgba(255, 255, 255, 0.12)' : 'none'
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Lista de misiones */}
       {loadingTasks ? (
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <div style={{ color: '#00f0ff', fontSize: '14px', fontWeight: '900', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            <style>{`@keyframes pulseTasks { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
-            <div style={{ animation: 'pulseTasks 1.5s infinite' }}>{t('ads_btn_loading') || 'Sincronizando...'}</div>
-          </div>
+        <div style={{ ...cardPanel, textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '24px' }}>
+          {t?.('ads_btn_loading') || 'Sincronizando...'}
         </div>
-      ) : currentList.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-          <p style={{ color: '#ff99dd', fontSize: '13px', fontWeight: 'bold', margin: 0, lineHeight: '1.5' }}>
-             {t('ads_empty_category') || 'No hay misiones disponibles. Vuelve más tarde.'}
-          </p>
+      ) : filteredTasks.length === 0 ? (
+        <div style={{ ...cardPanel, textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '24px' }}>
+          {t?.('ads_empty_category') || 'No hay misiones disponibles en este filtro.'}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {currentList.map(renderTaskItem)}
-        </div>
+        <div>{filteredTasks.map(renderTaskCard)}</div>
       )}
     </div>
   );
