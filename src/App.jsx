@@ -1,84 +1,86 @@
 import { useEffect, useState, useRef } from 'react';
 import WebApp from '@twa-dev/sdk';
-import toast, { Toaster } from 'react-hot-toast';  
-import { translations } from './translations'; 
+import toast, { Toaster } from 'react-hot-toast';
+import { es } from './locales/es';
+import { en } from './locales/en';
 
-import ProfileHeader from './components/ProfileHeader';
 import HomeTab from './components/HomeTab';
 import AdsTab from './components/AdsTab';
 import ShareTab from './components/ShareTab';
 import BottomNav from './components/BottomNav';
 import AdminDashboard from './components/AdminDashboard';
-import WalletTab from './components/WalletTab'; 
+import WalletTab from './components/WalletTab';
 import MarketTab from './components/MarketTab';
 import LeaderboardTab from './components/LeaderboardTab';
-import ChannelJoin from './components/ChannelJoin'; 
+import ChannelJoin from './components/ChannelJoin';
+
+const translations = { es, en };
 
 const modernTheme = {
-  container: { 
-    backgroundColor: '#0B3D6B', 
-    backgroundImage: 'radial-gradient(ellipse 140px 60px at 15% 12%, rgba(255,255,255,0.22) 0%, transparent 70%), radial-gradient(ellipse 120px 50px at 82% 8%, rgba(255,255,255,0.18) 0%, transparent 70%), radial-gradient(ellipse 180px 70px at 60% 30%, rgba(255,255,255,0.12) 0%, transparent 70%), linear-gradient(180deg, #4FC3F7 0%, #1E88E5 35%, #0B3D6B 100%)', 
-    minHeight: '100vh', 
-    height: 'var(--tg-viewport-height, 100vh)', 
-    color: '#F3F4F6', 
-    fontFamily: "'Inter', system-ui, -apple-system, sans-serif", 
-    display: 'flex', 
-    flexDirection: 'column', 
-    boxSizing: 'border-box' 
+  container: {
+    backgroundColor: '#070C14',
+    backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(24, 46, 78, 0.45) 0%, rgba(7, 12, 20, 0.98) 70%)',
+    minHeight: '100vh',
+    height: 'var(--tg-viewport-height, 100vh)',
+    color: '#F3F4F6',
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+    display: 'flex',
+    flexDirection: 'column',
+    boxSizing: 'border-box'
   },
-  main: { 
-    flex: 1, 
-    maxWidth: '520px', 
-    margin: '0 auto', 
-    width: '100%', 
-    padding: '16px 16px 110px 16px', 
-    boxSizing: 'border-box', 
-    overflowY: 'auto', 
-    WebkitOverflowScrolling: 'touch' 
-  },
-  center: { 
-    minHeight: '100vh', 
-    display: 'flex', 
-    flexDirection: 'column', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    backgroundColor: '#050505', 
-    backgroundImage: 'radial-gradient(circle at center, #111827 0%, #050505 85%)', 
-    padding: '24px', 
-    textAlign: 'center', 
-    boxSizing: 'border-box' 
-  },
-  loaderGlow: { 
-    width: '56px', 
-    height: '56px', 
-    borderRadius: '50%', 
-    border: '4px solid rgba(6, 182, 212, 0.1)', 
-    borderTopColor: '#06B6D4', 
-    borderRightColor: '#3B82F6', 
-    animation: 'spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite', 
-    boxShadow: '0 0 20px rgba(6, 182, 212, 0.3)' 
-  },
-  errorCard: { 
-    background: 'rgba(255, 255, 255, 0.02)', 
-    border: '1px solid rgba(239, 68, 68, 0.3)', 
-    borderRadius: '24px', 
-    padding: '28px 24px', 
-    maxWidth: '340px', 
-    boxShadow: '0 8px 32px rgba(239, 68, 68, 0.15)',
-    backdropFilter: 'blur(10px)' 
-  },
-  btnRetry: { 
-    marginTop: '20px', 
+  main: {
+    flex: 1,
+    maxWidth: '520px',
+    margin: '0 auto',
     width: '100%',
-    padding: '14px 28px', 
-    background: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)', 
-    color: '#ffffff', 
-    border: 'none', 
-    borderRadius: '16px', 
-    fontWeight: '800', 
-    fontSize: '14px', 
-    letterSpacing: '0.5px', 
-    cursor: 'pointer', 
+    padding: '14px 16px 110px 16px',
+    boxSizing: 'border-box',
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch'
+  },
+  center: {
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#050505',
+    backgroundImage: 'radial-gradient(circle at center, #111827 0%, #050505 85%)',
+    padding: '24px',
+    textAlign: 'center',
+    boxSizing: 'border-box'
+  },
+  loaderGlow: {
+    width: '56px',
+    height: '56px',
+    borderRadius: '50%',
+    border: '4px solid rgba(6, 182, 212, 0.1)',
+    borderTopColor: '#06B6D4',
+    borderRightColor: '#3B82F6',
+    animation: 'spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite',
+    boxShadow: '0 0 20px rgba(6, 182, 212, 0.3)'
+  },
+  errorCard: {
+    background: 'rgba(255, 255, 255, 0.02)',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    borderRadius: '24px',
+    padding: '28px 24px',
+    maxWidth: '340px',
+    boxShadow: '0 8px 32px rgba(239, 68, 68, 0.15)',
+    backdropFilter: 'blur(10px)'
+  },
+  btnRetry: {
+    marginTop: '20px',
+    width: '100%',
+    padding: '14px 28px',
+    background: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '16px',
+    fontWeight: '800',
+    fontSize: '14px',
+    letterSpacing: '0.5px',
+    cursor: 'pointer',
     boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)',
     textTransform: 'uppercase'
   }
@@ -86,32 +88,31 @@ const modernTheme = {
 
 const safeStorage = {
   get: (key) => {
-    try { return localStorage.getItem(key); } 
+    try { return localStorage.getItem(key); }
     catch (e) { return null; }
   },
   set: (key, value) => {
-    try { localStorage.setItem(key, value); } 
+    try { localStorage.setItem(key, value); }
     catch (e) { console.warn("LocalStorage bloqueado, usando memoria temporal."); }
   }
 };
 
 function App() {
-  const [status, setStatus] = useState('loading'); 
-  const [activeTab, setActiveTab] = useState('home'); 
+  const [status, setStatus] = useState('loading');
+  const [activeTab, setActiveTab] = useState('home');
   const [userData, setUserData] = useState(null);
   const [stats, setStats] = useState({ n1: 0, c1: "0.00" });
   const [errorMessage, setErrorMessage] = useState('');
 
   const [lang, setLang] = useState(safeStorage.get('click_lang') || 'es');
   const initialized = useRef(false);
-    // Traduce una clave; {nombre} se sustituye por vars.nombre. Si falta en el idioma, usa español y luego la clave.
+
   const t = (key, vars) => {
     let text = translations[lang]?.[key] ?? translations.es?.[key] ?? key;
     if (vars) Object.entries(vars).forEach(([name, value]) => { text = text.split(`{${name}}`).join(String(value)); });
     return text;
   };
 
-  // GATEKEEPER STATES (Canales Obligatorios)
   const [mustJoin, setMustJoin] = useState(false);
   const [channelStatus, setChannelStatus] = useState({
     c1: true, c2: true, c1_url: '', c2_url: ''
@@ -136,17 +137,16 @@ function App() {
       const storedFirstUser = safeStorage.get('xpro_linked_user');
       let previousAccount = null;
 
-      if (!storedFirstUser) { 
-        safeStorage.set('xpro_linked_user', String(teleUser.id)); 
-      } else if (storedFirstUser !== String(teleUser.id)) { 
-        previousAccount = storedFirstUser; 
+      if (!storedFirstUser) {
+        safeStorage.set('xpro_linked_user', String(teleUser.id));
+      } else if (storedFirstUser !== String(teleUser.id)) {
+        previousAccount = storedFirstUser;
       }
 
-      // Payload seguro (Sin userId extra inyectado, confiando en el Header)
-      const userPayload = { 
-        ...teleUser, 
-        deviceId: localDeviceId, 
-        is_clone: previousAccount !== null 
+      const userPayload = {
+        ...teleUser,
+        deviceId: localDeviceId,
+        is_clone: previousAccount !== null
       };
 
       const payloadRequest = {
@@ -170,17 +170,14 @@ function App() {
         setUserData(data.user);
         setStats(data.stats || { n1: 0, c1: "0.00" });
 
-        // GATEKEEPER ROUTING
-        if (data.mandatory) {
-           if (!data.mandatory.all_joined) {
-              setChannelStatus({
-                 c1: data.mandatory.c1_joined,
-                 c2: data.mandatory.c2_joined,
-                 c1_url: data.mandatory.c1_url,
-                 c2_url: data.mandatory.c2_url
-              });
-              setMustJoin(true); 
-           }
+        if (data.mandatory && !data.mandatory.all_joined) {
+          setChannelStatus({
+            c1: data.mandatory.c1_joined,
+            c2: data.mandatory.c2_joined,
+            c1_url: data.mandatory.c1_url,
+            c2_url: data.mandatory.c2_url
+          });
+          setMustJoin(true);
         }
 
         setStatus('member');
@@ -189,9 +186,9 @@ function App() {
         setStatus('error');
       }
     } catch (err) {
-        const errPayload = err.response?.data || err;
-        setErrorMessage(safeErrorMessage(errPayload, "Error de red o base de datos."));
-        setStatus('error');
+      const errPayload = err.response?.data || err;
+      setErrorMessage(safeErrorMessage(errPayload, "Error de red o base de datos."));
+      setStatus('error');
     }
   };
 
@@ -199,7 +196,8 @@ function App() {
     if (initialized.current) return;
     const initTimer = setTimeout(() => {
       try {
-        WebApp.ready(); WebApp.expand();
+        WebApp.ready();
+        WebApp.expand();
         if (WebApp.disableVerticalSwipes) WebApp.disableVerticalSwipes();
         const user = WebApp.initDataUnsafe?.user;
         const initData = WebApp.initData;
@@ -211,17 +209,17 @@ function App() {
           safeStorage.set('click_lang', detectedLang);
         }
 
-        if (!user || !initData) { 
-            setErrorMessage(t('access_denied') || 'Acceso Denegado. Solo a través de Telegram.'); 
-            setStatus('error'); 
-            return; 
+        if (!user || !initData) {
+          setErrorMessage(t('access_denied') || 'Acceso Denegado. Solo a través de Telegram.');
+          setStatus('error');
+          return;
         }
 
         initialized.current = true;
         verifyUser(user, inviterId);
-      } catch (e) { 
-          setErrorMessage("Error de compatibilidad con la plataforma."); 
-          setStatus('error'); 
+      } catch (e) {
+        setErrorMessage("Error de compatibilidad con la plataforma.");
+        setStatus('error');
       }
     }, 150);
     return () => clearTimeout(initTimer);
@@ -250,15 +248,15 @@ function App() {
         <div style={modernTheme.errorCard}>
           <div style={{ fontSize: '48px', marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 4px 10px rgba(239,68,68,0.3))' }}>
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
           </div>
           <h2 style={{ color: '#EF4444', margin: '0 0 12px 0', fontSize: '18px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('access_interrupted') || 'Conexión Fallida'}</h2>
 
           <div style={{ background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '16px', border: '1px dashed rgba(239, 68, 68, 0.4)', marginBottom: '20px' }}>
-             <p style={{ color: '#FCA5A5', fontSize: '12px', lineHeight: '1.6', margin: 0, wordBreak: 'break-word', fontWeight: '500' }}>
-               {errorMessage}
-             </p>
+            <p style={{ color: '#FCA5A5', fontSize: '12px', lineHeight: '1.6', margin: 0, wordBreak: 'break-word', fontWeight: '500' }}>
+              {errorMessage}
+            </p>
           </div>
 
           <button style={modernTheme.btnRetry} onClick={() => window.location.reload()}>REINTENTAR CONEXIÓN</button>
@@ -267,13 +265,12 @@ function App() {
     );
   }
 
-  // DESPLIEGUE DEL GATEKEEPER
   if (mustJoin) {
     return (
-      <ChannelJoin 
-        channelStatus={channelStatus} 
-        setChannelStatus={setChannelStatus} 
-        setMustJoin={setMustJoin} 
+      <ChannelJoin
+        channelStatus={channelStatus}
+        setChannelStatus={setChannelStatus}
+        setMustJoin={setMustJoin}
       />
     );
   }
@@ -282,7 +279,18 @@ function App() {
     <div style={modernTheme.container}>
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { background: '#111827', color: '#F3F4F6', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', fontWeight: '600', fontSize: '13px' } }} />
       <div style={modernTheme.main}>
-        {activeTab === 'home' && <div className="fade-in"><ProfileHeader userData={userData} t={t} lang={lang} setLang={setLang} /><HomeTab userData={userData} setUserData={setUserData} setActiveTab={setActiveTab} t={t} /></div>}
+        {activeTab === 'home' && (
+          <div className="fade-in">
+            <HomeTab
+              userData={userData}
+              setUserData={setUserData}
+              setActiveTab={setActiveTab}
+              t={t}
+              lang={lang}
+              setLang={setLang}
+            />
+          </div>
+        )}
         {activeTab === 'tasks' && <div className="fade-in"><AdsTab userData={userData} setUserData={setUserData} t={t} /></div>}
         {activeTab === 'market' && <div className="fade-in"><MarketTab t={t} /></div>}
         {activeTab === 'referrals' && <div className="fade-in"><ShareTab stats={stats} handleShare={handleShare} userId={userData?.id} totalReferralEarnings={userData?.referral_earnings} t={t} /></div>}
