@@ -87,8 +87,16 @@ export default function AdsMarket({ props }) {
       ? websites
       : botsAndApps;
 
-  const streakCount = Math.min(7, Math.max(1, Number(userData?.streak_count || 4)));
-  const streakRewardTgm = Number(userData?.streak_reward_tgm || 50);
+  // Día real de racha desde userData (1 a 7)
+  const rawStreak = Number(userData?.streak_day ?? userData?.streak_count ?? 1);
+  const streakCount = Number.isFinite(rawStreak) && rawStreak >= 1 ? Math.min(7, Math.floor(rawStreak)) : 1;
+
+  // Recompensa real en $TGM: prioriza valor enviado por el servidor; si no, usa el día de racha actual
+  const serverRewardTgm = Number(userData?.streak_reward_tgm ?? userData?.daily_reward_tgm);
+  const streakRewardTgm =
+    Number.isFinite(serverRewardTgm) && serverRewardTgm > 0
+      ? Number(serverRewardTgm.toFixed(2))
+      : streakCount;
 
   const todayKey = userData?.id ? `gigapub_claimed_${new Date().toISOString().slice(0, 10)}_${userData.id}` : '';
   const localClaimed = todayKey ? localStorage.getItem(todayKey) === 'true' : false;
