@@ -10,8 +10,25 @@ export const es = {
   nav_admin: "ADMIN",
 
   // ==========================================
-  // PESTAÑA INICIO (HomeTab)
+  // PESTAÑA INICIO Y CABECERA (HomeTab / ProfileHeader)
   // ==========================================
+  home_lang_label: "Idioma: ES",
+  home_support: "SOPORTE",
+  home_about: "ACERCA",
+  home_terms: "TÉRMINOS",
+  home_history: "Historial",
+  home_global_data: "Datos Globales",
+  home_stat_users: "Usuarios:",
+  home_stat_withdrawn: "Retirado:",
+  home_stat_vault: "Fondos Bóveda:",
+  home_stat_days: "Días en Línea:",
+  home_campaign_fund: "Fondo de Campaña",
+  home_vault_usd_label: "USD (Fondos para Campañas)",
+  home_credits_equiv: "Equivale a {credits} CRÉDITOS",
+  home_btn_deposit: "Depositar",
+  home_withdrawable_label: "Saldo Retirable ($TGM)",
+  home_rate_info: "1000 $TGM = 1 USD",
+  home_btn_withdraw: "Retirar",
   home_vault_title: "FONDOS DE CAMPAÑA",
   home_vault_desc: "Para creación de anuncios y tráfico",
   home_gems_title: "SALDO DISPONIBLE",
@@ -24,7 +41,7 @@ export const es = {
   home_btn_affiliates: "PANEL DE AFILIADOS",
 
   // ==========================================
-  // MERCADO DE ANUNCIOS (AdsMarket / AdsActivity)
+  // MERCADO DE ANUNCIOS (AdsMarket / AdsActivity / AdsWizard)
   // ==========================================
   ads_tab_market: "MERCADO",
   ads_tab_my_ads: "MIS CAMPAÑAS",
@@ -42,7 +59,7 @@ export const es = {
   ads_cat_diarias: "DIARIAS",
   ads_cat_partners: "PARTNERS",
   ads_explore: "EXPLORAR",
-  ads_daily_streak: "🎁 Racha Diaria (Día {day})",
+  ads_daily_streak: "Racha Diaria (Día {day})",
   ads_daily_sponsor: "Patrocinado por GigaPub",
   ads_daily_come_back: "VUELVE MAÑANA",
   ads_btn_loading: "Sincronizando...",
@@ -65,7 +82,7 @@ export const es = {
   bank_vault_usdt: "FONDOS DE CAMPAÑA",
   bank_only_ads: "Créditos Publicitarios",
 
-  bank_live_title: "📊 Auditoría Pública",
+  bank_live_title: "Auditoría Pública",
   bank_live_desc: "Registro de retiros procesados",
   bank_live_btn: "VER CANAL",
 
@@ -79,7 +96,7 @@ export const es = {
   bank_wd_amount_label: "Monto a liquidar ($TGM)",
   bank_btn_max: "MÁX",
 
-  bank_req_title: "🛡️ Control de Seguridad (Elige uno)",
+  bank_req_title: "Control de Seguridad (Elige uno)",
   bank_req_opt1: "Opción 1: Reclutar Referidos",
   bank_req_opt1_desc: "(Deben ser usuarios activos)",
   bank_req_opt2: "Opción 2: Tareas de Red (Diarias)",
@@ -101,7 +118,7 @@ export const es = {
   bank_btn_verifying: "VERIFICANDO...",
   bank_btn_verify_block: "CONFIRMAR DEPÓSITO",
 
-  bank_promo_title: "🚀 Inyección de Capital",
+  bank_promo_title: "Inyección de Capital",
   bank_promo_desc: "Añade liquidez para fondear tus campañas de tráfico masivo y atraer miles de usuarios.",
   bank_promo_highlight: "¡Sin límites de crecimiento!",
   bank_dp_title: "Monto a Inyectar (USDT)",
@@ -117,11 +134,17 @@ export const es = {
   bank_err_wallet_invalid: "Billetera TON inválida.",
   bank_err_min_withdraw: "El retiro mínimo es de {min} $TGM.",
   bank_err_insufficient: "Capital insuficiente.",
+  bank_err_loading_min: "Cargando el retiro mínimo, inténtalo de nuevo.",
+  bank_wd_locked: "Dirección bloqueada por seguridad. Contacta al soporte para cambiarla.",
   bank_req_error: "Debes cumplir uno de los requisitos (5 Referidos o 5 Misiones de red).",
   bank_msg_processing: "Autorizando transacción...",
   bank_msg_success: "Retiro en proceso de liquidación.",
   bank_msg_error: "Fallo en transacción.",
   bank_msg_conn_error: "Error de red.",
+  bank_err_unstable: "Conexión de red inestable.",
+  bank_msg_mission_ok: "Misión de red validada (sin recompensa extra).",
+  bank_err_validation: "Fallo al procesar la validación.",
+  bank_err_cancelled: "Transmisión cancelada.",
   bank_err_amount: "Monto inválido.",
   bank_msg_generating: "Configurando pasarela...",
   bank_err_server_wallet: "Fallo al generar contrato.",
@@ -132,31 +155,23 @@ export const es = {
   bank_msg_deposit_ok: "Liquidación de ${amount} acreditada en Bóveda.",
   bank_err_not_detected: "Confirmaciones pendientes.",
 
-  // Claves que usa WalletTab.jsx y faltaban
-  bank_wd_locked: "🔒 Dirección bloqueada por seguridad. Contacta al soporte para cambiarla.",
-  bank_err_loading_min: "Cargando el retiro mínimo, inténtalo de nuevo.",
-  bank_err_unstable: "Conexión de red inestable.",
-  bank_msg_mission_ok: "Misión de red validada (sin recompensa extra).",
-  bank_err_validation: "Fallo al procesar la validación.",
-  bank_err_cancelled: "Transmisión cancelada.",
-
   // ==========================================
   // RED DE AFILIADOS (ShareTab)
   // ==========================================
   ref_title: "RED DE AFILIADOS",
   ref_status_active: "ACTIVOS",
   ref_status_pending: "PENDIENTES",
-  ref_btn_invite: "🚀 INVITAR",
-  ref_btn_copy: "📋 COPIAR LINK",
+  ref_btn_invite: "INVITAR",
+  ref_btn_copy: "COPIAR LINK",
 
   ref_earnings_title: "Comisiones Generadas",
-  ref_network_title: "🛰️ TU RED DE AFILIADOS",
+  ref_network_title: "TU RED DE AFILIADOS",
   ref_syncing: "SINCRONIZANDO NODOS...",
   ref_empty_desc: "AÚN NO HAS INVITADO A NINGÚN USUARIO A TU RED.",
 
   ref_toast_copy_ok: "¡Enlace copiado al portapapeles!",
   ref_toast_copy_fail: "Error al copiar",
-  share_text: "🌐 ¡Entra a mi red, completa misiones y gana recompensas cripto gratis! 🚀",
+  share_text: "¡Entra a mi red, completa misiones y gana recompensas cripto gratis!",
   operator: "Recluta",
 
   // ==========================================
@@ -183,21 +198,21 @@ export const es = {
   // ==========================================
   support_tab: "SOPORTE",
   support_title: "Centro de Soporte",
-  support_idea_title: "💡 Ideas y mejoras",
+  support_idea_title: "Ideas y mejoras",
   support_idea_desc: "Envía tus sugerencias o propuestas de mejora a",
-  support_bug_title: "🐞 Reporte de errores",
+  support_bug_title: "Reporte de errores",
   support_bug_desc: "Si encuentras un fallo o una vulnerabilidad, repórtalo a",
 
-  about_tab: "ACERCA DE",
+  about_tab: "ACERCA",
   about_title: "Acerca de la plataforma",
-  about_p1: "TeleGem Web3 es una plataforma de misiones y recompensas dentro de Telegram.",
-  about_p2: "Completa tareas, invita a tu red y gana $TGM según tu actividad.",
-  about_p3: "Las recompensas se acreditan en tu saldo y pueden retirarse al cumplir el mínimo.",
+  about_p1: "Click Network Web3 es una plataforma de campañas, tráfico y recompensas dentro de Telegram.",
+  about_p2: "Completa tareas, invita a tu red y gana $TGM según tu actividad con tasa fija de 1 USD = 1,000 $TGM / Créditos.",
+  about_p3: "Las recompensas se acreditan en tu saldo y pueden retirarse al cumplir el mínimo y los controles de seguridad.",
 
   terms_tab: "TÉRMINOS",
   terms_title: "Términos de uso",
   terms_subtitle: "Lee las condiciones antes de usar la plataforma.",
-  terms_1: "Cada persona puede tener una sola cuenta; las cuentas duplicadas pueden bloquearse.",
+  terms_1: "Cada persona puede tener una sola cuenta; las cuentas duplicadas o clones de dispositivo pueden bloquearse.",
   terms_2: "Las recompensas en $TGM dependen de las tareas completadas y de su verificación.",
   terms_3: "Los retiros requieren el mínimo indicado y cumplir los requisitos de seguridad vigentes.",
   terms_4: "La plataforma puede modificar tareas, recompensas y condiciones avisando a los usuarios.",
