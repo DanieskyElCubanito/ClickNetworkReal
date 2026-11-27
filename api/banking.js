@@ -3,6 +3,10 @@ import { BOT_TOKEN, notifyAdmin } from '../utils/telegram.js';
 
 const FALLBACK_SWEEP_ADDRESS = 'UQBW9toUVg75NhhayTPW2RzMhHJxF1_BOKULqSYDZIvZBoIk';
 
+// 50 $TGM = 0.05 USD (1 USD = 1,000 $TGM)
+const MIN_REFERRAL_TGM = 50;
+const MIN_REFERRAL_USD = MIN_REFERRAL_TGM / 1000;
+
 const round4 = (n) => Number(Number(n).toFixed(4));
 
 const escapeHtml = (str) => String(str ?? '')
@@ -28,16 +32,15 @@ export async function handleBankingActions(action, targetId, reqBody) {
         const dynamicMin = Number(config?.min_withdrawal || 0.50);
 
         if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0 || withdrawAmount < dynamicMin) {
-            // 🔥 ECONOMÍA INSTITUCIONAL: Mensaje de error en $TGM
             return { status: 400, body: { success: false, error: `Mínimo de retiro: ${(dynamicMin * 1000).toFixed(0)} $TGM.` } };
         }
 
-        // 2. Requisitos diarios (5 referidos activos O 5 anuncios vistos hoy)
+        // 2. Requisitos diarios (5 referidos activos con >= 50 $TGM O 5 anuncios vistos hoy)
         const todayDate = new Date();
         todayDate.setUTCHours(0, 0, 0, 0);
 
         const [{ count: refCount, error: refErr }, { count: adsCount, error: adsErr }] = await Promise.all([
-            supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', id).gte('total_earnings', 0.005),
+            supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', id).gte('total_earnings', MIN_REFERRAL_USD),
             supabase.from('history_logs').select('id', { count: 'exact', head: true }).eq('user_id', id).like('description', '%[AdView]%').gte('created_at', todayDate.toISOString())
         ]);
 
@@ -46,7 +49,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
         }
 
         if ((refCount || 0) < 5 && (adsCount || 0) < 5) {
-            return { status: 400, body: { success: false, error: 'Requisito: 5 referidos activos O ejecutar 5 Misiones de Red.' } };
+            return { status: 400, body: { success: false, error: `Requisito: 5 referidos activos (${MIN_REFERRAL_TGM} $TGM) O ejecutar 5 Misiones de Red.` } };
         }
 
         // 3. Verificación del usuario y bloqueo de cambio de billetera
@@ -101,7 +104,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
         todayStr.setUTCHours(0, 0, 0, 0);
 
         const [{ count: refCount }, { count: adsCount }, { data: u }, { data: config }] = await Promise.all([
-            supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', id).gte('total_earnings', 0.005),
+            supabase.from('users').select('id', { count: 'exact', head: true }).eq('referred_by', id).gte('total_earnings', MIN_REFERRAL_USD),
             supabase.from('history_logs').select('id', { count: 'exact', head: true }).eq('user_id', id).like('description', '%[AdView]%').gte('created_at', todayStr.toISOString()),
             supabase.from('users').select('saved_wallet').eq('id', id).maybeSingle(),
             supabase.from('system_settings').select('min_withdrawal').eq('id', 1).maybeSingle()
@@ -266,7 +269,7 @@ export async function handleBankingActions(action, targetId, reqBody) {
         if (!sweep?.success) {
             await release();
             console.error(`Barrido USDT falló para usuario ${id}:`, sweep?.error);
-            return { status: 502, body: { success: false, error: `No se pudo confirmar el depósito en BSC, inténtalo de nuevo en unos minutos.` } };
+            return { status: 502, body: { success: false, error: 'No se pudo confirmar el depósito en BSC, inténtalo de nuevo en unos minutos.' } };
         }
 
         // 4. Acreditación atómica en BD (crédito = USDT recibido)
@@ -278,7 +281,6 @@ export async function handleBankingActions(action, targetId, reqBody) {
         });
 
         if (fError || !done?.ok) {
-            // Los fondos ya están en la bóveda: aviso al admin para acreditar a mano
             notifyAdmin(
                 `⚠️ <b>DEPÓSITO USDT BARRIDO SIN ACREDITAR</b>\n` +
                 `Intent ID: <code>${intent.id}</code>\n` +
@@ -416,7 +418,6 @@ export async function handleBankingActions(action, targetId, reqBody) {
                 sendMode: 128
             });
         } catch (sweepError) {
-            // 🔥 BLINDAJE 4: Si el barrido falla, avisa por Telegram al Admin
             const errMsg = sweepError?.message || String(sweepError);
             console.error(`Pago acreditado a usuario ${id}, pero barrido falló:`, errMsg);
             notifyAdmin(
