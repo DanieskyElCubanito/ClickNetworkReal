@@ -7,6 +7,10 @@ const goldBorder = '1px solid rgba(212, 175, 122, 0.35)';
 const champagneGrad = 'linear-gradient(135deg, #E2C290 0%, #B88E56 100%)';
 const slateCard = 'linear-gradient(145deg, #141D26 0%, #1B2632 100%)';
 
+// 50 $TGM = 0.05 USD (1 USD = 1,000 $TGM)
+const MIN_REFERRAL_TGM = 50;
+const MIN_REFERRAL_USD = MIN_REFERRAL_TGM / 1000;
+
 const Icons = {
   token: (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E2C290" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -141,7 +145,9 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
 
   const n1 = referralsList.length;
 
-  const activeCount = referralsList.filter(r => r.is_human && Number(r.total_earnings || 0) >= 0.005).length;
+  const activeCount = referralsList.filter(
+    r => r.is_human && Number(r.total_earnings || 0) >= MIN_REFERRAL_USD
+  ).length;
   const fraudCount = referralsList.filter(r => !r.is_human).length;
   const pendingCount = n1 - activeCount - fraudCount;
 
@@ -283,13 +289,13 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
               const childTotalUSDT = Number(ref.total_earnings || 0);
 
               let generatedTotalUSDT = childTotalUSDT * (sysPercent / 100);
-              if (childTotalUSDT >= 0.005) {
+              if (childTotalUSDT >= MIN_REFERRAL_USD) {
                 generatedTotalUSDT += sysBonus / 1000;
               }
               const generatedTGM = Number((generatedTotalUSDT * 1000).toFixed(2));
 
               const isHuman = ref.is_human;
-              const isActive = isHuman && childTotalUSDT >= 0.005;
+              const isActive = isHuman && childTotalUSDT >= MIN_REFERRAL_USD;
 
               return (
                 <div key={ref.id || idx} style={modernStyles.refItem}>
@@ -359,7 +365,9 @@ function ShareTab({ stats, userId, totalReferralEarnings, t }) {
               {sysPercent}% POR MISIÓN + {sysBonus} $TGM (BONO ÚNICO)
             </strong>
             <br />
-            <span style={{ color: '#F3F4F6' }}>AL VALIDAR CADA REFERIDO EN TU RED.</span>
+            <span style={{ color: '#F3F4F6' }}>
+              AL ALCANZAR {MIN_REFERRAL_TGM} $TGM VALIDADO EN TU RED.
+            </span>
           </p>
         </div>
       </div>
