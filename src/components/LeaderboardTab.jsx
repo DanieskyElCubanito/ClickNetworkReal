@@ -54,7 +54,7 @@ export default function LeaderboardTab({ userData, t }) {
 
         const resGlobal = await fetch('/api', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ action: 'get-leaderboard' }) });
         const dataGlobal = await resGlobal.json();
-        
+
         if (isMounted && dataGlobal.success) {
           setTopTasks(dataGlobal.topTasks || []);
           setTopReferrals(dataGlobal.topReferrals || []);
@@ -73,7 +73,7 @@ export default function LeaderboardTab({ userData, t }) {
 
   useEffect(() => {
     if (!activeEvent || !activeEvent.end_date) return;
-    
+
     const calculateTimeLeft = () => {
       const diff = new Date(activeEvent.end_date).getTime() - new Date().getTime();
       if (diff <= 0) {
