@@ -3,9 +3,13 @@ import toast from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 import { TaskIcons } from './AdsStyles';
 
+const goldBorder = '1px solid rgba(212, 175, 122, 0.35)';
+const champagneGrad = 'linear-gradient(135deg, #E2C290 0%, #B88E56 100%)';
+const slateCard = 'linear-gradient(145deg, #141D26 0%, #1B2632 100%)';
+
 const SvgIcon = {
   globe: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4AF7A" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <path d="M2 12h20" />
       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -25,22 +29,31 @@ const SvgIcon = {
 };
 
 const cardPanel = {
-  background: 'linear-gradient(180deg, rgba(22, 29, 41, 0.92) 0%, rgba(10, 14, 21, 0.97) 100%)',
-  border: '1px solid rgba(255, 255, 255, 0.14)',
+  background: slateCard,
+  border: goldBorder,
   borderRadius: '18px',
   padding: '16px',
   marginBottom: '14px',
-  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.10)'
+  boxShadow: '0 8px 24px rgba(11, 17, 23, 0.45), inset 0 1px 0 rgba(226, 194, 144, 0.14)'
 };
 
-const subtleBtn = {
-  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
-  border: '1px solid rgba(255, 255, 255, 0.18)',
+const darkActionBtn = {
+  background: '#0E151C',
+  border: goldBorder,
   borderRadius: '10px',
   color: '#F3F4F6',
   fontWeight: '700',
   cursor: 'pointer',
-  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)'
+  boxShadow: 'inset 0 1px 0 rgba(226, 194, 144, 0.12)'
+};
+
+const champagneActionBtn = {
+  background: champagneGrad,
+  border: '1px solid rgba(226, 194, 144, 0.65)',
+  borderRadius: '10px',
+  color: '#0E151C',
+  fontWeight: '800',
+  cursor: 'pointer'
 };
 
 export default function AdsMarket({ props }) {
@@ -62,7 +75,7 @@ export default function AdsMarket({ props }) {
     handlePlayGigaPub
   } = props;
 
-  const [category, setCategory] = useState('all'); // all | daily_partners | channels | websites | bots
+  const [category, setCategory] = useState('all');
   const [promoCode, setPromoCode] = useState('');
   const [redeemingPromo, setRedeemingPromo] = useState(false);
 
@@ -87,11 +100,9 @@ export default function AdsMarket({ props }) {
       ? websites
       : botsAndApps;
 
-  // Día real de racha desde userData (1 a 7)
   const rawStreak = Number(userData?.streak_day ?? userData?.streak_count ?? 1);
   const streakCount = Number.isFinite(rawStreak) && rawStreak >= 1 ? Math.min(7, Math.floor(rawStreak)) : 1;
 
-  // Recompensa real en $TGM: prioriza valor enviado por el servidor; si no, usa el día de racha actual
   const serverRewardTgm = Number(userData?.streak_reward_tgm ?? userData?.daily_reward_tgm);
   const streakRewardTgm =
     Number.isFinite(serverRewardTgm) && serverRewardTgm > 0
@@ -149,15 +160,15 @@ export default function AdsMarket({ props }) {
   const getTaskMeta = (task) => {
     const type = task.type;
     if (type === 'channel' || type === 'group' || type === 'publish_group' || type === 'daily_channel') {
-      return { label: 'Canal', iconKey: 'channel', color: '#E5E7EB' };
+      return { label: 'Canal', iconKey: 'channel' };
     }
     if (type === 'bot') {
-      return { label: 'Bot', iconKey: 'bot', color: '#E5E7EB' };
+      return { label: 'Bot', iconKey: 'bot' };
     }
     if (type === 'app' || type === 'miniapp' || type === 'game') {
-      return { label: 'Mini App', iconKey: 'game', color: '#E5E7EB' };
+      return { label: 'Mini App', iconKey: 'game' };
     }
-    return { label: 'Web', iconKey: 'web3', color: '#60A5FA' };
+    return { label: 'Web', iconKey: 'web3' };
   };
 
   const renderTaskCard = (task) => {
@@ -186,16 +197,16 @@ export default function AdsMarket({ props }) {
             style={{
               width: '40px',
               height: '40px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.10)',
+              borderRadius: '11px',
+              background: '#0E151C',
+              border: goldBorder,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0
             }}
           >
-            {iconRenderer(meta.color)}
+            {iconRenderer ? iconRenderer('#D4AF7A') : null}
           </div>
 
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -203,7 +214,7 @@ export default function AdsMarket({ props }) {
               style={{
                 fontSize: '14px',
                 fontWeight: '700',
-                color: '#F9FAFB',
+                color: '#F3F4F6',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis'
@@ -211,10 +222,10 @@ export default function AdsMarket({ props }) {
             >
               {task.title}
             </div>
-            <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '600', marginTop: '1px' }}>
+            <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '600', marginTop: '1px' }}>
               {meta.label}
             </div>
-            <div style={{ fontSize: '13px', fontWeight: '800', color: '#F3F4F6', marginTop: '3px' }}>
+            <div style={{ fontSize: '13px', fontWeight: '800', color: '#E2C290', marginTop: '3px' }}>
               +{rewardTgm} $TGM
             </div>
           </div>
@@ -222,12 +233,12 @@ export default function AdsMarket({ props }) {
 
         <div style={{ flexShrink: 0 }}>
           {isCreator ? (
-            <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '700' }}>Propia</span>
+            <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '700' }}>Propia</span>
           ) : isCompleted ? (
             <button
               type="button"
               disabled
-              style={{ ...subtleBtn, padding: '8px 16px', fontSize: '12px', opacity: 0.5, cursor: 'not-allowed' }}
+              style={{ ...darkActionBtn, padding: '8px 16px', fontSize: '12px', color: '#94A3B8', opacity: 0.5, cursor: 'not-allowed' }}
             >
               Listo
             </button>
@@ -236,12 +247,12 @@ export default function AdsMarket({ props }) {
               {task.validation_code && (
                 <input
                   style={{
-                    background: 'rgba(0,0,0,0.45)',
-                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: '#0E151C',
+                    border: goldBorder,
                     borderRadius: '8px',
                     padding: '4px 8px',
                     fontSize: '11px',
-                    color: '#F9FAFB',
+                    color: '#F3F4F6',
                     width: '96px'
                   }}
                   placeholder="Código"
@@ -252,7 +263,7 @@ export default function AdsMarket({ props }) {
               <button
                 type="button"
                 onClick={() => handleCheckTask(task)}
-                style={{ ...subtleBtn, padding: '8px 18px', fontSize: '13px', color: '#10B981' }}
+                style={{ ...champagneActionBtn, padding: '8px 18px', fontSize: '13px' }}
               >
                 Cobrar
               </button>
@@ -261,7 +272,7 @@ export default function AdsMarket({ props }) {
             <button
               type="button"
               disabled
-              style={{ ...subtleBtn, padding: '8px 14px', fontSize: '12px', color: '#9CA3AF', cursor: 'wait' }}
+              style={{ ...darkActionBtn, padding: '8px 14px', fontSize: '12px', color: '#94A3B8', cursor: 'wait' }}
             >
               ...
             </button>
@@ -269,7 +280,7 @@ export default function AdsMarket({ props }) {
             <button
               type="button"
               onClick={() => handleStartTask(task)}
-              style={{ ...subtleBtn, padding: '8px 22px', fontSize: '13px' }}
+              style={{ ...darkActionBtn, padding: '8px 22px', fontSize: '13px' }}
             >
               {t?.('ads_btn_go') || 'Ir'}
             </button>
@@ -303,7 +314,7 @@ export default function AdsMarket({ props }) {
             <img
               src={photoUrl}
               alt="Avatar"
-              style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.16)' }}
+              style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: goldBorder }}
             />
           ) : (
             <div
@@ -311,29 +322,32 @@ export default function AdsMarket({ props }) {
                 width: '34px',
                 height: '34px',
                 borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.16)',
+                background: slateCard,
+                border: goldBorder,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: '800',
-                fontSize: '13px'
+                fontSize: '13px',
+                color: '#E2C290'
               }}
             >
               {avatarLetter}
             </div>
           )}
-          <span style={{ fontSize: '15px', fontWeight: '700', color: '#F9FAFB' }}>{displayName}</span>
+          <span style={{ fontSize: '15px', fontWeight: '700', color: '#F3F4F6' }}>{displayName}</span>
         </div>
 
         <button
           type="button"
           onClick={handleToggleLang}
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#E5E7EB',
-            fontSize: '13px',
+            background: '#141D26',
+            border: goldBorder,
+            borderRadius: '10px',
+            padding: '5px 10px',
+            color: '#F3F4F6',
+            fontSize: '12px',
             fontWeight: '700',
             display: 'inline-flex',
             alignItems: 'center',
@@ -370,14 +384,14 @@ export default function AdsMarket({ props }) {
                     justifyContent: 'center',
                     fontSize: '13px',
                     fontWeight: '700',
-                    color: done ? '#E5E7EB' : isCurrent ? '#FFFFFF' : '#9CA3AF',
+                    color: done ? '#E2C290' : isCurrent ? '#F3F4F6' : '#94A3B8',
                     background: isCurrent && !gigaClaimed
-                      ? 'radial-gradient(circle, rgba(255, 214, 102, 0.28) 0%, rgba(18, 24, 34, 0.95) 75%)'
-                      : 'rgba(255, 255, 255, 0.03)',
+                      ? 'radial-gradient(circle, rgba(226, 194, 144, 0.24) 0%, #0E151C 78%)'
+                      : '#0E151C',
                     border: isCurrent && !gigaClaimed
-                      ? '1.5px solid rgba(253, 224, 71, 0.75)'
-                      : '1px solid rgba(255, 255, 255, 0.16)',
-                    boxShadow: isCurrent && !gigaClaimed ? '0 0 12px rgba(253, 224, 71, 0.35)' : 'none',
+                      ? '1.5px solid rgba(226, 194, 144, 0.75)'
+                      : goldBorder,
+                    boxShadow: isCurrent && !gigaClaimed ? '0 0 12px rgba(212, 175, 122, 0.28)' : 'none',
                     flexShrink: 0
                   }}
                 >
@@ -388,7 +402,7 @@ export default function AdsMarket({ props }) {
                     style={{
                       flex: 1,
                       height: '1px',
-                      background: 'rgba(255, 255, 255, 0.18)',
+                      background: 'rgba(212, 175, 122, 0.24)',
                       minWidth: '4px'
                     }}
                   />
@@ -403,11 +417,11 @@ export default function AdsMarket({ props }) {
           onClick={handlePlayGigaPub}
           disabled={loadingTasks || gigaClaimed || !gigaReady || playingAd}
           style={{
-            ...subtleBtn,
+            ...darkActionBtn,
             width: '100%',
             padding: '11px 14px',
             fontSize: '14px',
-            opacity: loadingTasks || gigaClaimed || !gigaReady || playingAd ? 0.65 : 1
+            opacity: loadingTasks || gigaClaimed || !gigaReady || playingAd ? 0.6 : 1
           }}
         >
           {gigaClaimed
@@ -427,8 +441,8 @@ export default function AdsMarket({ props }) {
           placeholder="Código promo..."
           style={{
             flex: 1,
-            background: 'rgba(13, 18, 27, 0.9)',
-            border: '1px solid rgba(255, 255, 255, 0.14)',
+            background: '#0E151C',
+            border: goldBorder,
             borderRadius: '12px',
             padding: '11px 14px',
             color: '#F3F4F6',
@@ -441,7 +455,7 @@ export default function AdsMarket({ props }) {
           onClick={handleRedeemPromo}
           disabled={redeemingPromo}
           style={{
-            ...subtleBtn,
+            ...champagneActionBtn,
             padding: '11px 22px',
             fontSize: '14px',
             whiteSpace: 'nowrap'
@@ -464,7 +478,7 @@ export default function AdsMarket({ props }) {
         <button
           type="button"
           onClick={() => setView('activity')}
-          style={{ ...subtleBtn, padding: '10px 8px', fontSize: '13px' }}
+          style={{ ...darkActionBtn, padding: '10px 8px', fontSize: '13px' }}
         >
           {t?.('ads_tab_my_ads') || 'Mis Campañas'}
         </button>
@@ -473,7 +487,7 @@ export default function AdsMarket({ props }) {
           type="button"
           onClick={() => setView('wizard')}
           style={{
-            ...subtleBtn,
+            ...darkActionBtn,
             padding: '10px 8px',
             fontSize: '13px',
             display: 'inline-flex',
@@ -502,14 +516,9 @@ export default function AdsMarket({ props }) {
                 fontSize: '12px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                color: active ? '#FFFFFF' : '#D1D5DB',
-                background: active
-                  ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 100%)'
-                  : 'rgba(13, 18, 27, 0.85)',
-                border: active
-                  ? '1px solid rgba(255, 255, 255, 0.35)'
-                  : '1px solid rgba(255, 255, 255, 0.12)',
-                boxShadow: active ? '0 0 12px rgba(255, 255, 255, 0.12)' : 'none'
+                color: active ? '#0E151C' : '#94A3B8',
+                background: active ? champagneGrad : '#0E151C',
+                border: active ? '1px solid rgba(226, 194, 144, 0.65)' : goldBorder
               }}
             >
               {opt.label}
@@ -520,11 +529,11 @@ export default function AdsMarket({ props }) {
 
       {/* Lista de misiones */}
       {loadingTasks ? (
-        <div style={{ ...cardPanel, textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '24px' }}>
+        <div style={{ ...cardPanel, textAlign: 'center', color: '#94A3B8', fontSize: '13px', padding: '24px' }}>
           {t?.('ads_btn_loading') || 'Sincronizando...'}
         </div>
       ) : filteredTasks.length === 0 ? (
-        <div style={{ ...cardPanel, textAlign: 'center', color: '#9CA3AF', fontSize: '13px', padding: '24px' }}>
+        <div style={{ ...cardPanel, textAlign: 'center', color: '#94A3B8', fontSize: '13px', padding: '24px' }}>
           {t?.('ads_empty_category') || 'No hay misiones disponibles en este filtro.'}
         </div>
       ) : (
