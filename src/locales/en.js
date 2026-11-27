@@ -1,5 +1,13 @@
 export const en = {
   // ==========================================
+  // SPLASH & ACCESS (App.jsx / ChannelJoin)
+  // ==========================================
+  splash_subtitle: "TASKS AND CAMPAIGNS NETWORK",
+  loading: "Loading...",
+  access_denied: "Access Denied. Only through Telegram.",
+  access_interrupted: "Connection Failed",
+
+  // ==========================================
   // BOTTOM NAVIGATION (BottomNav)
   // ==========================================
   nav_home: "HOME",
@@ -48,6 +56,7 @@ export const en = {
   ads_edit_title: "CONFIGURE CAMPAIGN",
   ads_label_title: "PUBLIC TITLE",
   ads_label_url: "DESTINATION LINK",
+  ads_btn_go: "Go",
   ads_btn_verifying: "VERIFYING...",
   ads_paused: "PAUSED",
   ads_completed: "COMPLETED",
@@ -58,8 +67,17 @@ export const en = {
   ads_cat_pagadas: "PAID",
   ads_cat_diarias: "DAILY",
   ads_cat_partners: "PARTNERS",
+  ads_filter_all: "All",
+  ads_filter_daily_partners: "Daily & Partners",
+  ads_filter_channels: "Channels & Groups",
+  ads_filter_websites: "Websites",
+  ads_filter_bots: "Bots & Mini Apps",
+  ads_promo_placeholder: "Promo code...",
+  ads_promo_redeem: "Redeem",
   ads_explore: "EXPLORE",
+  ads_daily_reward_title: "Daily Reward",
   ads_daily_streak: "Daily Streak (Day {day})",
+  ads_daily_claim_btn: "Claim Daily Streak (+{amount} $TGM)",
   ads_daily_sponsor: "Sponsored by GigaPub",
   ads_daily_come_back: "COME BACK TOMORROW",
   ads_btn_loading: "Synchronizing...",
@@ -161,6 +179,7 @@ export const en = {
   ref_title: "AFFILIATE NETWORK",
   ref_status_active: "ACTIVE",
   ref_status_pending: "PENDING",
+  ref_status_blocked: "BLOCKED",
   ref_btn_invite: "INVITE",
   ref_btn_copy: "COPY LINK",
 
@@ -179,7 +198,9 @@ export const en = {
   // ==========================================
   lb_title: "Leaderboard",
   lb_tab_tourney: "TOURNAMENT",
+  lb_tab_hall_of_fame: "HALL OF FAME",
   lb_tab_ref: "GLOBAL NETWORK",
+  lb_tab_hunters: "ELITE HUNTERS",
   lb_lifetime_ref: "Lifetime Top (Network Commissions)",
   lb_tourney_ends: "Ends in:",
   lb_tourney_default_title: "Active Tournament",
