@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import WebApp from '@twa-dev/sdk';
 import ProfileHeader from './ProfileHeader';
 
+const goldBorder = '1px solid rgba(212, 175, 122, 0.35)';
+const slateCard = 'linear-gradient(145deg, #141D26 0%, #1B2632 100%)';
+
 const formatCompact = (num) => {
   const n = Number(num || 0);
   if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -17,25 +20,26 @@ const formatCompactUsd = (num) => {
 };
 
 const cardStyle = {
-  background: 'linear-gradient(180deg, rgba(22, 29, 41, 0.92) 0%, rgba(11, 15, 22, 0.96) 100%)',
-  border: '1px solid rgba(255, 255, 255, 0.14)',
+  background: slateCard,
+  border: goldBorder,
   borderRadius: '18px',
   padding: '18px',
   marginBottom: '14px',
-  boxShadow: '0 10px 26px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.10)'
+  boxShadow: '0 8px 24px rgba(11, 17, 23, 0.45), inset 0 1px 0 rgba(226, 194, 144, 0.14)'
 };
 
 const darkBtnStyle = {
   width: '100%',
   padding: '11px 16px',
-  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%)',
-  border: '1px solid rgba(255, 255, 255, 0.18)',
-  borderRadius: '10px',
+  background: '#0E151C',
+  border: goldBorder,
+  borderRadius: '11px',
   color: '#F3F4F6',
   fontSize: '14px',
-  fontWeight: '600',
+  fontWeight: '700',
   cursor: 'pointer',
-  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)'
+  boxShadow: 'inset 0 1px 0 rgba(226, 194, 144, 0.12)',
+  transition: 'all 0.2s ease'
 };
 
 export default function HomeTab({ userData, setUserData, setActiveTab, t, lang, setLang }) {
@@ -108,37 +112,37 @@ export default function HomeTab({ userData, setUserData, setActiveTab, t, lang, 
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 18px' }}>
           <div>
-            <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '2px' }}>
+            <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '2px' }}>
               {t?.('home_stat_users') || 'Usuarios:'}
             </div>
-            <div style={{ fontSize: '21px', fontWeight: '800', color: '#FFFFFF' }}>
+            <div style={{ fontSize: '21px', fontWeight: '800', color: '#F3F4F6' }}>
               {formatCompact(globalStats.users)}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '2px' }}>
+            <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '2px' }}>
               {t?.('home_stat_withdrawn') || 'Retirado:'}
             </div>
-            <div style={{ fontSize: '21px', fontWeight: '800', color: '#FFFFFF' }}>
+            <div style={{ fontSize: '21px', fontWeight: '800', color: '#F3F4F6' }}>
               {formatCompact(globalStats.withdrawn)}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '2px' }}>
+            <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '2px' }}>
               {t?.('home_stat_vault') || 'Fondos Bóveda:'}
             </div>
-            <div style={{ fontSize: '21px', fontWeight: '800', color: '#FFFFFF' }}>
+            <div style={{ fontSize: '21px', fontWeight: '800', color: '#F3F4F6' }}>
               {formatCompactUsd(globalStats.deposited)}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '2px' }}>
+            <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '2px' }}>
               {t?.('home_stat_days') || 'Días en Línea:'}
             </div>
-            <div style={{ fontSize: '21px', fontWeight: '800', color: '#FFFFFF' }}>
+            <div style={{ fontSize: '21px', fontWeight: '800', color: '#F3F4F6' }}>
               {globalStats.daysOnline}
             </div>
           </div>
@@ -151,14 +155,17 @@ export default function HomeTab({ userData, setUserData, setActiveTab, t, lang, 
       </h3>
 
       <div style={cardStyle}>
-        <div style={{ fontSize: '13px', color: '#D1D5DB', fontWeight: '600', marginBottom: '4px' }}>
+        <div style={{ fontSize: '13px', color: '#94A3B8', fontWeight: '600', marginBottom: '4px' }}>
           {t?.('home_vault_usd_label') || 'USD (Fondos para Campañas)'}
         </div>
-        <div style={{ fontSize: '26px', fontWeight: '800', color: '#FFFFFF', marginBottom: '4px' }}>
+        <div style={{ fontSize: '26px', fontWeight: '800', color: '#F3F4F6', marginBottom: '4px' }}>
           {vaultUsd.toFixed(2)} USD
         </div>
-        <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '14px' }}>
-          Equivale a {creditsEquiv.toFixed(2)} CRÉDITOS
+        <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '14px' }}>
+          {(t?.('home_credits_equiv') || 'Equivale a {credits} CRÉDITOS').replace(
+            '{credits}',
+            creditsEquiv.toFixed(2)
+          )}
         </div>
         <button type="button" onClick={() => handleWalletAction('deposit')} style={darkBtnStyle}>
           {t?.('home_btn_deposit') || 'Depositar'}
@@ -166,13 +173,13 @@ export default function HomeTab({ userData, setUserData, setActiveTab, t, lang, 
       </div>
 
       <div style={cardStyle}>
-        <div style={{ fontSize: '13px', color: '#D1D5DB', fontWeight: '600', marginBottom: '4px' }}>
+        <div style={{ fontSize: '13px', color: '#94A3B8', fontWeight: '600', marginBottom: '4px' }}>
           {t?.('home_withdrawable_label') || 'Saldo Retirable ($TGM)'}
         </div>
-        <div style={{ fontSize: '26px', fontWeight: '800', color: '#FFFFFF', marginBottom: '4px' }}>
+        <div style={{ fontSize: '26px', fontWeight: '800', color: '#E2C290', marginBottom: '4px' }}>
           {tgmBalance.toLocaleString('en-US')} $TGM
         </div>
-        <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '14px' }}>
+        <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '14px' }}>
           {t?.('home_rate_info') || '1000 $TGM = 1 USD'}
         </div>
         <button type="button" onClick={() => handleWalletAction('withdraw')} style={darkBtnStyle}>
