@@ -1,5 +1,13 @@
 export const es = {
   // ==========================================
+  // PANTALLA DE CARGA Y ACCESO (App.jsx / ChannelJoin)
+  // ==========================================
+  splash_subtitle: "RED DE TAREAS Y CAMPAÑAS",
+  loading: "Cargando...",
+  access_denied: "Acceso Denegado. Solo a través de Telegram.",
+  access_interrupted: "Conexión Fallida",
+
+  // ==========================================
   // NAVEGACIÓN INFERIOR (BottomNav)
   // ==========================================
   nav_home: "INICIO",
@@ -48,6 +56,7 @@ export const es = {
   ads_edit_title: "CONFIGURAR CAMPAÑA",
   ads_label_title: "TÍTULO PÚBLICO",
   ads_label_url: "ENLACE / DESTINO",
+  ads_btn_go: "Ir",
   ads_btn_verifying: "VERIFICANDO...",
   ads_paused: "PAUSADA",
   ads_completed: "COMPLETADA",
@@ -58,8 +67,17 @@ export const es = {
   ads_cat_pagadas: "PAGADAS",
   ads_cat_diarias: "DIARIAS",
   ads_cat_partners: "PARTNERS",
+  ads_filter_all: "Todas",
+  ads_filter_daily_partners: "Diarias & Partners",
+  ads_filter_channels: "Canales & Grupos",
+  ads_filter_websites: "Sitios Web",
+  ads_filter_bots: "Bots & Mini Apps",
+  ads_promo_placeholder: "Código promo...",
+  ads_promo_redeem: "Canjear",
   ads_explore: "EXPLORAR",
+  ads_daily_reward_title: "Recompensa Diaria",
   ads_daily_streak: "Racha Diaria (Día {day})",
+  ads_daily_claim_btn: "Reclamar Racha Diaria (+{amount} $TGM)",
   ads_daily_sponsor: "Patrocinado por GigaPub",
   ads_daily_come_back: "VUELVE MAÑANA",
   ads_btn_loading: "Sincronizando...",
@@ -161,6 +179,7 @@ export const es = {
   ref_title: "RED DE AFILIADOS",
   ref_status_active: "ACTIVOS",
   ref_status_pending: "PENDIENTES",
+  ref_status_blocked: "BLOQUEADOS",
   ref_btn_invite: "INVITAR",
   ref_btn_copy: "COPIAR LINK",
 
@@ -179,7 +198,9 @@ export const es = {
   // ==========================================
   lb_title: "Clasificación",
   lb_tab_tourney: "TORNEO",
-  lb_tab_ref: "RED GLOBAL",
+  lb_tab_hall_of_fame: "SALÓN FAMA",
+  lb_tab_ref: "GLOBAL RED",
+  lb_tab_hunters: "CAZADORES",
   lb_lifetime_ref: "Top Histórico (Comisiones de Red)",
   lb_tourney_ends: "Finaliza en:",
   lb_tourney_default_title: "Torneo Activo",
